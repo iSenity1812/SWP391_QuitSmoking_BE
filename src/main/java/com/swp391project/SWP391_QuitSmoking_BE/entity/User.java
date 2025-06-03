@@ -31,7 +31,7 @@ public class User {
     @Size(min = 3, max = 50, message = "Tên người dùng phải có từ 3 đến 50 ký tự")
     @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Tên người dùng chỉ được chứa chữ cái, số và dấu gạch dưới")
     @Column(name = "Username", length = 50, unique = true, nullable = false)
-    private String userName;
+    private String username;
 
     @NotBlank(message = "Email không được để trống")
     @Email(message = "Email không hợp lệ")
