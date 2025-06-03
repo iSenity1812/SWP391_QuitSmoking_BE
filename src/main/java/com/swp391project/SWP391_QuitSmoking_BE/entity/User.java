@@ -46,7 +46,7 @@ public class User {
     @NotNull(message = "Thời gian tạo không được để trống")
     @PastOrPresent(message = "Thời gian tạo không thể ở tương lai") //LocalDateTime.now() luôn trả về thời gian hiện tại hoặc trong quá khứ
     @Column(name = "CreatedAt", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "Role", nullable = false)
