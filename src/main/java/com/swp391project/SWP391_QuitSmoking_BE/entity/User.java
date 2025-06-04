@@ -10,8 +10,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,7 +25,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "Users")
-public class User {
+public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "UserID", updatable = false, nullable = false, columnDefinition = "uuid")
@@ -31,7 +35,7 @@ public class User {
     @Size(min = 3, max = 50, message = "Tên người dùng phải có từ 3 đến 50 ký tự")
     @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Tên người dùng chỉ được chứa chữ cái, số và dấu gạch dưới")
     @Column(name = "Username", length = 50, unique = true, nullable = false)
-    private String userName;
+    private String username;
 
     @NotBlank(message = "Email không được để trống")
     @Email(message = "Email không hợp lệ")
@@ -68,4 +72,19 @@ public class User {
     @Column(name = "NotificationSetting", columnDefinition = "json")
     @NotNull(message = "Cài đặt thông báo không được để trống")
     private Map<String, Object> notificationSetting;
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of();
+    }
+
+    @Override
+    public String getPassword() {
+        return this.passwordHash;
+    }
+
+    @Override
+    public String getUsername() {
+        return this.email;
+    }
 }

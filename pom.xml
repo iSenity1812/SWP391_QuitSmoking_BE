@@ -85,6 +85,16 @@
 			<version>${lombok.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
+
+		<!-- https://mvnrepository.com/artifact/org.modelmapper/modelmapper -->
+		<dependency>
+			<groupId>org.modelmapper</groupId>
+			<artifactId>modelmapper</artifactId>
+			<version>3.2.3</version>
+		</dependency>
+
+
 		<!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
