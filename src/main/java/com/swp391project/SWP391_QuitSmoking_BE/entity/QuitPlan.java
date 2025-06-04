@@ -1,6 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
 import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import com.swp391project.SWP391_QuitSmoking_BE.validation.quitplan.ValidQuitPlanDates;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
@@ -35,9 +36,14 @@ public class QuitPlan {
     @NotNull(message = "Loại kế hoạch không được để trống")
     private PlanType planType;
 
+    @NotNull(message = "Loại kế hoạch giảm dần không được để trống")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ReductionType", length = 20, nullable = false)
+    private ReductionQuitPlanType reductionType = ReductionQuitPlanType.LINEAR;
+
     @NotNull(message = "Ngày tạo kế hoạch không được để trống")
     @PastOrPresent(message = "Ngày tạo kế hoạch không thể ở tương lai")
-    @Column(name = "CreatedAt", nullable = false, updatable = false)
+    @Column(name = "CreatedAt", nullable =  false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @NotNull(message = "Ngày bắt đầu kế hoạch không được để trống")

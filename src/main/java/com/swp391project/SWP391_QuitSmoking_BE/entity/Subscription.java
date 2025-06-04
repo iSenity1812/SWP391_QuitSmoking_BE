@@ -37,6 +37,7 @@ public class Subscription {
     private BigDecimal price;
 
     @NotNull(message = "Thời lượng gói đăng ký không được để trống")
+    @Min(value = 1, message = "Thời lượng phải lớn hơn hoặc bằng 1")
     @Column(name = "Duration", nullable = false)
     private Integer duration; //Chỉ lưu giá trị thời gian
 
@@ -45,7 +46,6 @@ public class Subscription {
     @Column(name = "DurationType", nullable = false)
     private DurationType durationType; //Lưu dạng thời lượng
 
-    @NotBlank(message = "Mô tả gói đăng ký không được để trống")
-    @Column(name = "Description", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "Description", columnDefinition = "TEXT")
     private String description;
 }

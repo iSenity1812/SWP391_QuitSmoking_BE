@@ -29,6 +29,7 @@ public class PlanType {
     private String planName;
 
     @NotNull(message = "Thời lượng kế hoạch không được để trống")
+    @Min(value = 1, message = "Thời lượng phải lớn hơn hoặc bằng 1")
     @Column(name = "Duration", nullable = false)
     private Integer duration;
 
