@@ -1,23 +1,23 @@
 package com.swp391project.SWP391_QuitSmoking_BE.validation;
+import com.swp391project.SWP391_QuitSmoking_BE.interfaces.IDurationAware;
 
-import com.swp391project.SWP391_QuitSmoking_BE.entity.Subscription;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.DurationType;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
-public class DurationTypeConstraintValidator implements ConstraintValidator<ValidDurationTypeConstraint, Subscription> {
+public class DurationTypeConstraintValidator implements ConstraintValidator<ValidDurationTypeConstraint, IDurationAware> {
     @Override
     public void initialize(ValidDurationTypeConstraint constraintAnnotation) {
     }
 
     @Override
-    public boolean isValid(Subscription subscription, ConstraintValidatorContext context) {
-        if (subscription == null) {
+    public boolean isValid(IDurationAware durationAware, ConstraintValidatorContext context) {
+        if (durationAware == null) {
             return true;
         }
 
-        Integer duration = subscription.getDuration();
-        DurationType durationType = subscription.getDurationType();
+        Integer duration = durationAware.getDuration();
+        DurationType durationType = durationAware.getDurationType();
 
         //check if fields are notnull before complex logic
         if (duration == null || durationType == null) {

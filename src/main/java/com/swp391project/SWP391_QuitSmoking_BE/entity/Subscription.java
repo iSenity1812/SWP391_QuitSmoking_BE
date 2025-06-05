@@ -1,6 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
 import com.swp391project.SWP391_QuitSmoking_BE.enums.DurationType;
+import com.swp391project.SWP391_QuitSmoking_BE.interfaces.IDurationAware;
 import com.swp391project.SWP391_QuitSmoking_BE.validation.ValidDurationTypeConstraint;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
@@ -18,7 +19,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @ValidDurationTypeConstraint //custom annotation kiểm tra giá trị giữa durationType và duration
-public class Subscription {
+public class Subscription implements IDurationAware {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY) //auto-increment
     @Column(name = "SubscriptionID", updatable = false, nullable = false)

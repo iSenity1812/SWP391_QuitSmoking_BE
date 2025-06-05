@@ -31,7 +31,4 @@ public enum Situation {
     WAKING_UP,
     WORK_BREAK,
     OTHER // Dùng để lưu các tình huống khác không có trong danh sách
-
-
-
 }

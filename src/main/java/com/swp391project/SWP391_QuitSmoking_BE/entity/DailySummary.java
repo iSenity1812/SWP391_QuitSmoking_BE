@@ -47,6 +47,7 @@ public class DailySummary {
     private LocalDate trackDate;
 
      @Enumerated(EnumType.STRING)
+     @Column(name = "Mood", length = 20)
      private Mood mood;
 
     @Column(name = "Note", columnDefinition = "TEXT")

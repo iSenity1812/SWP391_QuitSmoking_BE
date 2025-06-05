@@ -1,6 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
 import com.swp391project.SWP391_QuitSmoking_BE.enums.DurationType;
+import com.swp391project.SWP391_QuitSmoking_BE.interfaces.IDurationAware;
 import com.swp391project.SWP391_QuitSmoking_BE.validation.ValidDurationTypeConstraint;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
@@ -16,7 +17,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @ValidDurationTypeConstraint
-public class PlanType {
+public class PlanType implements IDurationAware {
     @Id
     @Column(name = "PlanTypeID", length = 50, updatable = false, nullable = false)
     @NotBlank(message = "ID loại kế hoạch không được để trống")

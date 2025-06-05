@@ -24,5 +24,4 @@ public enum Mood {
     EXCITED,
     WORRIED,
     OTHER // Dùng để lưu mood khác không có trong danh sách
-
 }

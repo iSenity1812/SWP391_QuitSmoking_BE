@@ -57,7 +57,7 @@ public class QuitPlan {
     private LocalDate goalDate;
 
     @Min(value = 0, message = "Số lượng thuốc ban đầu không thể là số âm")
-    @Max(value = 200, message = "Số lượng thuốc ban đầu không thể vượt quá 200")
+    @Max(value = 500, message = "Số lượng thuốc ban đầu không thể vượt quá 500")
     @Column(name = "InitialSmokingAmount", nullable = false)
     private int initialSmokingAmount;
 
