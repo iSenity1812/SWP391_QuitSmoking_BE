@@ -1,14 +1,12 @@
-package com.swp391project.SWP391_QuitSmoking_BE.services;
+package com.swp391project.SWP391_QuitSmoking_BE.service;
 
-import com.swp391project.SWP391_QuitSmoking_BE.config.ModelMapperConfig;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.AccountResponse;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.LoginRequest;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.RegisterRequest;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.response.AccountResponse;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.request.LoginRequest;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.request.RegisterRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.AuthenticationRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.util.JwtUtil;
-import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,7 +53,7 @@ public class AuthenticationService implements UserDetailsService {
         try {
             authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                    loginRequest.getIdentifier(), // Có thể là email hoặc username
+                    loginRequest.getEmail(), // Có thể là email hoặc username
                     loginRequest.getPassword()
                 )
             );
@@ -68,9 +66,12 @@ public class AuthenticationService implements UserDetailsService {
             throw new RuntimeException("Authentication failed: " + e.getMessage());
         }
 
-        User user = authenticationRepository.findByEmail(loginRequest.getIdentifier())
-                .orElseGet(() -> authenticationRepository.findByUsername(loginRequest.getIdentifier())
-                        .orElseThrow(() -> new UsernameNotFoundException("User not found after authentication.")));
+//        User user = authenticationRepository.findByEmail(loginRequest.getIdentifier())
+//                .orElseGet(() -> authenticationRepository.findByUsername(loginRequest.getIdentifier())
+//                        .orElseThrow(() -> new UsernameNotFoundException("User not found after authentication.")));
+
+        User user = authenticationRepository.findByEmail(loginRequest.getEmail())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + loginRequest.getEmail()));
 
         String jwtToken = jwtUtil.generateToken(user);
 
@@ -93,9 +94,9 @@ public class AuthenticationService implements UserDetailsService {
         }
 
         // 2. Kiem tra username
-        if (authenticationRepository.findByUsername(registerRequest.getUsername()).isPresent()) {
-            throw new RuntimeException("Username already exists");
-        }
+//        if (authenticationRepository.findByUsername(registerRequest.getUsername()).isPresent()) {
+//            throw new RuntimeException("Username already exists");
+//        }
 
         User newUser = new User();
         newUser.setUsername(registerRequest.getUsername());
@@ -116,16 +117,24 @@ public class AuthenticationService implements UserDetailsService {
         return accountResponse;
     }
 
+
+    // Phương thức loadUserByUsername sẽ được gọi bởi Spring Security
+    // trước khi xác thực mật khẩu. Vì vậy, chúng ta sẽ kiểm tra isActive ở đây.
     @Override
     public UserDetails loadUserByUsername(String identify) throws UsernameNotFoundException {
         // identifier có thể là email hoặc username
         // Tìm theo email trước
-        return authenticationRepository.findByEmail(identify)
-                .map(user -> (UserDetails) user) // Chuyển đổi User sang UserDetails
-                .orElseGet(() -> {
-                    // Nếu ko tìm thấy theo email, tìm theo username
-                    return authenticationRepository.findByUsername(identify)
-                            .orElseThrow(() -> new UsernameNotFoundException("User not found with identifier: " + identify));
-                });
+//        return authenticationRepository.findByEmail(identify)
+//                .map(user -> (UserDetails) user) // Chuyển đổi User sang UserDetails
+//                .orElseGet(() -> {
+//                    // Nếu ko tìm thấy theo email, tìm theo username
+//                    return authenticationRepository.findByUsername(identify)
+//                            .orElseThrow(() -> new UsernameNotFoundException("User not found with identifier: " + identify));
+//                });
+
+        User user = authenticationRepository.findByEmail(identify)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + identify));
+        if (!user.isActive()) throw new UsernameNotFoundException("This account with " + identify + " is locked");
+        return user;
     }
 }

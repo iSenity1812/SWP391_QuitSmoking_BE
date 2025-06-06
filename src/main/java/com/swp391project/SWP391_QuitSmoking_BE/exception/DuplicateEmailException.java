@@ -1,4 +1,4 @@
-package com.swp391project.SWP391_QuitSmoking_BE.exceptions;
+package com.swp391project.SWP391_QuitSmoking_BE.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
