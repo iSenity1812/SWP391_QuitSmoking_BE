@@ -16,7 +16,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -38,14 +37,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // You can add your custom logic here if needed
 
         // 1. Lấy token từ header Authorization
-        final String jwt = getToken(request);
+        final String jwt;
         final String userIdentifier;
+        final String authHeader = request.getHeader("Authorization");
 
-        if (jwt == null || !jwt.startsWith("Bearer ")) {
-            // Nếu không có token hoặc token không hợp lệ, cho phép request tiếp tục
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
+
+        jwt = authHeader.substring(7);
 
         // 2. Xử lý xác thưc JWT
         try {
@@ -58,13 +59,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 //3. Lấy thông tin người dùng từ UserDetailsService
                 // lấy dữ liệu người dùng mới nhất từ database
                 User userDetails = (User) userDetailsService.loadUserByUsername(userIdentifier);
-
+                System.out.println(("Loaded user details for: {}, Role: {}" + userDetails.getUsername() + userDetails.getRole()));
                 //4. Xác thực JWT với UserDetails đã tải
                 if (jwtUtil.validateToken(jwt, userDetails)) {
                     // Nếu token hợp lệ, thiết lập Authentication trong SecurityContext
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
 
                     // Thiết lập thêm các chi tiết về yêu cầu web (như IP, session ID) cho Authentication object.
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -101,9 +101,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    public String getToken(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) return authHeader.substring(7); // Trả về token sau "Bearer "
-        return null; // Trả về null nếu không có token
-    }
+//    public String getToken(HttpServletRequest request) {
+//        String authHeader = request.getHeader("Authorization");
+//        if (authHeader != null && authHeader.startsWith("Bearer ")) return authHeader.substring(7); // Trả về token sau "Bearer "
+//        return null; // Trả về null nếu không có token
+//    }
 }

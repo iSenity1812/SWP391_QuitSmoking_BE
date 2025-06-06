@@ -1,8 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.config;
 
-import com.swp391project.SWP391_QuitSmoking_BE.services.AuthenticationService;
 import com.swp391project.SWP391_QuitSmoking_BE.util.JwtUtil;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -25,7 +23,7 @@ import org.springframework.web.filter.CorsFilter;
 
 @Configuration
 @EnableWebSecurity // Bật EnableWebSecurity để kích hoạt bảo mật web
-@EnableMethodSecurity // Bật EnableMethodSecurity để kích hoạt bảo mật phương thức, cho phép sử dụng @PreAuthorize, @PostAuthorize, v.v.
+@EnableMethodSecurity(prePostEnabled = true) // Bật EnableMethodSecurity để kích hoạt bảo mật phương thức, cho phép sử dụng @PreAuthorize, @PostAuthorize, v.v.
 //@RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -86,23 +84,20 @@ public class SecurityConfig {
         return http
                 .csrf(AbstractHttpConfigurer::disable) // Tắt CSRF protection, có thể cần tùy theo ứng dụng
                 // Nên bật CSRF protection nếu ứng dụng, Với JWT, Stateless session thì có thể tắt CSRF
-                .cors(corsConfigurer -> corsConfigurer.configurationSource(request -> { // Cấu hình CORS
-                    CorsConfiguration corsConfiguration = new CorsConfiguration().applyPermitDefaultValues();
-                    corsConfiguration.addAllowedOrigin("http://localhost:5173"); // Thay đổi URL này nếu cần
-                    corsConfiguration.addAllowedHeader("*");
-                    corsConfiguration.addAllowedMethod("*");
-                    corsConfiguration.setAllowCredentials(true);
-                    return corsConfiguration;
-                }))
                 .authorizeHttpRequests( // Cấu hình phân quyền truy cập
                     req -> req
-                            // -- Public endpoints - không cần xác thực
-                        .requestMatchers("/api/auth/**").permitAll() // Cho phép truy cập không cần xác thực cho các endpoint auth
-                        .requestMatchers("/", "/home", "/blogs", "/about", "/contact", "/programs").permitAll() // Cho phép truy cập không cần xác thực cho các trang chủ và blog
-                        .requestMatchers("/api/programs", "/api/blogs").permitAll()
+//                            // -- Public endpoints - không cần xác thực
+//                        .requestMatchers("/api/auth/**").permitAll() // Cho phép truy cập không cần xác thực cho các endpoint auth
+//                        .requestMatchers("/", "/home", "/blogs", "/about", "/contact", "/programs").permitAll() // Cho phép truy cập không cần xác thực cho các trang chủ và blog
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger UI
-                        .anyRequest()
-                        .authenticated()
+//
+//                            .requestMatchers(HttpMethod.POST, "/api/users").hasRole("SUPER_ADMIN")
+//                            .requestMatchers(HttpMethod.GET, "/api/users").hasRole("SUPER_ADMIN")
+//                            .requestMatchers(HttpMethod.DELETE, "/api/users/{userId}").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/auth/**").permitAll() // Cho phép truy cập không cần xác thực cho tất cả các endpoint
+//                        .requestMatchers(HttpMethod.GET, "/api/admin/**").hasAnyRole("CONTENT_ADMIN", "SUPER_ADMIN") // Chỉ cho phép người dùng đã xác thực truy cập
+                        .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
+                        .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider()) // Sử dụng DaoAuthenticationProvider để xác thực người dùng
