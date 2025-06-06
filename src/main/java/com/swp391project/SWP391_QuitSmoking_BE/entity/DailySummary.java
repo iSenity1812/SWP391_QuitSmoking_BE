@@ -19,8 +19,8 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @ValidDailySummaryDates
-@Table(uniqueConstraints = { //Ràng buộc duy nhất trên cặp cột
-        @UniqueConstraint(columnNames = {"QuitPlanID", "TrackDate"})
+@Table(uniqueConstraints = { // Ràng buộc duy nhất trên cặp cột
+        @UniqueConstraint(columnNames = { "QuitPlanID", "TrackDate" })
 })
 public class DailySummary {
     @Id
@@ -46,9 +46,9 @@ public class DailySummary {
     @Column(name = "TrackDate", nullable = false)
     private LocalDate trackDate;
 
-     @Enumerated(EnumType.STRING)
-     @Column(name = "Mood", length = 20)
-     private Mood mood;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "Mood", length = 20)
+    private Mood mood;
 
     @Column(name = "Note", columnDefinition = "TEXT")
     private String note;
@@ -62,4 +62,76 @@ public class DailySummary {
     @NotNull(message = "Trạng thái hoàn thành kế hoạch không được để trống")
     @Column(name = "IsPlanCompleted", nullable = false)
     private boolean isPlanCompleted = false;
+
+    public Integer getDailySummaryId() {
+        return dailySummaryId;
+    }
+
+    public QuitPlan getQuitPlan() {
+        return quitPlan;
+    }
+
+    public int getSmokedCount() {
+        return smokedCount;
+    }
+
+    public int getCravingsCount() {
+        return cravingsCount;
+    }
+
+    public java.time.LocalDate getTrackDate() {
+        return trackDate;
+    }
+
+    public com.swp391project.SWP391_QuitSmoking_BE.enums.Mood getMood() {
+        return mood;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public java.math.BigDecimal getMoneySaved() {
+        return moneySaved;
+    }
+
+    public boolean isPlanCompleted() {
+        return isPlanCompleted;
+    }
+
+    public void setDailySummaryId(Integer dailySummaryId) {
+        this.dailySummaryId = dailySummaryId;
+    }
+
+    public void setQuitPlan(QuitPlan quitPlan) {
+        this.quitPlan = quitPlan;
+    }
+
+    public void setSmokedCount(int smokedCount) {
+        this.smokedCount = smokedCount;
+    }
+
+    public void setCravingsCount(int cravingsCount) {
+        this.cravingsCount = cravingsCount;
+    }
+
+    public void setTrackDate(java.time.LocalDate trackDate) {
+        this.trackDate = trackDate;
+    }
+
+    public void setMood(com.swp391project.SWP391_QuitSmoking_BE.enums.Mood mood) {
+        this.mood = mood;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+
+    public void setMoneySaved(java.math.BigDecimal moneySaved) {
+        this.moneySaved = moneySaved;
+    }
+
+    public void setPlanCompleted(boolean planCompleted) {
+        isPlanCompleted = planCompleted;
+    }
 }

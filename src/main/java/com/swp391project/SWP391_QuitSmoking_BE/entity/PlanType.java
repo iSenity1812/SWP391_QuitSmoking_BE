@@ -41,4 +41,44 @@ public class PlanType implements IDurationAware {
 
     @Column(name = "Description", columnDefinition = "TEXT")
     private String description;
+
+    public Integer getDuration() {
+        return duration;
+    }
+
+    public DurationType getDurationType() {
+        return durationType;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public String getPlanName() {
+        return planName;
+    }
+
+    public String getPlanTypeID() {
+        return planTypeID;
+    }
+
+    public void setPlanTypeID(String planTypeID) {
+        this.planTypeID = planTypeID;
+    }
+
+    public void setPlanName(String planName) {
+        this.planName = planName;
+    }
+
+    public void setDuration(Integer duration) {
+        this.duration = duration;
+    }
+
+    public void setDurationType(com.swp391project.SWP391_QuitSmoking_BE.enums.DurationType durationType) {
+        this.durationType = durationType;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
 }

@@ -24,4 +24,16 @@ public class Role {
     @Size(max = 50, message = "Role name must not exceed 50 characters")
     @Column(name = "RoleName", length = 50, unique = true, nullable = false)
     private String roleName;
+
+    public String getRoleName() {
+        return roleName;
+    }
+
+    public void setRoleId(Integer roleId) {
+        this.roleId = roleId;
+    }
+
+    public void setRoleName(String roleName) {
+        this.roleName = roleName;
+    }
 }

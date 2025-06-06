@@ -51,4 +51,56 @@ public class Member {
     @Min(value = 0, message = "Streak không thể là số âm")
     @Column(name = "Streak", nullable = false)
     private int streak = 0;
+
+    public User getUser() {
+        return user;
+    }
+
+    public Subscription getSubscription() {
+        return subscription;
+    }
+
+    public java.time.LocalDateTime getStartDate() {
+        return startDate;
+    }
+
+    public java.time.LocalDateTime getEndDate() {
+        return endDate;
+    }
+
+    public boolean isSubscriptionStatus() {
+        return subscriptionStatus;
+    }
+
+    public int getStreak() {
+        return streak;
+    }
+
+    public void setMemberId(java.util.UUID memberId) {
+        this.memberId = memberId;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public void setSubscription(Subscription subscription) {
+        this.subscription = subscription;
+    }
+
+    public void setStartDate(java.time.LocalDateTime startDate) {
+        this.startDate = startDate;
+    }
+
+    public void setEndDate(java.time.LocalDateTime endDate) {
+        this.endDate = endDate;
+    }
+
+    public void setSubscriptionStatus(boolean subscriptionStatus) {
+        this.subscriptionStatus = subscriptionStatus;
+    }
+
+    public void setStreak(int streak) {
+        this.streak = streak;
+    }
 }

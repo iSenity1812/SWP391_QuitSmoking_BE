@@ -15,7 +15,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class TransactionMethod {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) //auto-increment
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // auto-increment
     @Column(name = "TransactionMethodID", updatable = false, nullable = false)
     private Integer transactionMethodId;
 
@@ -30,4 +30,32 @@ public class TransactionMethod {
 
     @Column(name = "Description", columnDefinition = "TEXT")
     private String description;
+
+    public String getMethodName() {
+        return methodName;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setTransactionMethodId(Integer transactionMethodId) {
+        this.transactionMethodId = transactionMethodId;
+    }
+
+    public void setMethodName(String methodName) {
+        this.methodName = methodName;
+    }
+
+    public void setActive(boolean active) {
+        isActive = active;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
 }

@@ -43,7 +43,7 @@ public class QuitPlan {
 
     @NotNull(message = "Ngày tạo kế hoạch không được để trống")
     @PastOrPresent(message = "Ngày tạo kế hoạch không thể ở tương lai")
-    @Column(name = "CreatedAt", nullable =  false, updatable = false)
+    @Column(name = "CreatedAt", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @NotNull(message = "Ngày bắt đầu kế hoạch không được để trống")
@@ -61,8 +61,76 @@ public class QuitPlan {
     @Column(name = "InitialSmokingAmount", nullable = false)
     private int initialSmokingAmount;
 
-     @NotNull(message = "Trạng thái kế hoạch không được để trống")
-     @Enumerated(EnumType.STRING)
-     @Column(name = "Status", length = 20, nullable = false)
-     private QuitPlanStatus status = QuitPlanStatus.IN_PROGRESS;
+    @NotNull(message = "Trạng thái kế hoạch không được để trống")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "Status", length = 20, nullable = false)
+    private QuitPlanStatus status = QuitPlanStatus.IN_PROGRESS;
+
+    public Member getMember() {
+        return member;
+    }
+
+    public PlanType getPlanType() {
+        return planType;
+    }
+
+    public ReductionQuitPlanType getReductionType() {
+        return reductionType;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getStartDate() {
+        return startDate;
+    }
+
+    public LocalDate getGoalDate() {
+        return goalDate;
+    }
+
+    public int getInitialSmokingAmount() {
+        return initialSmokingAmount;
+    }
+
+    public QuitPlanStatus getStatus() {
+        return status;
+    }
+
+    public void setQuitPlanId(Integer quitPlanId) {
+        this.quitPlanId = quitPlanId;
+    }
+
+    public void setMember(Member member) {
+        this.member = member;
+    }
+
+    public void setPlanType(PlanType planType) {
+        this.planType = planType;
+    }
+
+    public void setReductionType(ReductionQuitPlanType reductionType) {
+        this.reductionType = reductionType;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setStartDate(LocalDateTime startDate) {
+        this.startDate = startDate;
+    }
+
+    public void setGoalDate(LocalDate goalDate) {
+        this.goalDate = goalDate;
+    }
+
+    public void setInitialSmokingAmount(int initialSmokingAmount) {
+        this.initialSmokingAmount = initialSmokingAmount;
+    }
+
+    public void setStatus(QuitPlanStatus status) {
+        this.status = status;
+    }
 }

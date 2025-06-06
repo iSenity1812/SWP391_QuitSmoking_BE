@@ -19,11 +19,11 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @ValidCravingTrackingData
-//Mỗi TrackTime phải duy nhất cho mỗi DailySummary
-//Mỗi giờ chỉ có duy nhất 1 record có thể lưu
- @Table(name = "CravingTrackings", uniqueConstraints = {
-     @UniqueConstraint(columnNames = {"DailySummaryID", "TrackTime"})
- })
+// Mỗi TrackTime phải duy nhất cho mỗi DailySummary
+// Mỗi giờ chỉ có duy nhất 1 record có thể lưu
+@Table(name = "CravingTrackings", uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "DailySummaryID", "TrackTime" })
+})
 public class CravingTracking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,4 +55,60 @@ public class CravingTracking {
     @Enumerated(EnumType.STRING)
     @Column(name = "WithWhom", length = 50)
     private WithWhom withWhom;
+
+    public Integer getCravingTrackingId() {
+        return cravingTrackingId;
+    }
+
+    public DailySummary getDailySummary() {
+        return dailySummary;
+    }
+
+    public java.time.LocalDateTime getTrackTime() {
+        return trackTime;
+    }
+
+    public Integer getSmokedCount() {
+        return smokedCount;
+    }
+
+    public Integer getCravingsCount() {
+        return cravingsCount;
+    }
+
+    public com.swp391project.SWP391_QuitSmoking_BE.enums.Situation getSituation() {
+        return situation;
+    }
+
+    public com.swp391project.SWP391_QuitSmoking_BE.enums.WithWhom getWithWhom() {
+        return withWhom;
+    }
+
+    public void setCravingTrackingId(Integer cravingTrackingId) {
+        this.cravingTrackingId = cravingTrackingId;
+    }
+
+    public void setDailySummary(DailySummary dailySummary) {
+        this.dailySummary = dailySummary;
+    }
+
+    public void setTrackTime(java.time.LocalDateTime trackTime) {
+        this.trackTime = trackTime;
+    }
+
+    public void setSmokedCount(Integer smokedCount) {
+        this.smokedCount = smokedCount;
+    }
+
+    public void setCravingsCount(Integer cravingsCount) {
+        this.cravingsCount = cravingsCount;
+    }
+
+    public void setSituation(com.swp391project.SWP391_QuitSmoking_BE.enums.Situation situation) {
+        this.situation = situation;
+    }
+
+    public void setWithWhom(com.swp391project.SWP391_QuitSmoking_BE.enums.WithWhom withWhom) {
+        this.withWhom = withWhom;
+    }
 }

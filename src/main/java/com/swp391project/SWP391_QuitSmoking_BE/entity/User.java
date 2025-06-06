@@ -67,4 +67,68 @@ public class User {
     @Column(name = "NotificationSetting", columnDefinition = "json")
     @NotNull(message = "Cài đặt thông báo không được để trống")
     private Map<String, Object> notificationSetting;
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public String getProfilePicture() {
+        return profilePicture;
+    }
+
+    public java.util.Map<String, Object> getNotificationSetting() {
+        return notificationSetting;
+    }
+
+    public void setUserId(java.util.UUID userId) {
+        this.userId = userId;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public void setCreatedAt(java.time.LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
+    public void setActive(boolean active) {
+        isActive = active;
+    }
+
+    public void setProfilePicture(String profilePicture) {
+        this.profilePicture = profilePicture;
+    }
+
+    public void setNotificationSetting(java.util.Map<String, Object> notificationSetting) {
+        this.notificationSetting = notificationSetting;
+    }
 }
