@@ -21,8 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthenticationController {
-    @Autowired
-    private AuthenticationService authenticationService;
+    private final AuthenticationService authenticationService;
 
     private final LogoutService logoutService;
 
@@ -43,7 +42,7 @@ public class AuthenticationController {
     @SecurityRequirement(name = "user_api")
     public ResponseEntity<ApiResponse<String>> logout(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
-        System.out.println("📋 Authorization header: " + authHeader);
+        System.out.println("Authorization header: " + authHeader);
         logoutService.blacklistToken(authHeader);
         return ResponseEntity.ok(ApiResponse.success(null, "You have been logged out successfully."));
     }
