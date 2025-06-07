@@ -1,5 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.config;
 
+import com.swp391project.SWP391_QuitSmoking_BE.repository.TokenBlacklistRepository;
+import com.swp391project.SWP391_QuitSmoking_BE.service.TokenCleanupService;
 import com.swp391project.SWP391_QuitSmoking_BE.util.JwtUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,16 +35,19 @@ public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
-    public SecurityConfig(@Lazy UserDetailsService userDetailsService, JwtUtil jwtUtil) {
+    private final TokenBlacklistRepository tokenBlacklistRepository;
+
+    public SecurityConfig(@Lazy UserDetailsService userDetailsService, JwtUtil jwtUtil, TokenBlacklistRepository tokenBlacklistRepository) {
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
+        this.tokenBlacklistRepository = tokenBlacklistRepository;
     }
 
     // Bean mới cho JwtAuthenticationFilter
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         // Spring sẽ inject jwtUtil và userDetailsService vào constructor của JwtAuthenticationFilter
-        return new JwtAuthenticationFilter(jwtUtil, userDetailsService);
+        return new JwtAuthenticationFilter(jwtUtil, userDetailsService, tokenBlacklistRepository);
     }
 
     // Bean để mã hóa mật khẩu
@@ -94,8 +99,9 @@ public class SecurityConfig {
 //                            .requestMatchers(HttpMethod.POST, "/api/users").hasRole("SUPER_ADMIN")
 //                            .requestMatchers(HttpMethod.GET, "/api/users").hasRole("SUPER_ADMIN")
 //                            .requestMatchers(HttpMethod.DELETE, "/api/users/{userId}").hasRole("SUPER_ADMIN")
-                        .requestMatchers("/api/auth/**").permitAll() // Cho phép truy cập không cần xác thực cho tất cả các endpoint
+                        .requestMatchers("/api/auth/login", "/api/auth/register").permitAll() // Cho phép truy cập không cần xác thực cho tất cả các endpoint
 //                        .requestMatchers(HttpMethod.GET, "/api/admin/**").hasAnyRole("CONTENT_ADMIN", "SUPER_ADMIN") // Chỉ cho phép người dùng đã xác thực truy cập
+                        .requestMatchers("/api/auth/logout").authenticated()
                         .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
                         .anyRequest().authenticated()
                 )

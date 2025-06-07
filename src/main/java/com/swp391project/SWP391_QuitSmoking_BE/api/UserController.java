@@ -100,6 +100,16 @@ public class UserController {
                 .body(ApiResponse.success(updatedUser, message));
     }
 
+    // DELETE USER
+    @DeleteMapping("/superadmin/users/{userId}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable UUID userId) {
+        userService.deleteUser(userId);
+        return ResponseEntity
+                .status(HttpStatus.NO_CONTENT) // HTTP 204 No Content là chuẩn khi xóa thành công
+                .body(ApiResponse.success(null, "Người dùng đã được xóa thành công."));
+    }
+
     // --- ENDPOINTS CỦA NGƯỜI DÙNG HIỆN TẠI (PROFILE CỦA CHÍNH HỌ) ---
 
     // Lấy thông tin hồ sơ của người dùng hiện tại
@@ -140,4 +150,6 @@ public class UserController {
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success(updatedProfile, "Cập nhật tên người dùng thành công."));
     }
+
+
 }

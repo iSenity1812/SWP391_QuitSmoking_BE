@@ -1,5 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
+import com.swp391project.SWP391_QuitSmoking_BE.dto.email.EmailDetail;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.response.AccountResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.LoginRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.RegisterRequest;
@@ -31,6 +32,10 @@ public class AuthenticationService implements UserDetailsService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final ModelMapper modelMapper;
+
+
+    @Autowired
+    private EmailService emailService;
 
     @Autowired
     public AuthenticationService(
@@ -66,10 +71,6 @@ public class AuthenticationService implements UserDetailsService {
             throw new RuntimeException("Authentication failed: " + e.getMessage());
         }
 
-//        User user = authenticationRepository.findByEmail(loginRequest.getIdentifier())
-//                .orElseGet(() -> authenticationRepository.findByUsername(loginRequest.getIdentifier())
-//                        .orElseThrow(() -> new UsernameNotFoundException("User not found after authentication.")));
-
         User user = authenticationRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + loginRequest.getEmail()));
 
@@ -93,11 +94,6 @@ public class AuthenticationService implements UserDetailsService {
             throw new RuntimeException("Email already exists");
         }
 
-        // 2. Kiem tra username
-//        if (authenticationRepository.findByUsername(registerRequest.getUsername()).isPresent()) {
-//            throw new RuntimeException("Username already exists");
-//        }
-
         User newUser = new User();
         newUser.setUsername(registerRequest.getUsername());
         newUser.setEmail(registerRequest.getEmail());
@@ -111,6 +107,14 @@ public class AuthenticationService implements UserDetailsService {
         User savedUser = authenticationRepository.save(newUser);
         String jwtToken = jwtUtil.generateToken(savedUser);
 
+        // Gửi mail chào mừng khi register  thành công
+        String subject = "Chào mừng bạn đã đến với ứng dụng QuitTogether!";
+        String body = "Xin chào " + savedUser.getUsername() + ",\n\n" +
+                "Cảm ơn bạn đã đăng ký tài khoản. Chúc bạn có những trải nghiệm tuyệt vời!";
+        String recipient = savedUser.getEmail();
+        EmailDetail emailDetail = new EmailDetail(recipient, subject, body);
+        emailService.sendEmail(emailDetail);
+        System.out.println("Send email thành công");
         // Chuyển đổi User sang AccountResponse để trả về
         AccountResponse accountResponse = modelMapper.map(savedUser, AccountResponse.class);
         accountResponse.setToken(jwtToken); // Gán token vào DTO
@@ -122,16 +126,7 @@ public class AuthenticationService implements UserDetailsService {
     // trước khi xác thực mật khẩu. Vì vậy, chúng ta sẽ kiểm tra isActive ở đây.
     @Override
     public UserDetails loadUserByUsername(String identify) throws UsernameNotFoundException {
-        // identifier có thể là email hoặc username
-        // Tìm theo email trước
-//        return authenticationRepository.findByEmail(identify)
-//                .map(user -> (UserDetails) user) // Chuyển đổi User sang UserDetails
-//                .orElseGet(() -> {
-//                    // Nếu ko tìm thấy theo email, tìm theo username
-//                    return authenticationRepository.findByUsername(identify)
-//                            .orElseThrow(() -> new UsernameNotFoundException("User not found with identifier: " + identify));
-//                });
-
+        // Tìm kiếm người dùng theo email
         User user = authenticationRepository.findByEmail(identify)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + identify));
         if (!user.isActive()) throw new UsernameNotFoundException("This account with " + identify + " is locked");

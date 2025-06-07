@@ -16,6 +16,7 @@ import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Component
@@ -79,6 +80,8 @@ public class JwtUtil {
             extraClaims.put("role", user.getRole()); // Thêm role vào claims nếu userDetails là User
             extraClaims.put("userId", user.getUserId()); // Thêm userId vào claims
         }
+        // Thêm JTI
+        extraClaims.put("jti", UUID.randomUUID().toString());
 
         String subject = null;
         if (userDetails instanceof User) {
@@ -108,6 +111,11 @@ public class JwtUtil {
     public Date extractExpiration(String token) {
         // Sử dụng hàm extractClaim để lấy thời gian hết hạn từ token
         return extractClaim(token, Claims::getExpiration);
+    }
+
+    public String extractJti(String token) {
+        // Trích xuất JTI từ token
+        return extractClaim(token, claims -> claims.get("jti", String.class));
     }
 
     // Lấy tất cả các claims từ token -> Áp dụng hàm claimsResolver để lấy claim cụ thể

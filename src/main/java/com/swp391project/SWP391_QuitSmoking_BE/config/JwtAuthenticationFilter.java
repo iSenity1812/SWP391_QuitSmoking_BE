@@ -1,6 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.config;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.TokenBlacklistRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.util.JwtUtil;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
@@ -26,6 +27,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
+    private final TokenBlacklistRepository tokenBlacklistRepository;
 
     @Override
     protected void doFilterInternal(
@@ -50,6 +52,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // 2. Xử lý xác thưc JWT
         try {
+            // Kiểm tra xem token có hợp lệ không
+            // Trichs xuất jti từ token và ktra blacklist
+            String jti = jwtUtil.extractJti(jwt);
+            if (tokenBlacklistRepository.findByJti(jti).isPresent()) {
+                // Nếu token đã bị blacklist, trả về lỗi Unauthorized
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token has been blacklisted.");
+                return; // Dừng chuỗi filter và trả về lỗi
+            }
+
             //Trích xuất thông tin người dùng từ token
             userIdentifier = jwtUtil.extractUsername(jwt);
 

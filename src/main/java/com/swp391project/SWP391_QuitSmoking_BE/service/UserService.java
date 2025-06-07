@@ -184,7 +184,7 @@ public class UserService {
         User userToDeactivate = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User with ID: " + userId + " is not exist."));
         if (!userToDeactivate.isActive()) {
-            throw new IllegalStateException("User with ID:: " + userId + " was not active anymore.");
+            throw new IllegalStateException("User with ID: " + userId + " was not active anymore.");
         }
         userToDeactivate.setActive(false);
         userToDeactivate.setUpdatedAt(LocalDateTime.now());
@@ -216,5 +216,12 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
         User updatedUser = userRepository.save(user);
         return modelMapper.map(updatedUser, UserProfile.class);
+    }
+
+    // Xóa người dùng
+    public void deleteUser(UUID userId) {
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User with ID: " + userId + " is not exist."));
+        userRepository.delete(user);
     }
 }
