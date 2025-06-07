@@ -23,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class AuthenticationService implements UserDetailsService {
@@ -108,12 +109,27 @@ public class AuthenticationService implements UserDetailsService {
         String jwtToken = jwtUtil.generateToken(savedUser);
 
         // Gửi mail chào mừng khi register  thành công
-        String subject = "Chào mừng bạn đã đến với ứng dụng QuitTogether!";
-        String body = "Xin chào " + savedUser.getUsername() + ",\n\n" +
-                "Cảm ơn bạn đã đăng ký tài khoản. Chúc bạn có những trải nghiệm tuyệt vời!";
-        String recipient = savedUser.getEmail();
-        EmailDetail emailDetail = new EmailDetail(recipient, subject, body);
-        emailService.sendEmail(emailDetail);
+
+        try {
+            String recipient = savedUser.getEmail();
+            String subject = "Chào mừng bạn đã đến với ứng dụng QuitTogether!";
+            Map<String, Object> templateVariables = new HashMap<>();
+
+            // Thêm các biến cần thiết vào templateVariables
+            templateVariables.put("name", savedUser.getUsername());
+            templateVariables.put("link", "http://localhost:5173/login"); // Ví dụ về link đến trang chào mừng
+            templateVariables.put("buttonText", "Bắt đầu ngay"); // Văn bản nút trong email
+            templateVariables.put("websiteUrl", "http://localhost:5173"); // URL của trang web
+            templateVariables.put("supportUrl", "http://localhost:5173/support"); // URL hỗ trợ
+
+            String body = null;
+            String templateName = "welcomeTemplate"; // Tên template email chào mừng
+            EmailDetail emailDetail = new EmailDetail(recipient, subject, body, templateName, templateVariables);
+            emailService.sendEmail(emailDetail);
+            System.out.println("Gửi email thành công đến: " + recipient);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send welcome email: " + e.getMessage());
+        }
         System.out.println("Send email thành công");
         // Chuyển đổi User sang AccountResponse để trả về
         AccountResponse accountResponse = modelMapper.map(savedUser, AccountResponse.class);
