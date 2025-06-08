@@ -18,7 +18,7 @@ public class TokenCleanupService {
     private static final Logger log = LoggerFactory.getLogger(TokenCleanupService.class);
     private final TokenBlacklistRepository tokenBlacklistRepository;
 
-    @Scheduled(cron = "0 0 0 * * ?") // Every day at midnight
+    @Scheduled(cron = "0 * * * * ?") // Every day at midnight (0 0 0 * * ?)
     @Transactional
     public void cleanupExpiredTokens() {
         log.info("Starting token cleanup process...");

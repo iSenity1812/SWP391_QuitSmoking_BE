@@ -77,6 +77,7 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true); // Cho phép gửi cookies, authorization headers
         config.addAllowedOrigin("http://localhost:5173"); // Hoặc "*" cho mọi origin (ít an toàn hơn trong production)
+        config.addAllowedOrigin("http://localhost:3000");
         // Nếu deploy lên VPS, bạn cần thay đổi "http://localhost:3000" thành URL của frontend
         config.addAllowedHeader("*"); // Cho phép tất cả các header
         config.addAllowedMethod("*"); // Cho phép tất cả các phương thức HTTP (GET, POST, PUT, DELETE...)
