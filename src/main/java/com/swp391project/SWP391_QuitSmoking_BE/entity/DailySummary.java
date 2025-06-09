@@ -63,18 +63,16 @@ public class DailySummary {
     @Column(name = "MoneySaved", precision = 10, scale = 2, nullable = false)
     private BigDecimal moneySaved;
 
-    @NotNull(message = "Ngày tạo nhật ký không được để trống")
     @Column(name = "CreatedDate", nullable = false, updatable = false)
     private boolean isGoalAchievedToday = false; // Trạng thái hoàn thành mục tiêu của ngày hôm nay
 
     @CreationTimestamp
     @Column(name = "CreatedAt", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-//
-//    @UpdateTimestamp
-//    @Column(name = "UpdatedAt", nullable = false)
-//    private LocalDateTime updatedAt;
 
+    @UpdateTimestamp
+    @Column(name = "UpdatedAt", nullable = false)
+    private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "dailySummary", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CravingTracking> cravingTrackings; // Danh sách các theo dõi cơn thèm trong ngày này
