@@ -1,13 +1,11 @@
 package com.swp391project.SWP391_QuitSmoking_BE;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootTest
-class Swp391QuitSmokingBeApplicationTests {
-
-	@Test
-	void contextLoads() {
+@SpringBootApplication
+public class Swp391QuitSmokingBeApplicationTests {
+	public static void main(String[] args) {
+		SpringApplication.run(Swp391QuitSmokingBeApplicationTests.class, args);
 	}
-
 }
