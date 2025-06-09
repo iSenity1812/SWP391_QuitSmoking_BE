@@ -1,4 +1,4 @@
-package com.swp391project.SWP391_QuitSmoking_BE.services;
+package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
 import lombok.RequiredArgsConstructor;

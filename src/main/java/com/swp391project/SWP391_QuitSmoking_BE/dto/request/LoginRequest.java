@@ -1,4 +1,4 @@
-package com.swp391project.SWP391_QuitSmoking_BE.dto;
+package com.swp391project.SWP391_QuitSmoking_BE.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

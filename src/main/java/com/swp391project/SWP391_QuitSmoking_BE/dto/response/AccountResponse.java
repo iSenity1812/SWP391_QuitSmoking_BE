@@ -1,4 +1,4 @@
-package com.swp391project.SWP391_QuitSmoking_BE.dto;
+package com.swp391project.SWP391_QuitSmoking_BE.dto.response;
 
 import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
 import lombok.Data;

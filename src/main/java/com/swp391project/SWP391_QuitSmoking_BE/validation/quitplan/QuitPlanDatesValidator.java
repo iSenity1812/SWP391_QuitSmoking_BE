@@ -31,7 +31,7 @@ public class QuitPlanDatesValidator implements ConstraintValidator<ValidQuitPlan
         //CreatedAt không được sau StartDate
         if (createdAt != null && startDate != null) {
             if (createdAt.isAfter(startDate)) {
-                context.buildConstraintViolationWithTemplate("Ngày tạo kế hoạch không được sau ngày bắt đầu.")
+                context.buildConstraintViolationWithTemplate("Ngày tạo kế hoạch không được sau ngày bắt đầu")
                         .addPropertyNode("createdAt")
                         .addConstraintViolation();
                 isValid = false;
@@ -42,7 +42,7 @@ public class QuitPlanDatesValidator implements ConstraintValidator<ValidQuitPlan
         if (startDate != null && goalDate != null) {
             LocalDateTime goalDateTime = goalDate.atStartOfDay(); //Chuyểnthành LocalDateTime để so sánh
             if (startDate.isAfter(goalDateTime)) {
-                context.buildConstraintViolationWithTemplate("Ngày bắt đầu không được sau ngày mục tiêu.")
+                context.buildConstraintViolationWithTemplate("Ngày bắt đầu không được sau ngày mục tiêu")
                         .addPropertyNode("startDate")
                         .addConstraintViolation();
                 isValid = false;
@@ -52,7 +52,7 @@ public class QuitPlanDatesValidator implements ConstraintValidator<ValidQuitPlan
         //Nếu goalDate chưa bằng hay vượt qua thời gian thực thì status không thể là FAILED hay COMPLETED
         if (goalDate != null && currentTime.toLocalDate().isBefore(goalDate)) {
             if (status == QuitPlanStatus.FAILED || status == QuitPlanStatus.COMPLETED) {
-                context.buildConstraintViolationWithTemplate("Kế hoạch không thể ở trạng thái 'Hoàn thành', 'Thất bại' hoặc 'Bị bỏ dở' khi ngày mục tiêu còn ở tương lai.")
+                context.buildConstraintViolationWithTemplate("Kế hoạch không thể ở trạng thái 'Hoàn thành', 'Thất bại' khi ngày mục tiêu còn ở tương lai")
                         .addPropertyNode("status")
                         .addConstraintViolation();
                 isValid = false;
@@ -62,7 +62,7 @@ public class QuitPlanDatesValidator implements ConstraintValidator<ValidQuitPlan
         //Nếu thời gian thực đã vượt qua goalDate thì status phải là FAILED, COMPLETED
         if (goalDate != null && currentTime.toLocalDate().isAfter(goalDate)) {
             if (status != QuitPlanStatus.FAILED && status != QuitPlanStatus.COMPLETED) {
-                context.buildConstraintViolationWithTemplate("Kế hoạch phải ở trạng thái 'Hoàn thành', 'Thất bại' hoặc 'Bị bỏ dở' khi ngày mục tiêu đã qua.")
+                context.buildConstraintViolationWithTemplate("Kế hoạch phải ở trạng thái 'Hoàn thành', 'Thất bại' khi ngày mục tiêu đã qua")
                         .addPropertyNode("status")
                         .addConstraintViolation();
                 isValid = false;
@@ -73,7 +73,7 @@ public class QuitPlanDatesValidator implements ConstraintValidator<ValidQuitPlan
         if (startDate != null && currentTime.isBefore(startDate)) {
             if (status == QuitPlanStatus.COMPLETED || status == QuitPlanStatus.IN_PROGRESS ||
                     status == QuitPlanStatus.FAILED || status == QuitPlanStatus.RESTARTED) {
-                context.buildConstraintViolationWithTemplate("Kế hoạch không thể ở trạng thái 'Hoàn thành', 'Đang tiến hành', 'Thất bại', 'Khởi động lại' hoặc 'Bị bỏ dở' khi ngày bắt đầu còn ở tương lai.")
+                context.buildConstraintViolationWithTemplate("Kế hoạch không thể ở trạng thái 'Hoàn thành', 'Đang tiến hành', 'Thất bại', 'Khởi động lại' hoặc 'Bị bỏ dở' khi ngày bắt đầu còn ở tương lai")
                         .addPropertyNode("status")
                         .addConstraintViolation();
                 isValid = false;
@@ -83,7 +83,7 @@ public class QuitPlanDatesValidator implements ConstraintValidator<ValidQuitPlan
         //Nếu thời gian thực đã bằng hay vượt qua startdate thì status không thể NOT_STARTED
         if (startDate != null && !currentTime.isBefore(startDate)) { //currentTime is >= startDate
             if (status == QuitPlanStatus.NOT_STARTED) {
-                context.buildConstraintViolationWithTemplate("Kế hoạch không thể ở trạng thái 'Chưa bắt đầu' khi ngày bắt đầu đã đến hoặc đã qua.")
+                context.buildConstraintViolationWithTemplate("Kế hoạch không thể ở trạng thái 'Chưa bắt đầu' khi ngày bắt đầu đã đến hoặc đã qua")
                         .addPropertyNode("status")
                         .addConstraintViolation();
                 isValid = false;
@@ -94,13 +94,13 @@ public class QuitPlanDatesValidator implements ConstraintValidator<ValidQuitPlan
         if (status == QuitPlanStatus.IN_PROGRESS) {
             if (goalDate != null) {
                 if (currentTime.toLocalDate().isAfter(goalDate)) { //currentTime > goalDate
-                    context.buildConstraintViolationWithTemplate("Ngày mục tiêu phải ở hiện tại hoặc tương lai khi kế hoạch đang 'Đang tiến hành'.")
+                    context.buildConstraintViolationWithTemplate("Ngày mục tiêu phải ở hiện tại hoặc tương lai khi kế hoạch đang 'Đang tiến hành'")
                             .addPropertyNode("goalDate")
                             .addConstraintViolation();
                     isValid = false;
                 }
             } else { //goalDate is null, but required for IN_PROGRESS
-                context.buildConstraintViolationWithTemplate("Ngày mục tiêu không được để trống khi kế hoạch đang 'Đang tiến hành'.")
+                context.buildConstraintViolationWithTemplate("Ngày mục tiêu không được để trống khi kế hoạch đang 'Đang tiến hành'")
                         .addPropertyNode("goalDate")
                         .addConstraintViolation();
                 isValid = false;
@@ -108,13 +108,13 @@ public class QuitPlanDatesValidator implements ConstraintValidator<ValidQuitPlan
 
             if (startDate != null) {
                 if (currentTime.isBefore(startDate)) { //currentTime < startDate
-                    context.buildConstraintViolationWithTemplate("Ngày bắt đầu phải ở quá khứ hoặc hiện tại khi kế hoạch đang 'Đang tiến hành'.")
+                    context.buildConstraintViolationWithTemplate("Ngày bắt đầu phải ở quá khứ hoặc hiện tại khi kế hoạch đang 'Đang tiến hành'")
                             .addPropertyNode("startDate")
                             .addConstraintViolation();
                     isValid = false;
                 }
             } else { //startDate is null, but required for IN_PROGRESS
-                context.buildConstraintViolationWithTemplate("Ngày bắt đầu không được để trống khi kế hoạch đang 'Đang tiến hành'.")
+                context.buildConstraintViolationWithTemplate("Ngày bắt đầu không được để trống khi kế hoạch đang 'Đang tiến hành'")
                         .addPropertyNode("startDate")
                         .addConstraintViolation();
                 isValid = false;

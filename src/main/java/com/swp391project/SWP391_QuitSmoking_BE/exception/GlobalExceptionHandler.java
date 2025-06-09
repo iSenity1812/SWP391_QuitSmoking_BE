@@ -1,4 +1,4 @@
-package com.swp391project.SWP391_QuitSmoking_BE.exceptions;
+package com.swp391project.SWP391_QuitSmoking_BE.exception;
 
 import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
 import org.springframework.http.HttpStatus;

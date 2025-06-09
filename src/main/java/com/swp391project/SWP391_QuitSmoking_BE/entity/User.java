@@ -31,7 +31,8 @@ public class User implements UserDetails {
     @Column(name = "UserID", updatable = false, nullable = false, columnDefinition = "uuid")
     private UUID userId;
 
-    @NotBlank(message = "Tên người dùng không được để trống") // Không được null và không được rỗng/chỉ chứa khoảng trắng
+    // Không được null và không được rỗng/chỉ chứa khoảng trắng
+    @NotBlank(message = "Tên người dùng không được để trống")
     @Size(min = 3, max = 50, message = "Tên người dùng phải có từ 3 đến 50 ký tự")
     @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Tên người dùng chỉ được chứa chữ cái, số và dấu gạch dưới")
     @Column(name = "Username", length = 50, unique = true, nullable = false)
@@ -48,7 +49,7 @@ public class User implements UserDetails {
     private String passwordHash;
 
     @NotNull(message = "Thời gian tạo không được để trống")
-    @PastOrPresent(message = "Thời gian tạo không thể ở tương lai") //LocalDateTime.now() luôn trả về thời gian hiện tại hoặc trong quá khứ
+    @PastOrPresent(message = "Thời gian tạo không thể ở tương lai")
     @Column(name = "CreatedAt", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

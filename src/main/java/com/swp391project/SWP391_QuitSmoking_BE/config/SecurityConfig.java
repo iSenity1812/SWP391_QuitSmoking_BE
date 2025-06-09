@@ -1,8 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.config;
 
-import com.swp391project.SWP391_QuitSmoking_BE.services.AuthenticationService;
 import com.swp391project.SWP391_QuitSmoking_BE.util.JwtUtil;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
