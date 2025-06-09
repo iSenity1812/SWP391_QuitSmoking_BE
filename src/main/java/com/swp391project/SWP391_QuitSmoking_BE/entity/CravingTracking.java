@@ -21,9 +21,7 @@ import java.time.LocalDateTime;
 @ValidCravingTrackingData
 //Mỗi TrackTime phải duy nhất cho mỗi DailySummary
 //Mỗi giờ chỉ có duy nhất 1 record có thể lưu
- @Table(name = "CravingTrackings", uniqueConstraints = {
-     @UniqueConstraint(columnNames = {"DailySummaryID", "TrackTime"})
- })
+ @Table(name = "CravingTrackings")
 public class CravingTracking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,7 +36,7 @@ public class CravingTracking {
     @NotNull(message = "Thời gian theo dõi không được để trống")
     @PastOrPresent(message = "Thời gian theo dõi không thể ở tương lai")
     @Column(name = "TrackTime", nullable = false)
-    private LocalDateTime trackTime;
+    private LocalDateTime trackTime; // lưu chính xác thời gian theo dõi cơn thèm thuốc
 
     @Min(value = 0, message = "Số lượng thuốc đã hút không thể là số âm")
     @Column(name = "SmokedCount", nullable = false)

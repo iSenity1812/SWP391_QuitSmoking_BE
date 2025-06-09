@@ -39,7 +39,7 @@ public class QuitPlan {
     @NotNull(message = "Loại kế hoạch giảm dần không được để trống")
     @Enumerated(EnumType.STRING)
     @Column(name = "ReductionType", length = 20, nullable = false)
-    private ReductionQuitPlanType reductionType = ReductionQuitPlanType.LINEAR;
+    private ReductionQuitPlanType reductionType;
 
     @NotNull(message = "Ngày tạo kế hoạch không được để trống")
     @PastOrPresent(message = "Ngày tạo kế hoạch không thể ở tương lai")
@@ -64,5 +64,5 @@ public class QuitPlan {
      @NotNull(message = "Trạng thái kế hoạch không được để trống")
      @Enumerated(EnumType.STRING)
      @Column(name = "Status", length = 20, nullable = false)
-     private QuitPlanStatus status = QuitPlanStatus.IN_PROGRESS;
+     private QuitPlanStatus status;
 }

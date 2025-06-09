@@ -9,6 +9,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class RegisterRequest {
     @NotBlank(message = "Username cannot be empty")
     @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")
@@ -20,8 +22,8 @@ public class RegisterRequest {
     private String email;
 
     @NotBlank(message = "Password cannot be empty")
-    @Size(min = 6, message = "Password must be at least 6 characters long")
-    //password phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số, 1 ký tự đặc biệt
+    @Size(min = 6, max = 20, message = "Password must be between 6 and 20 characters")
+    // Ví dụ: password phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số, 1 ký tự đặc biệt
     @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#&()–[{}]:;',?/*~$^+=<>]).{6,}$",
             message = "Password must contain at least one digit, one lowercase, one uppercase, and one special character.")
     private String password;

@@ -55,6 +55,12 @@ public class DailySummaryDatesValidator implements ConstraintValidator<ValidDail
                         .addConstraintViolation();
                 isValid = false;
             }
+        } else {
+            //Nếu không có ngày bắt đầu hoặc ngày mục tiêu, không thể validate
+            context.buildConstraintViolationWithTemplate("Thông tin kế hoạch (StartDate, GoalDate) không đầy đủ để kiểm tra ngày theo dõi")
+                    .addPropertyNode("trackDate")
+                    .addConstraintViolation();
+            isValid = false;
         }
 
         //TrackDate là duy nhất cho mỗi QuitPlan
@@ -66,8 +72,8 @@ public class DailySummaryDatesValidator implements ConstraintValidator<ValidDail
             isValid = false;
         }
 
-        //isPlanCompleted chỉ được true khi smokedCount <= số điếu nên hút
-        if (dailySummary.isPlanCompleted()) { //Nếu đánh dấu là kế hoạch đã hoàn thành trong ngày
+        //điều kiện để goal trong ngày đó chỉ được true khi smokedCount <= số điếu nên hút
+        if (dailySummary.isGoalAchievedToday()) { //Nếu đánh dấu là kế hoạch đã hoàn thành trong ngày
             if (quitPlanStartDate != null && quitPlanGoalDate != null && planType != null) {
                 //ChronoUnit.DAYS.between: tính số ngày giữa hai LocalDate + 1 để bao gồm cả ngày bắt đầu
                 long totalDays = ChronoUnit.DAYS.between(quitPlanStartDate.toLocalDate(), quitPlanGoalDate) + 1;
@@ -91,8 +97,8 @@ public class DailySummaryDatesValidator implements ConstraintValidator<ValidDail
 
                     if (allowedDay.isPresent()) {
                         int allowedCigarettes = allowedDay.get().getCigarettes();
-                        if (dailySummary.getSmokedCount() > allowedCigarettes) {
-                            context.buildConstraintViolationWithTemplate("Số điếu thuốc đã hút (" + dailySummary.getSmokedCount() + ") vượt quá số điếu cho phép (" + allowedCigarettes + ") để đánh dấu 'Hoàn thành kế hoạch'")
+                        if (dailySummary.getTotalSmokedCount() > allowedCigarettes) {
+                            context.buildConstraintViolationWithTemplate("Số điếu thuốc đã hút (" + dailySummary.getTotalSmokedCount() + ") vượt quá số điếu cho phép (" + allowedCigarettes + ") để đánh dấu 'Hoàn thành kế hoạch'")
                                     .addPropertyNode("smokedCount")
                                     .addConstraintViolation();
                             isValid = false;

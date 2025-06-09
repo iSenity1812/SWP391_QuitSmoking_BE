@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Entity
 @Getter
@@ -49,4 +50,7 @@ public class Subscription implements IDurationAware {
 
     @Column(name = "Description", columnDefinition = "TEXT")
     private String description;
+
+    @OneToMany(mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MemberSubscription> memberSubscriptions; // Danh sách các thành viên đã đăng ký gói này
 }

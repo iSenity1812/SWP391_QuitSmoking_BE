@@ -42,12 +42,12 @@ public class DailySummaryService {
         }
         // Nếu TrackDate là ngày hiện tại, cho phép chỉnh sửa
         // Không cho cập nhật TrackDate, QuitPlanID
-        existingSummary.setSmokedCount(updatedDailySummary.getSmokedCount());
-        existingSummary.setCravingsCount(updatedDailySummary.getCravingsCount());
+        existingSummary.setTotalSmokedCount(updatedDailySummary.getTotalSmokedCount());
+        existingSummary.setTotalCravingCount(updatedDailySummary.getTotalCravingCount());
         existingSummary.setMood(updatedDailySummary.getMood());
         existingSummary.setNote(updatedDailySummary.getNote());
         existingSummary.setMoneySaved(updatedDailySummary.getMoneySaved());
-        existingSummary.setPlanCompleted(updatedDailySummary.isPlanCompleted());
+        existingSummary.setGoalAchievedToday(updatedDailySummary.isGoalAchievedToday());
 
         return dailySummaryRepository.save(existingSummary);
     }

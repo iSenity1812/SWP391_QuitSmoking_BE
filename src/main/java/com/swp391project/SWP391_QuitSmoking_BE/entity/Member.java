@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -33,22 +34,13 @@ public class Member {
     @NotNull(message = "Người dùng liên kết không được để trống")
     private User user; //Tham chiếu đến đối tượng User mà Member này thuộc về
 
-    @ManyToOne(fetch = FetchType.LAZY) //chỉ được tải khi thực sự truy cập vào
-    @JoinColumn(name = "SubscriptionID", referencedColumnName = "SubscriptionID")
-    private Subscription subscription; //có thể null nếu member chưa đăng kí gói
-
-    @PastOrPresent(message = "Ngày bắt đầu đăng ký không thể ở tương lai")
-    @Column(name = "StartDate")
-    private LocalDateTime startDate; //có thể null nếu member chưa đăng kí gói
-
-    @Column(name = "EndDate")
-    private LocalDateTime endDate;
-
-    @NotNull(message = "Trạng thái đăng ký không được để trống")
-    @Column(name = "SubscriptionStatus", nullable = false)
-    private boolean subscriptionStatus = false; // Mặc định là false (chưa đăng ký)
-
     @Min(value = 0, message = "Streak không thể là số âm")
     @Column(name = "Streak", nullable = false)
     private int streak = 0;
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MemberSubscription> memberSubscriptions; // Danh sách các gói đăng ký của thành viên
+
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<QuitPlan> quitPlans; // Danh sách các kế hoạch bỏ thuốc lá của thành viên
 }

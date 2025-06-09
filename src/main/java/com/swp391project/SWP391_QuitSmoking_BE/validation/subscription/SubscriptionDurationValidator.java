@@ -1,12 +1,13 @@
 package com.swp391project.SWP391_QuitSmoking_BE.validation.subscription;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.MemberSubscription;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 import java.time.LocalDateTime;
 
-public class SubscriptionDurationValidator implements ConstraintValidator<ValidSubscriptionDuration, Member> {
+public class SubscriptionDurationValidator implements ConstraintValidator<ValidSubscriptionDuration, MemberSubscription> {
     private static final long MAX_DURATION_MONTHS = 3;
 
     @Override
@@ -14,15 +15,15 @@ public class SubscriptionDurationValidator implements ConstraintValidator<ValidS
     }
 
     @Override
-    public boolean isValid(Member member, ConstraintValidatorContext context) {
+    public boolean isValid(MemberSubscription memberSubscription, ConstraintValidatorContext context) {
         // Nếu đối tượng member, startDate hoặc endDate là null,
         // các validation @NotNull khác sẽ xử lý. Validator này chỉ kiểm tra thời lượng nếu cả hai ngày đều có
-        if (member == null || member.getStartDate() == null || member.getEndDate() == null) {
+        if (memberSubscription == null || memberSubscription.getStartDate() == null || memberSubscription.getEndDate() == null) {
             return true;
         }
 
-        LocalDateTime startDate = member.getStartDate();
-        LocalDateTime endDate = member.getEndDate();
+        LocalDateTime startDate = memberSubscription.getStartDate();
+        LocalDateTime endDate = memberSubscription.getEndDate();
 
         // Đảm bảo ngày kết thúc không trước ngày bắt đầu
         if (endDate.isBefore(startDate)) {

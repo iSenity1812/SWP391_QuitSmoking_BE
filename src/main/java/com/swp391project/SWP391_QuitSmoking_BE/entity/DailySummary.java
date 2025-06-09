@@ -9,9 +9,13 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Getter
@@ -34,12 +38,12 @@ public class DailySummary {
     private QuitPlan quitPlan;
 
     @Min(value = 0, message = "Số lượng thuốc đã hút không thể là số âm")
-    @Column(name = "SmokedCount", nullable = false)
-    private int smokedCount = 0;
+    @Column(name = "TotalSmokedCount", nullable = false)
+    private int totalSmokedCount = 0;
 
     @Min(value = 0, message = "Số lần thèm thuốc không thể là số âm")
-    @Column(name = "CravingsCount", nullable = false)
-    private int cravingsCount = 0;
+    @Column(name = "TotalCravingCount", nullable = false)
+    private int totalCravingCount = 0;
 
     @NotNull(message = "Ngày theo dõi không được để trống")
     @PastOrPresent(message = "Ngày theo dõi không thể theo dõi ở tương lai")
@@ -59,7 +63,17 @@ public class DailySummary {
     @Column(name = "MoneySaved", precision = 10, scale = 2, nullable = false)
     private BigDecimal moneySaved;
 
-    @NotNull(message = "Trạng thái hoàn thành kế hoạch không được để trống")
-    @Column(name = "IsPlanCompleted", nullable = false)
-    private boolean isPlanCompleted = false;
+    @Column(name = "CreatedDate", nullable = false, updatable = false)
+    private boolean isGoalAchievedToday = false; // Trạng thái hoàn thành mục tiêu của ngày hôm nay
+
+    @CreationTimestamp
+    @Column(name = "CreatedAt", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "UpdatedAt", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "dailySummary", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CravingTracking> cravingTrackings; // Danh sách các theo dõi cơn thèm trong ngày này
 }
