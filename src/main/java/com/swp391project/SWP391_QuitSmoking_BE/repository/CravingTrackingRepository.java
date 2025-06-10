@@ -6,11 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface CravingTrackingRepository extends JpaRepository<CravingTracking, Integer> {
-    //tìm record theo DailySummary và TrackTime
-    //được sử dụng trong CravingTrackingDataValidator để kiểm tra tính duy nhất
-    Optional<CravingTracking> findByDailySummaryAndTrackTime(DailySummary dailySummary, LocalDateTime trackTime);
+    List<CravingTracking> findByDailySummary(DailySummary dailySummary);
 }

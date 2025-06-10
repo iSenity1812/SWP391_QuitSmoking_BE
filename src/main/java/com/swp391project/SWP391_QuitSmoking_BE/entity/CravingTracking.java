@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 @ValidCravingTrackingData
 //Mỗi TrackTime phải duy nhất cho mỗi DailySummary
 //Mỗi giờ chỉ có duy nhất 1 record có thể lưu
- @Table(name = "CravingTrackings")
+@Table(name = "CravingTrackings")
 public class CravingTracking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

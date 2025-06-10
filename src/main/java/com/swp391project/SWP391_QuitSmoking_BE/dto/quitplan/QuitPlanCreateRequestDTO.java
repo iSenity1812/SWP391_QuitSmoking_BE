@@ -1,21 +1,23 @@
 package com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan;
 
 import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
-import jakarta.validation.constraints.Future;
-import jakarta.validation.constraints.FutureOrPresent;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class QuitPlanCreateRequestDTO {
+    @NotNull(message = "ID thành viên không được để trống")
+    private UUID memberId;
+
     @NotNull(message = "Loại kế hoạch không được để trống")
     private String planTypeId; // Hoặc String planTypeName nếu bạn truyền tên
     // Nếu là FK tới PlanType, nên dùng ID của PlanType.
@@ -32,6 +34,13 @@ public class QuitPlanCreateRequestDTO {
     private LocalDate goalDate;
 
     @Min(value = 1, message = "Số lượng thuốc ban đầu phải lớn hơn 0")
+    @Max(value = 500, message = "Số lượng thuốc ban đầu không thể vượt quá 500")
     @NotNull(message = "Số lượng thuốc ban đầu không được để trống")
     private int initialSmokingAmount;
+
+    @NotNull(message = "Số tiền/gói thuốc không được để trống")
+    @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền không thể là số âm")
+    //6 số nguyên, 2 số thập phân
+    @DecimalMax(value = "999999.99", inclusive = true, message = "Số tiền chỉ có thể tối đa 999.999VND")
+    private BigDecimal PricePerPack;
 }

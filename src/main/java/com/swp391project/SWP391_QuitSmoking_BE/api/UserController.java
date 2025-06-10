@@ -1,5 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.api;
 
+import com.swp391project.SWP391_QuitSmoking_BE.dto.coach.CoachProfile;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.AdminUserCreateRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserProfile;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserUpdateRequest;
@@ -33,7 +34,27 @@ public class UserController {
         List<UserProfile> users = userService.getAllUsers(); // Lấy tất cả người dùng (active và inactive)
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ApiResponse.success(users, "Lấy danh sách người dùng thành công."));
+                .body(ApiResponse.success(users, "Lấy danh sách người dùng thành công"));
+    }
+
+    //lấy tất cả members
+    @GetMapping("/superadmin/users/members")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<List<UserProfile>>> getAllMembers() {
+        List<UserProfile> members = userService.getAllMembers();
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(members, "Lấy danh sách thành viên thành công"));
+    }
+
+    //lấy tất cả coaches
+    @GetMapping("/superadmin/users/coaches")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<List<CoachProfile>>> getAllCoaches() {
+        List<CoachProfile> coaches = userService.getAllCoaches();
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(coaches, "Lấy danh sách huấn luyện viên thành công"));
     }
 
     // Lấy thông tin một người dùng cụ thể bằng ID
@@ -43,7 +64,7 @@ public class UserController {
         UserProfile user = userService.getUserById(userId);
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ApiResponse.success(user, "Lấy thông tin người dùng thành công."));
+                .body(ApiResponse.success(user, "Lấy thông tin người dùng thành công"));
     }
 
 
@@ -54,7 +75,7 @@ public class UserController {
         UserProfile newUser = userService.createUser(userCreateRequest);
         return ResponseEntity
                 .status(HttpStatus.CREATED) // HTTP 201 Created là chuẩn khi tạo tài nguyên mới thành công
-                .body(ApiResponse.success(newUser, "Tạo người dùng mới thành công."));
+                .body(ApiResponse.success(newUser, "Tạo người dùng mới thành công"));
     }
 
     // Cập nhật thông tin người dùng bởi SUPER_ADMIN
@@ -66,7 +87,7 @@ public class UserController {
         UserProfile updatedProfile = userService.updateUserProfile(userId, userUpdateRequest);
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ApiResponse.success(updatedProfile, "Cập nhật thông tin người dùng thành công."));
+                .body(ApiResponse.success(updatedProfile, "Cập nhật thông tin người dùng thành công"));
     }
 
     // --- ENDPOINTS QUẢN LÝ TRẠNG THÁI NGƯỜI DÙNG BỞI SUPER_ADMIN ---
@@ -78,7 +99,7 @@ public class UserController {
         UserProfile updatedUser = userService.deactivateUser(userId);
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ApiResponse.success(updatedUser, "Người dùng đã được vô hiệu hóa thành công."));
+                .body(ApiResponse.success(updatedUser, "Người dùng đã được vô hiệu hóa thành công"));
     }
 
     @PatchMapping("/superadmin/users/{userId}/activate")
@@ -87,14 +108,14 @@ public class UserController {
         UserProfile updatedUser = userService.activateUser(userId);
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ApiResponse.success(updatedUser, "Người dùng đã được kích hoạt lại thành công."));
+                .body(ApiResponse.success(updatedUser, "Người dùng đã được kích hoạt lại thành công"));
     }
 
     @PatchMapping("/superadmin/users/{userId}/toggle-status")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<UserProfile>> toggleUserStatus(@PathVariable UUID userId) {
         UserProfile updatedUser = userService.toggleUserStatus(userId);
-        String message = updatedUser.isActive() ? "Người dùng đã được kích hoạt thành công." : "Người dùng đã được vô hiệu hóa thành công.";
+        String message = updatedUser.isActive() ? "Người dùng đã được kích hoạt thành công" : "Người dùng đã được vô hiệu hóa thành công";
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success(updatedUser, message));
@@ -107,7 +128,7 @@ public class UserController {
         userService.deleteUser(userId);
         return ResponseEntity
                 .status(HttpStatus.NO_CONTENT) // HTTP 204 No Content là chuẩn khi xóa thành công
-                .body(ApiResponse.success(null, "Người dùng đã được xóa thành công."));
+                .body(ApiResponse.success(null, "Người dùng đã được xóa thành công"));
     }
 
     // --- ENDPOINTS CỦA NGƯỜI DÙNG HIỆN TẠI (PROFILE CỦA CHÍNH HỌ) ---
@@ -134,7 +155,7 @@ public class UserController {
         UserProfile updatedProfile = userService.updateUserProfile(user.getUserId(), userUpdateRequest);
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ApiResponse.success(updatedProfile, "Cập nhật hồ sơ thành công."));
+                .body(ApiResponse.success(updatedProfile, "Cập nhật hồ sơ thành công"));
     }
 
     // Cập nhật username của người dùng hiện tại
@@ -148,7 +169,7 @@ public class UserController {
         UserProfile updatedProfile = userService.updateUsername(user.getUserId(), userUpdateRequest.getUsername());
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ApiResponse.success(updatedProfile, "Cập nhật tên người dùng thành công."));
+                .body(ApiResponse.success(updatedProfile, "Cập nhật tên người dùng thành công"));
     }
 
 

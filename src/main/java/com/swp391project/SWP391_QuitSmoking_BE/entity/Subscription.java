@@ -51,6 +51,6 @@ public class Subscription implements IDurationAware {
     @Column(name = "Description", columnDefinition = "TEXT")
     private String description;
 
-    @OneToMany(mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MemberSubscription> memberSubscriptions; // Danh sách các thành viên đã đăng ký gói này
 }

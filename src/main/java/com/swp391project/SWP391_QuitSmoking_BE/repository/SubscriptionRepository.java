@@ -1,12 +1,9 @@
 package com.swp391project.SWP391_QuitSmoking_BE.repository;
 
-import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.Subscription;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.UUID;
-
 @Repository
-public interface QuitPlanRepository extends JpaRepository<QuitPlan, Integer>  {
-
+public interface SubscriptionRepository extends JpaRepository<Subscription, Integer> {
 }

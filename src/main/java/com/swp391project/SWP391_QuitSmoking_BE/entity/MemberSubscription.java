@@ -1,6 +1,8 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
 import com.swp391project.SWP391_QuitSmoking_BE.enums.SubscriptionStatus;
+import com.swp391project.SWP391_QuitSmoking_BE.validation.subscription.ValidSubscriptionDuration;
+import com.swp391project.SWP391_QuitSmoking_BE.validation.subscription.ValidSubscriptionState;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -16,6 +18,8 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ValidSubscriptionDuration  //Custom annotation cho thời lượng đăng kí
+@ValidSubscriptionState     //Custom annotation kiểm tra tính nhất quán về trạng thái đăng kí
 @Table(name = "MemberSubscriptions")
 public class MemberSubscription {
     @Id
@@ -41,6 +45,7 @@ public class MemberSubscription {
     @Column(name = "EndDate", nullable = false)
     private LocalDateTime endDate;
 
+    @NotNull(message = "Trạng thái đăng ký không được để trống")
     @Enumerated(EnumType.STRING)
     @Column(name = "SubscriptionStatus", nullable = false)
     private SubscriptionStatus subscriptionStatus;
