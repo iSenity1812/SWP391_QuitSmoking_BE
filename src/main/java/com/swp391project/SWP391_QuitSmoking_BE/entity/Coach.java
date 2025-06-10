@@ -24,7 +24,7 @@ public class Coach {
     @Column(name = "UserID")
     private UUID userId;
 
-    @OneToOne //mối quan hệ với entity User
+    @OneToOne(fetch = FetchType.LAZY) //mối quan hệ với entity User
     @MapsId //chỉ định khóa chính của Coach được lấy từ khóa chính của User
     @JoinColumn(name = "UserID", referencedColumnName = "UserID")
     @NotNull(message = "Người dùng liên kết không được để trống")

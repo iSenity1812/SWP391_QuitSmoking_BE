@@ -11,7 +11,7 @@ import java.lang.annotation.*;
 @Documented
 //@interface: là annotation (chú thích) tùy chỉnh của riêng mình
 public @interface ValidSubscriptionDuration {
-    String message() default "Ngày kết thúc đăng ký không được vượt quá 3 tháng kể từ ngày bắt đầu.";
+    String message() default "Ngày kết thúc đăng ký không được vượt quá 3 tháng kể từ ngày bắt đầu";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 }

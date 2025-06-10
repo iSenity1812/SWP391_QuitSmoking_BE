@@ -32,7 +32,16 @@ public class User implements UserDetails {
     @Column(name = "UserID", updatable = false, nullable = false, columnDefinition = "uuid")
     private UUID userId;
 
-    @NotBlank(message = "Tên người dùng không được để trống") // Không được null và không được rỗng/chỉ chứa khoảng trắng
+    // Mối quan hệ One-to-One với Member (bên không sở hữu)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private Member member; // Tham chiếu đến đối tượng Member liên kết
+
+    // Mối quan hệ One-to-One với Coach (bên không sở hữu)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private Coach coach; // Tham chiếu đến đối tượng Coach liên kết
+
+    // Không được null và không được rỗng/chỉ chứa khoảng trắng
+    @NotBlank(message = "Tên người dùng không được để trống")
     @Size(min = 3, max = 50, message = "Tên người dùng phải có từ 3 đến 50 ký tự")
     @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Tên người dùng chỉ được chứa chữ cái, số và dấu gạch dưới")
     @Column(name = "Username", length = 50, nullable = false)
@@ -46,11 +55,10 @@ public class User implements UserDetails {
 
     @NotBlank(message = "Mật khẩu không được để trống")
     @Column(name = "PasswordHash", nullable = false)
-    @Size(min = 8, message = "Mật khẩu phải có ít nhất 8 ký tự và tối đa 20 ký tự")
     private String passwordHash;
 
     @NotNull(message = "Thời gian tạo không được để trống")
-    @PastOrPresent(message = "Thời gian tạo không thể ở tương lai") //LocalDateTime.now() luôn trả về thời gian hiện tại hoặc trong quá khứ
+    @PastOrPresent(message = "Thời gian tạo không thể ở tương lai")
     @Column(name = "CreatedAt", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

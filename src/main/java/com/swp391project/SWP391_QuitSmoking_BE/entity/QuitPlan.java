@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -60,6 +61,13 @@ public class QuitPlan {
     @Max(value = 500, message = "Số lượng thuốc ban đầu không thể vượt quá 500")
     @Column(name = "InitialSmokingAmount", nullable = false)
     private int initialSmokingAmount;
+
+    @NotNull(message = "Số tiền/gói thuốc không được để trống")
+    @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền không thể là số âm")
+    //6 số nguyên, 2 số thập phân
+    @DecimalMax(value = "999999.99", inclusive = true, message = "Số tiền chỉ có thể tối đa 999.999VND")
+    @Column(name = "PricePerPack", nullable = false)
+    private BigDecimal PricePerPack;
 
      @NotNull(message = "Trạng thái kế hoạch không được để trống")
      @Enumerated(EnumType.STRING)
