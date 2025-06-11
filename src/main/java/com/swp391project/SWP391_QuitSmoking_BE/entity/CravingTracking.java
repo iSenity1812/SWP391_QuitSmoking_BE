@@ -10,8 +10,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -28,10 +31,10 @@ public class CravingTracking {
     @Column(name = "CravingTrackingID", updatable = false, nullable = false)
     private Integer cravingTrackingId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "DailySummaryID", referencedColumnName = "DailySummaryID", nullable = false)
-    @NotNull(message = "Theo dõi cơn thèm phải thuộc về một nhật ký hàng ngày")
-    private DailySummary dailySummary;
+//    @ManyToOne(fetch = FetchType.LAZY)
+//    @JoinColumn(name = "DailySummaryID", referencedColumnName = "DailySummaryID", nullable = false)
+//    @NotNull(message = "Theo dõi cơn thèm phải thuộc về một nhật ký hàng ngày")
+//    private DailySummary dailySummary;
 
     @NotNull(message = "Thời gian theo dõi không được để trống")
     @PastOrPresent(message = "Thời gian theo dõi không thể ở tương lai")
@@ -46,11 +49,11 @@ public class CravingTracking {
     @Column(name = "CravingsCount", nullable = false)
     private Integer cravingsCount = 0;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "Situation", length = 20)
-    private Situation situation;
+    @JdbcTypeCode(SqlTypes.JSON) // Lưu dưới dạng JSON array của các chuỗi enum
+    @Column(name = "Situations", columnDefinition = "jsonb")
+    private Set<Situation> situations;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "WithWhom", length = 50)
-    private WithWhom withWhom;
+    @JdbcTypeCode(SqlTypes.JSON) // Lưu dưới dạng JSON array của các chuỗi enum
+    @Column(name = "WithWhoms", columnDefinition = "jsonb")
+    private Set<WithWhom> withWhoms;
 }

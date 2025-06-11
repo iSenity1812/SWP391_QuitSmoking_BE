@@ -19,10 +19,10 @@ import lombok.Setter;
 @ValidDurationTypeConstraint
 public class PlanType implements IDurationAware {
     @Id
-    @Column(name = "PlanTypeID", length = 50, updatable = false, nullable = false)
+    @Column(name = "PlanTypeID", updatable = false, nullable = false)
     @NotBlank(message = "ID loại kế hoạch không được để trống")
-    @Size(max = 50, message = "ID loại kế hoạch không được vượt quá 50 ký tự")
-    private String planTypeID;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer planTypeID;
 
     @NotBlank(message = "Tên loại kế hoạch không được để trống")
     @Size(max = 50, message = "Tên loại kế hoạch không được vượt quá 50 ký tự")

@@ -76,6 +76,14 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Lỗi yêu cầu", ex.getMessage(), "PASSWORD_MISMATCH"));
     }
 
+    // Xử lý CravingTrackingEditForbiddenException
+    @ExceptionHandler(CravingTrackingEditForbiddenException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTrackingEditForbiddenException(CravingTrackingEditForbiddenException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(HttpStatus.FORBIDDEN, "Không thể chỉnh sửa bảng theo dõi", ex.getMessage(), "TRACKING_EDIT_FORBIDDEN"));
+    }
+
     // Xử lý DataIntegrityViolationException (ví dụ từ lỗi khóa ngoại, unique constraint)
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {

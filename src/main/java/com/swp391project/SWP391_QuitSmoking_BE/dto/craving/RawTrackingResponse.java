@@ -11,9 +11,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CravingTrackingResponseDTO {
-    private Integer cravingTrackingId;
-    private Integer dailySummaryId;
+public class RawTrackingResponse {
     private LocalDateTime trackTime;
     private Integer smokedCount;
     private Integer cravingsCount;
