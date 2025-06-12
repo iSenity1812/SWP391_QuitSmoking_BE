@@ -2,42 +2,42 @@ package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Data
 @Entity
-@Table(name = "\"User\"")
+@Table(name = "User")
+@Data
 public class User {
     @Id
-    @Column(name = "UserID")
+    @GeneratedValue
+    @JdbcTypeCode(SqlTypes.UUID)
     private UUID userId;
 
-    @Column(name = "Username", unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 50)
     private String username;
 
-    @Column(name = "Email", unique = true, nullable = false)
+    @Column(unique = true, nullable = false, length = 100)
     private String email;
 
-    @Column(name = "PasswordHash", nullable = false)
+    @Column(nullable = false, length = 255)
     private String passwordHash;
 
-    @Column(name = "CreatedAt", nullable = false)
+    @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "RoleID", nullable = false)
-    private Integer roleId;
+    @Column(nullable = false)
+    private int roleId;
 
-    @Column(name = "IsActive", nullable = false)
-    private Boolean isActive = true;
+    @Column(nullable = false)
+    private boolean isActive = true;
 
-    @Column(name = "profilePicture")
+    @Column(length = 255)
     private String profilePicture;
 
-    @Column(name = "NotificationSetting", columnDefinition = "json")
+    @Column(columnDefinition = "json")
     private String notificationSetting;
-
-    @ManyToOne
-    @JoinColumn(name = "RoleID", insertable = false, updatable = false)
-    private Role role;
 }

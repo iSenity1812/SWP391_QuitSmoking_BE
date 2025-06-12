@@ -3,17 +3,17 @@ package com.swp391project.SWP391_QuitSmoking_BE.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
-@Data
 @Entity
 @Table(name = "ChatAttachment")
+@Data
 public class ChatAttachment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private int attachmentId;
 
-    @Column(name = "MessageID", nullable = false)
-    private Integer messageId;
+    @Column(nullable = false)
+    private int messageId;
 
-    @Column(name = "FileURL", nullable = false)
+    @Column(nullable = false, length = 255)
     private String fileUrl;
 }

@@ -2,29 +2,34 @@ package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Data
 @Entity
 @Table(name = "ChatMessage")
+@Data
 public class ChatMessage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private int messageId;
 
-    @Column(name = "ConversationID", nullable = false)
-    private Integer conversationId;
+    @Column(nullable = false)
+    private int conversationId;
 
-    @Column(name = "SenderID", nullable = false)
+    @JdbcTypeCode(SqlTypes.UUID)
+    @Column(nullable = false)
     private UUID senderId;
 
-    @Column(name = "ReceiverID", nullable = false)
+    @JdbcTypeCode(SqlTypes.UUID)
+    @Column(nullable = false)
     private UUID receiverId;
 
-    @Column(name = "Content", nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "SentDate", nullable = false)
+    @Column(nullable = false)
     private LocalDateTime sentDate = LocalDateTime.now();
 }
