@@ -15,11 +15,12 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 public class QuitPlanCreateRequestDTO {
+    // Client gửi ID của member
     @NotNull(message = "ID thành viên không được để trống")
     private UUID memberId;
 
     @NotNull(message = "Loại kế hoạch không được để trống")
-    private String planTypeId; // Hoặc String planTypeName nếu bạn truyền tên
+    private Integer planTypeId; // Hoặc String planTypeName nếu bạn truyền tên
     // Nếu là FK tới PlanType, nên dùng ID của PlanType.
 
     @NotNull(message = "Kiểu giảm dần không được để trống")
@@ -37,6 +38,11 @@ public class QuitPlanCreateRequestDTO {
     @Max(value = 500, message = "Số lượng thuốc ban đầu không thể vượt quá 500")
     @NotNull(message = "Số lượng thuốc ban đầu không được để trống")
     private int initialSmokingAmount;
+
+    @NotNull(message = "Số điếu thuốc/gói không được để trống")
+    @Min(value = 1, message = "Số điếu thuốc trong mỗi gói phải lớn hơn 0")
+    private int cigarettesPerPack; // Số điếu thuốc trong mỗi gói
+
 
     @NotNull(message = "Số tiền/gói thuốc không được để trống")
     @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền không thể là số âm")

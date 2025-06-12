@@ -5,6 +5,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,11 +19,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class QuitPlanUpdateRequestDTO {
-    @NotNull(message = "ID kế hoạch không được để trống")
-    private Integer quitPlanId; // Bắt buộc cho cập nhật
+    @Min(value = 1, message = "Số điếu thuốc trong mỗi gói phải lớn hơn 0")
+    private Integer cigarettesPerPack; // Số điếu thuốc trong mỗi gói
 
-    // Các trường dưới đây có thể @Nullable nếu cập nhật một phần (PATCH)
-    private String planTypeId;
+
     @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền không thể là số âm")
     //6 số nguyên, 2 số thập phân
     @DecimalMax(value = "999999.99", inclusive = true, message = "Số tiền chỉ có thể tối đa 999.999VND")

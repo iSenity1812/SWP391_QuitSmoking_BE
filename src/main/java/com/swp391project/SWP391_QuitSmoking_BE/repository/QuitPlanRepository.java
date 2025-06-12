@@ -6,13 +6,15 @@ import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.UUID;
 
+@Repository
 public interface QuitPlanRepository extends JpaRepository<QuitPlan, Integer> {
     // Tìm kiếm QuitPlan theo memberId
-    QuitPlan findByMember_MemberId(UUID memberId);
+    List<QuitPlan> findByMember_MemberId(UUID memberId);
 
     // Kiểm tra xem QuitPlan có tồn tại với memberId và status là ACTIVE không
     boolean existsByMember_MemberIdAndStatus(UUID memberId, QuitPlanStatus status); // Hoặc QuitPlanStatus enum
@@ -35,4 +37,6 @@ public interface QuitPlanRepository extends JpaRepository<QuitPlan, Integer> {
      * Tìm tất cả các kế hoạch cai thuốc với một loại giảm dần cụ thể.
      */
     List<QuitPlan> findByReductionType(ReductionQuitPlanType reductionType);
+
+    QuitPlan findByMember_MemberIdAndQuitPlanId(UUID memberId,Integer quitPlanId);
 }

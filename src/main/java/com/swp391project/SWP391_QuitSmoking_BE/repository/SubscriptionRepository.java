@@ -3,10 +3,12 @@ package com.swp391project.SWP391_QuitSmoking_BE.repository;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Subscription;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.SubscriptionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.*;
 
+@Repository
 public interface SubscriptionRepository extends JpaRepository<Subscription, Integer> {
     // Tìm kiếm tất cả Subscription mà một Member đã đăng ký
     // Đường dẫn: Subscription (list memberSubscriptions) -> MemberSubscription (member object) -> Member (memberId field)
