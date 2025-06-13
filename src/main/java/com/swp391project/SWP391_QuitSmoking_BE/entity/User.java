@@ -33,7 +33,7 @@ public class User implements UserDetails {
     private UUID userId;
 
     // Mối quan hệ One-to-One với Member (bên không sở hữu)
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @OneToOne(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY, orphanRemoval = true)
     private Member member; // Tham chiếu đến đối tượng Member liên kết
 
     // Mối quan hệ One-to-One với Coach (bên không sở hữu)

@@ -1,5 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -15,12 +16,12 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 public class QuitPlanCreateRequestDTO {
-    // Client gửi ID của member
-    @NotNull(message = "ID thành viên không được để trống")
-    private UUID memberId;
+//    // Client gửi ID của member
+//    @NotNull(message = "ID thành viên không được để trống")
+//    private UUID memberId;
 
-    @NotNull(message = "Loại kế hoạch không được để trống")
-    private Integer planTypeId; // Hoặc String planTypeName nếu bạn truyền tên
+//    @NotNull(message = "Loại kế hoạch không được để trống")
+//    private Integer planTypeId; // Hoặc String planTypeName nếu bạn truyền tên
     // Nếu là FK tới PlanType, nên dùng ID của PlanType.
 
     @NotNull(message = "Kiểu giảm dần không được để trống")
@@ -28,6 +29,7 @@ public class QuitPlanCreateRequestDTO {
 
     @NotNull(message = "Ngày bắt đầu không được để trống")
     @FutureOrPresent(message = "Ngày bắt đầu không thể ở quá khứ")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime startDate; // Người dùng nhập ngày bắt đầu
 
     @NotNull(message = "Ngày mục tiêu không được để trống")

@@ -15,14 +15,12 @@ public class QuitPlanMapperConfig {
     public void configure() {
         // Cấu hình ánh xạ từ QuitPlan Entity sang QuitPlanResponseDTO
         modelMapper.createTypeMap(QuitPlan.class, QuitPlanResponseDTO.class)
-                .addMapping(src -> src.getPlanType().getPlanName(), QuitPlanResponseDTO::setPlanTypeName);
+                .addMappings(mapper -> {});
 
         // Cấu hình ánh xạ từ QuitPlan sang QuitPlanAdminResponseDTO
         modelMapper.createTypeMap(QuitPlan.class, QuitPlanAdminResponseDTO.class)
                 .addMapping(src -> src.getMember().getMemberId(), QuitPlanAdminResponseDTO::setMemberId)
-                .addMapping(src -> src.getMember().getUser().getUsername(), QuitPlanAdminResponseDTO::setMemberUsername)
-                .addMapping(src -> src.getPlanType().getPlanName(), QuitPlanAdminResponseDTO::setPlanTypeName)
-                .addMapping(src -> src.getPlanType().getPlanTypeID(), QuitPlanAdminResponseDTO::setPlanTypeId);
+                .addMapping(src -> src.getMember().getUser().getUsername(), QuitPlanAdminResponseDTO::setMemberUsername);
 
         // Cấu hình ánh xạ từ QuitPlanResponseDTO sang QuitPlan
 

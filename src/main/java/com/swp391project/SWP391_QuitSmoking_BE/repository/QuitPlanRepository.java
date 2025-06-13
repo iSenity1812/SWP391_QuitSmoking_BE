@@ -1,7 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.repository;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.PlanType;
+//import com.swp391project.SWP391_QuitSmoking_BE.entity.PlanType;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
@@ -31,7 +31,7 @@ public interface QuitPlanRepository extends JpaRepository<QuitPlan, Integer> {
      * Tìm tất cả các kế hoạch cai thuốc dựa trên loại kế hoạch (PlanType).
      * Truy vấn thông qua đối tượng PlanType được liên kết.
      */
-    List<QuitPlan> findByPlanType(PlanType planType);
+//    List<QuitPlan> findByPlanType(PlanType planType);
 
     /**
      * Tìm tất cả các kế hoạch cai thuốc với một loại giảm dần cụ thể.
@@ -39,4 +39,6 @@ public interface QuitPlanRepository extends JpaRepository<QuitPlan, Integer> {
     List<QuitPlan> findByReductionType(ReductionQuitPlanType reductionType);
 
     QuitPlan findByMember_MemberIdAndQuitPlanId(UUID memberId,Integer quitPlanId);
+
+    List<QuitPlan> findByMemberAndStatusIn(Member member, List<QuitPlanStatus> statuses);
 }

@@ -1,6 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan;
 
-import com.swp391project.SWP391_QuitSmoking_BE.entity.PlanType;
+//import com.swp391project.SWP391_QuitSmoking_BE.entity.PlanType;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import jakarta.validation.constraints.DecimalMax;
@@ -19,7 +19,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class QuitPlanResponseDTO {
     private Integer quitPlanId;
-    private String planTypeName; // Tên loại kế hoạch (dễ đọc hơn ID)
+//    private String planTypeName; // Tên loại kế hoạch (dễ đọc hơn ID)
     private ReductionQuitPlanType reductionType;
     private LocalDateTime createdAt;
     private LocalDateTime startDate;
@@ -31,5 +31,5 @@ public class QuitPlanResponseDTO {
 
     // có thể thêm các trường tính toán hoặc suy ra ở đây nếu cần cho hiển thị trên UI
     // Ví dụ: private BigDecimal estimatedSavings;
-     private int daysRemaining;
+//     private int daysRemaining;
 }

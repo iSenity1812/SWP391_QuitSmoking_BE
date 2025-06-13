@@ -6,12 +6,15 @@ import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
+import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -19,6 +22,11 @@ import java.util.stream.Collectors;
 public class MemberService {
     private final MemberRepository memberRepository;
     private final UserRepository userRepository;
+    private static final Logger log = org.slf4j.LoggerFactory.getLogger(MemberService.class);
+
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Autowired
     public MemberService(
@@ -39,14 +47,60 @@ public class MemberService {
     //được gọi sau khi một User vừa mới được đăng ký
     @Transactional
     public void createMemberForUser(User user) {
-        Member member = new Member();
-        member.setMemberId(user.getUserId());
-        member.setUser(user); // Member trỏ đến User
-        user.setMember(member); // User trỏ đến Member
-        member.setStreak(0);
-        member.setMemberSubscriptions(new ArrayList<>());
-        member.setQuitPlans(new ArrayList<>());
-        memberRepository.save(member);
+//        Member member = new Member();
+//        member.setUser(user); // Member trỏ đến User
+//        user.setMember(member); // User trỏ đến Member
+//        member.setStreak(0);
+//        member.setMemberSubscriptions(new ArrayList<>());
+//        member.setQuitPlans(new ArrayList<>());
+//        Member savedMember = memberRepository.save(member);
+        try {
+            if (user == null) {
+                log.error("User is null");
+                throw new IllegalArgumentException("User cannot be null");
+            }
+
+            // Kiểm tra xem Member đã tồn tại cho User này chưa
+            Optional<Member> existingMemberOptional = memberRepository.findById(user.getUserId());
+
+            if (existingMemberOptional.isPresent()) {
+                log.warn("Member already exists for user with ID: {}. Skipping creation.", user.getUserId());
+
+                Member existingMember = existingMemberOptional.get();
+                if (user.getMember() == null || !user.getMember().getMemberId().equals(existingMember.getMemberId())) {
+                    user.setMember(existingMember);
+                    userRepository.save(user); // Lưu User để cập nhật mối quan hệ trong DB
+                    log.debug("Updated user with existing member reference.");
+                }
+                return;
+            }
+
+            // Member CHƯA TỒN TẠI
+            log.debug("Initializing new member entity...");
+            Member member = new Member();
+
+            member.setUser(user);
+            log.debug("Set user reference to member");
+
+            member.setStreak(0);
+            member.setMemberSubscriptions(new ArrayList<>());
+            member.setQuitPlans(new ArrayList<>());
+            log.debug("Set default member values");
+
+            Member savedMember = memberRepository.save(member);
+            log.info("Saved new member to repository with ID: {}", savedMember.getMemberId());
+            user.setMember(savedMember);
+            userRepository.save(user); // Lưu User để cập nhật mối quan hệ trong DB
+            log.debug("Updated user with saved member");
+
+            log.info("Member created successfully for user with ID: {}", user.getUserId());
+
+        } catch (Exception e) {
+            log.error("Exception occurred while creating member for user with ID: {}", user != null ? user.getUserId() : "null", e);
+            throw e;
+        }
+
+        log.info("Member created for user with ID: {}", user.getUserId());
     }
 
     public Member getMemberById(UUID memberId) {

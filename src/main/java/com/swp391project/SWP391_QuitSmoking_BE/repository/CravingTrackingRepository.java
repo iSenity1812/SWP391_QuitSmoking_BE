@@ -11,5 +11,5 @@ import java.util.Optional;
 
 @Repository
 public interface CravingTrackingRepository extends JpaRepository<CravingTracking, Integer> {
-    List<CravingTracking> findByDailySummary(DailySummary dailySummary);
+//    List<CravingTracking> findByDailySummary(DailySummary dailySummary);
 }

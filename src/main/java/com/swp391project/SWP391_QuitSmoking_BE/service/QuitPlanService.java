@@ -8,6 +8,8 @@ import com.swp391project.SWP391_QuitSmoking_BE.repository.*;
 import com.swp391project.SWP391_QuitSmoking_BE.util.QuitPlanCalculator;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -23,9 +25,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class QuitPlanService {
+    private static final Logger log = LoggerFactory.getLogger(QuitPlanService.class);
     private final QuitPlanRepository quitPlanRepository;// Cần để tìm Member
     private final MemberRepository memberRepository;
-    private final PlanTypeRepository planTypeRepository; // Cần để tìm PlanType
     private final DailySummaryRepository dailySummaryRepository; // Cần để tìm DailySummary
 
     @Autowired
@@ -38,12 +40,10 @@ public class QuitPlanService {
     public QuitPlanService(
             QuitPlanRepository quitPlanRepository,
             MemberRepository memberRepository,
-            PlanTypeRepository planTypeRepository,
             DailySummaryRepository dailySummaryRepository
     ) {
         this.quitPlanRepository = quitPlanRepository;
         this.memberRepository = memberRepository;
-        this.planTypeRepository = planTypeRepository;
         this.dailySummaryRepository = dailySummaryRepository;
     }
 
@@ -65,41 +65,67 @@ public class QuitPlanService {
 //    }
 
     @Transactional
-    public QuitPlan createQuitPlan(QuitPlanCreateRequestDTO request) {
+    public QuitPlanResponseDTO createQuitPlan(UUID memberId, QuitPlanCreateRequestDTO request) {
         // Kiểm tra sự tồn tại của Member (ID của Member chính là ID của User)
         // Vì Member entity sử dụng @MapsId, memberRepository.findById(userId) sẽ tìm Member có userId đó.
-        Member member = memberRepository.findById(request.getMemberId())
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thành viên với ID: " + request.getMemberId()));
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thành viên với ID: " + memberId));
 
         // Kiểm tra sự tồn tại của PlanType
-        PlanType planType = planTypeRepository.findById(request.getPlanTypeId())
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy loại kế hoạch với ID: " + request.getMemberId()));
+//        PlanType planType = planTypeRepository.findById(request.getPlanTypeId())
+//                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy loại kế hoạch với ID: " + memberId));
+
+        List<QuitPlan> existingActivePlans = quitPlanRepository.findByMemberAndStatusIn(
+                member,
+                List.of(QuitPlanStatus.IN_PROGRESS, QuitPlanStatus.NOT_STARTED)
+        );
 
         QuitPlan quitPlan = new QuitPlan();
         quitPlan.setMember(member);
-        quitPlan.setPlanType(planType);
+//        quitPlan.setPlanType(planType);
         quitPlan.setReductionType(request.getReductionType());
         quitPlan.setCreatedAt(LocalDateTime.now()); // Đặt ngày tạo là hiện tại
 
-        LocalDate requestStartDate = request.getStartDate().toLocalDate();
-        LocalDate currentLocalDate = LocalDate.now();
+//        LocalDate requestStartDate = request.getStartDate().toLocalDate();
+//        LocalDate currentLocalDate = LocalDate.now();
 
+        LocalDate actualStartDate;
         QuitPlanStatus status;
-        if (requestStartDate.isAfter(currentLocalDate)) {
-            status = QuitPlanStatus.NOT_STARTED; // Ngày bắt đầu trong tương lai
-        } else {
-            status = QuitPlanStatus.IN_PROGRESS; // Ngày bắt đầu là hôm nay hoặc trong quá khứ
-        }
         //ưu tiên status từ request nếu có, nếu không thì dùng status tự động xác định
-        quitPlan.setStatus(status);
+//        quitPlan.setStatus(status);
+//        log.info("Tạo kế hoạch cai thuốc cho thành viên: {}, với trạng thái: {}", memberId, status);
+//        quitPlan.setStartDate(request.getStartDate());
+//        quitPlan.setGoalDate(request.getGoalDate());
 
-        quitPlan.setStartDate(request.getStartDate());
-        quitPlan.setGoalDate(request.getGoalDate());
+        if (request.getStartDate() == null) {
+            // Startdate ko được cung cấp, sử dụng ngày hiện tại
+            actualStartDate = LocalDate.now();
+            status = QuitPlanStatus.IN_PROGRESS; // Ngày bắt đầu là hôm nay
+            log.info("Ngay bắt đầu không được cung cấp, sử dụng ngày hiện tại: {}", actualStartDate);
+        } else {
+            // Startdate được cung cấp, sử dụng ngày đó
+            actualStartDate = request.getStartDate().toLocalDate();
+            if (actualStartDate.isAfter(LocalDate.now())) {
+                status = QuitPlanStatus.NOT_STARTED; // Ngày bắt đầu trong tương lai
+                log.info("Ngày bắt đầu trong tương lai: {}", actualStartDate);
+            } else {
+                status = QuitPlanStatus.IN_PROGRESS; // Ngày bắt đầu là hôm nay hoặc trong quá khứ
+                log.info("Ngày bắt đầu là hôm nay hoặc trong quá khứ: {}", actualStartDate);
+            }
+        }
+
+        quitPlan.setStartDate(actualStartDate.atStartOfDay()); // Chuyển đổi sang LocalDateTime
+        quitPlan.setStatus(status); // Trạng thái mới là IN_PROGRESS hoặc NOT_STARTED
+        quitPlan.setGoalDate(request.getGoalDate()); // Chuyển đổi sang LocalDateTime
         quitPlan.setInitialSmokingAmount(request.getInitialSmokingAmount());
         quitPlan.setCigarettesPerPack(request.getCigarettesPerPack());
         quitPlan.setPricePerPack(request.getPricePerPack());
         // Lưu kế hoạch cai thuốc vào cơ sở dữ liệu
-        return quitPlanRepository.save(quitPlan);
+        log.info("Lưu kế hoạch cai thuốc cho thành viên: {}", memberId);
+        QuitPlan savedPlan = quitPlanRepository.save(quitPlan);
+        log.info("Kế hoạch cai thuốc đã được lưu với ID: {}", savedPlan.getQuitPlanId());
+        // Chuyển đổi sang DTO để trả về
+        return modelMapper.map(savedPlan, QuitPlanResponseDTO.class);
     }
 
     @Transactional(readOnly = true)
@@ -338,7 +364,7 @@ public class QuitPlanService {
             Integer quitPlanId,
             UUID memberId,
             QuitPlanRestartRequestDTO restartRequestDTO) {
-        // 1. Tìm plan
+        // Tìm plan
         QuitPlan oldPlan = quitPlanRepository.findById(quitPlanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kế hoạch bỏ thuốc với ID: " + quitPlanId));
 
@@ -346,9 +372,8 @@ public class QuitPlanService {
         oldPlan.setStatus(QuitPlanStatus.RESTARTED);
         quitPlanRepository.save(oldPlan);
 
-        //
-        PlanType newPlanType = planTypeRepository.findById(restartRequestDTO.getNewPlanTypeId())
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy loại kế hoạch với ID: " + restartRequestDTO.getNewPlanTypeId()));
+//        PlanType newPlanType = planTypeRepository.findById(restartRequestDTO.getNewPlanTypeId())
+//                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy loại kế hoạch với ID: " + restartRequestDTO.getNewPlanTypeId()));
 
         QuitPlan newPlan = new QuitPlan();
         newPlan.setMember(oldPlan.getMember());
@@ -359,11 +384,11 @@ public class QuitPlanService {
         newPlan.setInitialSmokingAmount(restartRequestDTO.getNewInitialSmokingAmount());
         newPlan.setPricePerPack(restartRequestDTO.getNewPricePerPack());
         newPlan.setCigarettesPerPack(restartRequestDTO.getNewCigarettesPerPack());
-        newPlan.setPlanType(newPlanType);
+//        newPlan.setPlanType(newPlanType);
         newPlan.setReductionType(restartRequestDTO.getNewReductionType()); // Trạng thái mới là IN_PROGRESS
         newPlan.setStatus(QuitPlanStatus.NOT_STARTED); // Trạng thái mới là IN_PROGRESS
 
-        // 4. Lưu lại kế hoạch đã cập nhật
+        // Lưu lại kế hoạch đã cập nhật
         QuitPlan restartedPlan = quitPlanRepository.save(newPlan);
         return modelMapper.map(restartedPlan, QuitPlanResponseDTO.class);
     }

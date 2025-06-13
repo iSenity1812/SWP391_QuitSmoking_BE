@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @OpenAPIDefinition(info = @Info(title = "User API", version = "1.0", description = "Information"))
 @SecurityScheme(name = "user_api", scheme = "bearer", type = SecuritySchemeType.HTTP, in = SecuritySchemeIn.HEADER)
+@SecurityScheme(name = "quit_plan_api", scheme = "bearer", type = SecuritySchemeType.HTTP, in = SecuritySchemeIn.HEADER)
 public class Swp391QuitSmokingBeApplication {
 
 	public static void main(String[] args) {
