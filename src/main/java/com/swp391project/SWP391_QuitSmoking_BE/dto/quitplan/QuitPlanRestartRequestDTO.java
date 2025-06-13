@@ -31,8 +31,5 @@ public class QuitPlanRestartRequestDTO {
     @NotNull(message = "Số điếu mỗi gói không được để trống")
     private Integer newCigarettesPerPack;
 
-//    @NotNull(message = "Loại kế hoạch không được để trống")
-//    private Integer newPlanTypeId; // ID của PlanType
-
     private ReductionQuitPlanType newReductionType;
 }

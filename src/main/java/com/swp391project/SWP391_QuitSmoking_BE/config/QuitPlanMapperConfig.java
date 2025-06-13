@@ -3,6 +3,7 @@ package com.swp391project.SWP391_QuitSmoking_BE.config;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan.QuitPlanAdminResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan.QuitPlanResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 public class QuitPlanMapperConfig {
     private final ModelMapper modelMapper;
 
+    @PostConstruct
     public void configure() {
         // Cấu hình ánh xạ từ QuitPlan Entity sang QuitPlanResponseDTO
         modelMapper.createTypeMap(QuitPlan.class, QuitPlanResponseDTO.class)

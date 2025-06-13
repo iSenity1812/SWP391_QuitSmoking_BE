@@ -6,14 +6,15 @@ import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.*;
 import com.swp391project.SWP391_QuitSmoking_BE.util.QuitPlanCalculator;
-import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,39 +31,26 @@ public class QuitPlanService {
     private final MemberRepository memberRepository;
     private final DailySummaryRepository dailySummaryRepository; // Cần để tìm DailySummary
 
-    @Autowired
-    private QuitPlanCalculator quitPlanCalculator; // Cần để tính toán kế hoạch cai thuốc
+    private final QuitPlanCalculator quitPlanCalculator; // Cần để tính toán kế hoạch cai thuốc
 
-    @Autowired
-    private ModelMapper modelMapper;
+    private final ModelMapper modelMapper;
 
     @Autowired
     public QuitPlanService(
             QuitPlanRepository quitPlanRepository,
             MemberRepository memberRepository,
-            DailySummaryRepository dailySummaryRepository
-    ) {
+            DailySummaryRepository dailySummaryRepository,
+            QuitPlanCalculator quitPlanCalculator, ModelMapper modelMapper) {
         this.quitPlanRepository = quitPlanRepository;
         this.memberRepository = memberRepository;
         this.dailySummaryRepository = dailySummaryRepository;
+        this.quitPlanCalculator = quitPlanCalculator;
+        this.modelMapper = modelMapper;
     }
 
     private static final int RELAPSE_CONSECUTIVE_DAYS_THRESHOLD = 3;
     // Ví dụ: 0.2 (20%) nghĩa là nếu hút 12 điếu khi mục tiêu là 10 điếu (vượt 20%) thì coi là tái nghiện.
     private static final double RELAPSE_PERCENTAGE_OVER_TARGET_THRESHOLD = 0.20; // 20%
-
-    //Method để chuyển đổi Entity sang Response
-//    private QuitPlanResponseDTO convertToResponseDto(QuitPlan quitPlan) {
-//        QuitPlanResponseDTO response = new QuitPlanResponse();
-//        response.setPlanTypeName(quitPlan.getPlanType().getPlanName());
-//        response.setReductionType(quitPlan.getReductionType());
-//        response.setStartDate(quitPlan.getStartDate());
-//        response.setGoalDate(quitPlan.getGoalDate());
-//        response.setInitialSmokingAmount(quitPlan.getInitialSmokingAmount());
-//        response.setStatus(quitPlan.getStatus());
-//
-//        return response;
-//    }
 
     @Transactional
     public QuitPlanResponseDTO createQuitPlan(UUID memberId, QuitPlanCreateRequestDTO request) {
@@ -71,41 +59,36 @@ public class QuitPlanService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thành viên với ID: " + memberId));
 
-        // Kiểm tra sự tồn tại của PlanType
-//        PlanType planType = planTypeRepository.findById(request.getPlanTypeId())
-//                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy loại kế hoạch với ID: " + memberId));
-
         List<QuitPlan> existingActivePlans = quitPlanRepository.findByMemberAndStatusIn(
                 member,
                 List.of(QuitPlanStatus.IN_PROGRESS, QuitPlanStatus.NOT_STARTED)
         );
 
+        if (existingActivePlans.isEmpty()) {
+            log.info("Không có kế hoạch cai thuốc nào đang hoạt động cho thành viên: {}", memberId);
+        } else {
+            log.warn("Thành viên {} đã có kế hoạch cai thuốc đang hoạt động. Không thể tạo kế hoạch mới.", memberId);
+            throw new IllegalArgumentException("Thành viên đã có kế hoạch cai thuốc đang hoạt động.");
+        }
+
+        LocalDateTime nowForConsistency = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).plusSeconds(1);
         QuitPlan quitPlan = new QuitPlan();
         quitPlan.setMember(member);
-//        quitPlan.setPlanType(planType);
         quitPlan.setReductionType(request.getReductionType());
-        quitPlan.setCreatedAt(LocalDateTime.now()); // Đặt ngày tạo là hiện tại
+        quitPlan.setCreatedAt(nowForConsistency); // Đặt ngày tạo là hiện tại
 
-//        LocalDate requestStartDate = request.getStartDate().toLocalDate();
-//        LocalDate currentLocalDate = LocalDate.now();
-
-        LocalDate actualStartDate;
+        LocalDateTime actualStartDate;
         QuitPlanStatus status;
-        //ưu tiên status từ request nếu có, nếu không thì dùng status tự động xác định
-//        quitPlan.setStatus(status);
-//        log.info("Tạo kế hoạch cai thuốc cho thành viên: {}, với trạng thái: {}", memberId, status);
-//        quitPlan.setStartDate(request.getStartDate());
-//        quitPlan.setGoalDate(request.getGoalDate());
 
         if (request.getStartDate() == null) {
             // Startdate ko được cung cấp, sử dụng ngày hiện tại
-            actualStartDate = LocalDate.now();
-            status = QuitPlanStatus.IN_PROGRESS; // Ngày bắt đầu là hôm nay
-            log.info("Ngay bắt đầu không được cung cấp, sử dụng ngày hiện tại: {}", actualStartDate);
+            actualStartDate = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).plusSeconds(1); // Truncated để đảm bảo tính nhất quán
+            status = QuitPlanStatus.IN_PROGRESS; // Ngày bắt đầu `là hôm nay
+            log.info("Ngay bắt đầu không được cung cấp, sử dụng ngày hiện tại (+1s): {}", actualStartDate);
         } else {
             // Startdate được cung cấp, sử dụng ngày đó
-            actualStartDate = request.getStartDate().toLocalDate();
-            if (actualStartDate.isAfter(LocalDate.now())) {
+            actualStartDate = request.getStartDate();
+            if (actualStartDate.isAfter(LocalDateTime.now())) {
                 status = QuitPlanStatus.NOT_STARTED; // Ngày bắt đầu trong tương lai
                 log.info("Ngày bắt đầu trong tương lai: {}", actualStartDate);
             } else {
@@ -114,7 +97,7 @@ public class QuitPlanService {
             }
         }
 
-        quitPlan.setStartDate(actualStartDate.atStartOfDay()); // Chuyển đổi sang LocalDateTime
+        quitPlan.setStartDate(actualStartDate); // Chuyển đổi sang LocalDateTime
         quitPlan.setStatus(status); // Trạng thái mới là IN_PROGRESS hoặc NOT_STARTED
         quitPlan.setGoalDate(request.getGoalDate()); // Chuyển đổi sang LocalDateTime
         quitPlan.setInitialSmokingAmount(request.getInitialSmokingAmount());
@@ -137,9 +120,17 @@ public class QuitPlanService {
 
     @Transactional(readOnly = true)
     public List<QuitPlanAdminResponseDTO> getAllQuitPlansForAdmin() {
-        return quitPlanRepository.findAll().stream()
+        return quitPlanRepository.findAllWithMemberAndUser().stream()
                 .map(quitPlan -> modelMapper.map(quitPlan, QuitPlanAdminResponseDTO.class))
                 .collect(Collectors.toList());
+    }
+
+    // get quit plans by Id for admin
+    @Transactional
+    public QuitPlanAdminResponseDTO getQuitPlanByIdForAdmin(Integer id) {
+        QuitPlan quitPlan = quitPlanRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy kế hoạch cai thuốc với ID: " + id));
+        return modelMapper.map(quitPlan, QuitPlanAdminResponseDTO.class);
     }
 
     @Transactional(readOnly = true)
@@ -154,12 +145,46 @@ public class QuitPlanService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<QuitPlanAdminResponseDTO> getQuitPlansByMemberIdForAdmin(UUID memberId) {
+        // Kiểm tra sự tồn tại của Member trước
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thành viên với ID: " + memberId));
+
+        List<QuitPlan> quitPlans = quitPlanRepository.findByMemberOrderByCreatedAtDesc(member);
+        return quitPlans.stream()
+                .map(quitPlan -> modelMapper.map(quitPlan, QuitPlanAdminResponseDTO.class))
+                .collect(Collectors.toList());
+    }
+
+    // Lấy quit plan hiện tại của một thành viên (chỉ có một kế hoạch cai thuốc đang hoạt động)
+    @Transactional(readOnly = true)
+    public QuitPlanResponseDTO getCurrentQuitPlanByMemberId(UUID memberId) {
+        // Kiểm tra sự tồn tại của Member trước
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thành viên với ID: " + memberId));
+
+        // Lấy kế hoạch cai thuốc hiện tại (chỉ có một kế hoạch cai thuốc đang hoạt động)
+        QuitPlan currentPlan = quitPlanRepository.findByMemberAndStatusIn(
+                member,
+                List.of(QuitPlanStatus.IN_PROGRESS, QuitPlanStatus.NOT_STARTED)
+        ).stream().findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kế hoạch cai thuốc đang hoạt động cho thành viên với ID: " + memberId));
+
+        return modelMapper.map(currentPlan, QuitPlanResponseDTO.class);
+    }
+
     // -- UPDATE --
     @Transactional
-    public QuitPlanResponseDTO updateQuitPlan(Integer quitPlanId, QuitPlanUpdateRequestDTO updateRequestDTO) {
+    public QuitPlanResponseDTO updateQuitPlan(Integer quitPlanId, UUID memberId, QuitPlanUpdateRequestDTO updateRequestDTO) {
         // 1. Tìm plan
         QuitPlan existingPlan = quitPlanRepository.findById(quitPlanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kế hoạch bỏ thuốc với ID: " + quitPlanId));
+
+        // Kiểm tra quyền sở hữu
+        if (!existingPlan.getMember().getMemberId().equals(memberId)) {
+            throw new IllegalArgumentException("Kế hoạch này không thuộc về thành viên với ID: " + memberId);
+        }
 
         // 2. Cập nhật các trường từ DTO vào entity
         modelMapper.map(updateRequestDTO, existingPlan);
@@ -169,9 +194,31 @@ public class QuitPlanService {
         return modelMapper.map(updatedPlan, QuitPlanResponseDTO.class);
     }
 
+    // Cập nhaat kế hoạch cai thuốc hiện tại của người dùng
+    @Transactional
+    public QuitPlanResponseDTO updateCurrentActivePlan(UUID memberId, QuitPlanUpdateRequestDTO request) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thành viên với ID: " + memberId));
+
+        List<QuitPlan> activePlans  = quitPlanRepository.findByMemberAndStatusIn(
+                member,
+                List.of(QuitPlanStatus.IN_PROGRESS, QuitPlanStatus.NOT_STARTED)
+        );
+
+        if (activePlans.isEmpty()) {
+            log.info("Không có kế hoạch cai thuốc nào đang hoạt động cho thành viên: {}", memberId);
+            throw new ResourceNotFoundException("Không tìm thấy kế hoạch cai thuốc đang hoạt động với thành viên với ID: " + memberId);
+        }
+
+        QuitPlan currentPlan = activePlans.getFirst();
+        modelMapper.map(request, currentPlan);
+        QuitPlan updatedPlan = quitPlanRepository.save(currentPlan);
+        return modelMapper.map(updatedPlan, QuitPlanResponseDTO.class);
+    }
+
     // -- DELETE --
     @Transactional
-    public void deleteQuitPlan(Integer quitPlanId) {
+    public void deleteQuitPlanById(Integer quitPlanId) {
         // 1. Tìm plan
         QuitPlan existingPlan = quitPlanRepository.findById(quitPlanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kế hoạch bỏ thuốc với ID: " + quitPlanId));
@@ -198,8 +245,6 @@ public class QuitPlanService {
 
     /**
      * Cập nhật status của kế hoạch cụ thể
-     * @param plan
-     * @param currentDate
      */
     private void updateQuitPlanStatus(QuitPlan plan, LocalDate currentDate) {
         QuitPlanStatus currentStatus = plan.getStatus();
@@ -223,13 +268,10 @@ public class QuitPlanService {
                     } else {
                         newStatus = QuitPlanStatus.FAILED;
                     }
-                } else if (!isPlanCompleted(plan)) {
-                    newStatus = QuitPlanStatus.RESTARTED;
                 }
                 break;
             case COMPLETED:
             case FAILED:
-            case RESTARTED:
                 break;
 
         }
@@ -260,9 +302,6 @@ public class QuitPlanService {
                 plan, plan.getStartDate().toLocalDate(), plan.getGoalDate()
         );
 
-//        if (records.isEmpty() && plan.getGoalDate().isAfter(LocalDate.now()))  {
-//            return false; // Nếu không có bản ghi nào và ngày kết thúc vẫn chưa đến, coi là chưa hoàn thành
-//        }
 
         long daysAchievedGoal = 0; // Số ngày đã đạt được mục tiêu
 
@@ -283,7 +322,7 @@ public class QuitPlanService {
                 }
             } else {
                 // Nếu không tìm thấy mục tiêu cho ngày này, coi như không đạt
-                continue;
+                log.warn("Bản ghi DailySummary cho kế hoạch ID {} có ngày theo dõi {} nằm ngoài phạm vi kế hoạch.", plan.getQuitPlanId(), record.getTrackDate());
             }
         }
 
@@ -319,7 +358,7 @@ public class QuitPlanService {
         List<DailySummary> recentRecords = dailySummaryRepository.findByQuitPlanOrderByTrackDateDesc(plan)
                 .stream()
                 .limit(RELAPSE_CONSECUTIVE_DAYS_THRESHOLD)
-                .collect(Collectors.toList());
+                .toList();
 
         if (recentRecords.size() < RELAPSE_CONSECUTIVE_DAYS_THRESHOLD) {
             return false; // Không đủ dữ liệu để đánh giá
@@ -359,37 +398,35 @@ public class QuitPlanService {
         return consecutiveRelapseDaysCount >= RELAPSE_CONSECUTIVE_DAYS_THRESHOLD;
     }
 
+
+    // GIVE UP QUIT PLAN
     @Transactional
-    public QuitPlanResponseDTO restartedQuitPlan(
-            Integer quitPlanId,
-            UUID memberId,
-            QuitPlanRestartRequestDTO restartRequestDTO) {
-        // Tìm plan
-        QuitPlan oldPlan = quitPlanRepository.findById(quitPlanId)
+    public QuitPlanResponseDTO giveUpQuitPlan(Integer quitPlanId, UUID memberId) {
+        QuitPlan currentPlan = quitPlanRepository.findById(quitPlanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kế hoạch bỏ thuốc với ID: " + quitPlanId));
 
+        // Kiểm tra quyền sở hữu
+        if (!currentPlan.getMember().getMemberId().equals(memberId)) {
+            throw new IllegalArgumentException("Kế hoạch này không thuộc về thành viên với ID: " + memberId);
+        }
+        // Kiểm tra trạng thái hiện tại
+        if (currentPlan.getStatus() == QuitPlanStatus.FAILED ||
+                currentPlan.getStatus() == QuitPlanStatus.COMPLETED) {
+            throw new IllegalArgumentException("Không thể bỏ cuộc kế hoạch đã hoàn thành hoặc đã thất bại");
+        }
 
-        oldPlan.setStatus(QuitPlanStatus.RESTARTED);
-        quitPlanRepository.save(oldPlan);
 
-//        PlanType newPlanType = planTypeRepository.findById(restartRequestDTO.getNewPlanTypeId())
-//                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy loại kế hoạch với ID: " + restartRequestDTO.getNewPlanTypeId()));
+        // Đánh dấu kế hoạch là FAILED
+//        int updateRow = quitPlanRepository.updateQuitPlanStatus(quitPlanId, QuitPlanStatus.FAILED);
 
-        QuitPlan newPlan = new QuitPlan();
-        newPlan.setMember(oldPlan.getMember());
-        newPlan.setCreatedAt(LocalDateTime.now());
+//        currentPlan.setStatus(QuitPlanStatus.FAILED);
+//        log.info("Current plan status is set to {} for quit plan ID {}", currentPlan.getStatus(), quitPlanId);
+//        System.out.println("current plan: " + currentPlan);
+//        quitPlanRepository.save(currentPlan);
 
-        newPlan.setStartDate(restartRequestDTO.getNewStartDate());
-        newPlan.setGoalDate(restartRequestDTO.getNewGoalDate());
-        newPlan.setInitialSmokingAmount(restartRequestDTO.getNewInitialSmokingAmount());
-        newPlan.setPricePerPack(restartRequestDTO.getNewPricePerPack());
-        newPlan.setCigarettesPerPack(restartRequestDTO.getNewCigarettesPerPack());
-//        newPlan.setPlanType(newPlanType);
-        newPlan.setReductionType(restartRequestDTO.getNewReductionType()); // Trạng thái mới là IN_PROGRESS
-        newPlan.setStatus(QuitPlanStatus.NOT_STARTED); // Trạng thái mới là IN_PROGRESS
+        quitPlanRepository.updateQuitPlanStatus(quitPlanId, QuitPlanStatus.FAILED);
+        log.info("Kế hoạch ID {} của thành viên {} đã được đánh dấu là FAILED do người dùng bỏ cuộc.", quitPlanId, memberId);
+        return modelMapper.map(currentPlan, QuitPlanResponseDTO.class);
 
-        // Lưu lại kế hoạch đã cập nhật
-        QuitPlan restartedPlan = quitPlanRepository.save(newPlan);
-        return modelMapper.map(restartedPlan, QuitPlanResponseDTO.class);
     }
 }

@@ -27,7 +27,7 @@ public class QuitPlanCreateRequestDTO {
     @NotNull(message = "Kiểu giảm dần không được để trống")
     private ReductionQuitPlanType reductionType;
 
-    @NotNull(message = "Ngày bắt đầu không được để trống")
+//    @NotNull(message = "Ngày bắt đầu không được để trống")
     @FutureOrPresent(message = "Ngày bắt đầu không thể ở quá khứ")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime startDate; // Người dùng nhập ngày bắt đầu

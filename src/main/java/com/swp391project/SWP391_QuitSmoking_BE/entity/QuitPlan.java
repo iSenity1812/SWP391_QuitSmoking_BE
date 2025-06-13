@@ -5,13 +5,10 @@ import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import com.swp391project.SWP391_QuitSmoking_BE.validation.quitplan.ValidQuitPlanDates;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+        import jakarta.validation.constraints.*;
+        import lombok.*;
 
-import java.math.BigDecimal;
+        import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -21,6 +18,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @ValidQuitPlanDates
+@ToString
 public class QuitPlan {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,11 +41,11 @@ public class QuitPlan {
     private ReductionQuitPlanType reductionType;
 
     @NotNull(message = "Ngày tạo kế hoạch không được để trống")
-    @PastOrPresent(message = "Ngày tạo kế hoạch không thể ở tương lai")
+//    @PastOrPresent(message = "Ngày tạo kế hoạch không thể ở tương lai")
     @Column(name = "CreatedAt", nullable =  false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @NotNull(message = "Ngày bắt đầu kế hoạch không được để trống")
+    //    @NotNull(message = "Ngày bắt đầu kế hoạch không được để trống")
     @FutureOrPresent(message = "Ngày bắt đầu kế hoạch không thể ở quá khứ")
     @Column(name = "StartDate", nullable = false)
     private LocalDateTime startDate;
@@ -76,8 +74,9 @@ public class QuitPlan {
     @PositiveOrZero(message = "Số điều thuốc trong mỗi gói phải là số dương hoặc bằng 0")
     private int cigarettesPerPack;
 
-     @NotNull(message = "Trạng thái kế hoạch không được để trống")
-     @Enumerated(EnumType.STRING)
-     @Column(name = "Status", length = 20, nullable = false)
-     private QuitPlanStatus status;
+    @NotNull(message = "Trạng thái kế hoạch không được để trống")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "Status", length = 20, nullable = false)
+    private QuitPlanStatus status;
+
 }
