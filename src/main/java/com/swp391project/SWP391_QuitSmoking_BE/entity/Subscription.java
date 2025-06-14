@@ -50,6 +50,10 @@ public class Subscription implements IDurationAware {
     @Column(name = "Description", columnDefinition = "TEXT")
     private String description;
 
+    public Integer getSubscriptionId() {
+        return subscriptionId;
+    }
+
     public Integer getDuration() {
         return duration;
     }

@@ -53,4 +53,24 @@ public class Achievement {
     public void setDescription(String description) {
         this.description = description;
     }
+
+    public Integer getAchievementId() {
+        return achievementId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getIconUrl() {
+        return iconUrl;
+    }
+
+    public String getCriteria() {
+        return criteria;
+    }
+
+    public String getDescription() {
+        return description;
+    }
 }

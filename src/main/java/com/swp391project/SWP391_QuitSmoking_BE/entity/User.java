@@ -27,7 +27,7 @@ public class User {
     private UUID userId;
 
     @NotBlank(message = "Tên người dùng không được để trống") // Không được null và không được rỗng/chỉ chứa khoảng
-                                                              // trắng
+    // trắng
     @Size(min = 3, max = 50, message = "Tên người dùng phải có từ 3 đến 50 ký tự")
     @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Tên người dùng chỉ được chứa chữ cái, số và dấu gạch dưới")
     @Column(name = "Username", length = 50, unique = true, nullable = false)
@@ -45,7 +45,7 @@ public class User {
 
     @NotNull(message = "Thời gian tạo không được để trống")
     @PastOrPresent(message = "Thời gian tạo không thể ở tương lai") // LocalDateTime.now() luôn trả về thời gian hiện
-                                                                    // tại hoặc trong quá khứ
+    // tại hoặc trong quá khứ
     @Column(name = "CreatedAt", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -67,6 +67,10 @@ public class User {
     @Column(name = "NotificationSetting", columnDefinition = "json")
     @NotNull(message = "Cài đặt thông báo không được để trống")
     private Map<String, Object> notificationSetting;
+
+    public UUID getUserId() {
+        return userId;
+    }
 
     public String getUsername() {
         return username;

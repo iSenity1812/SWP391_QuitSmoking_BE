@@ -11,10 +11,26 @@ import java.util.List;
 @Component
 public class QuitPlanCalculator {
     @Getter
-    @AllArgsConstructor
     public static class QuitPlanDay {
         private int day;
         private int cigarettes;
+
+        // Default constructor
+        public QuitPlanDay() {}
+
+        // Parameterized constructor
+        public QuitPlanDay(int day, int cigarettes) {
+            this.day = day;
+            this.cigarettes = cigarettes;
+        }
+
+        public int getDay() {
+            return day;
+        }
+
+        public int getCigarettes() {
+            return cigarettes;
+        }
     }
 
     public List<QuitPlanDay> generateQuitPlan (

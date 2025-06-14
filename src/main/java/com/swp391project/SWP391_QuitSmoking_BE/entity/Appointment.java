@@ -47,4 +47,32 @@ public class Appointment {
     @Size(max = 255)
     @Column(name = "Note", length = 255)
     private String note;
+
+    public Integer getAppointmentId() {
+        return appointmentId;
+    }
+
+    public Member getMember() {
+        return member;
+    }
+
+    public Coach getCoach() {
+        return coach;
+    }
+
+    public LocalDateTime getStartTime() {
+        return startTime;
+    }
+
+    public LocalDateTime getEndTime() {
+        return endTime;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public String getNote() {
+        return note;
+    }
 }

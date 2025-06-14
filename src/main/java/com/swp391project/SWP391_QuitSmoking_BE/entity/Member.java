@@ -76,6 +76,10 @@ public class Member {
         return streak;
     }
 
+    public UUID getMemberId() {
+        return memberId;
+    }
+
     public void setMemberId(java.util.UUID memberId) {
         this.memberId = memberId;
     }
