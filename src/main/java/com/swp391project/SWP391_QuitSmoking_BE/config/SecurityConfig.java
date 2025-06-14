@@ -37,14 +37,16 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated()
                 )
+                // START: Cập nhật cấu hình Headers để loại bỏ deprecated methods và sửa lỗi includeSubdomains
                 .headers(headers -> headers
-                        .frameOptions().deny()
-                        .contentTypeOptions().and()
+                        .frameOptions(frameOptions -> frameOptions.deny()) // Sử dụng lambda DSL
+                        .contentTypeOptions(contentTypeOptions -> {}) // Không cần .and() nữa
                         .httpStrictTransportSecurity(hstsConfig -> hstsConfig
                                 .maxAgeInSeconds(31536000)
-                                .includeSubdomains(true)
+                                .includeSubDomains(true) // <-- SỬA includeSubdomains THÀNH includeSubDomains (chữ 'D' viết hoa)
                         )
                 );
+        // END: Cập nhật cấu hình Headers
 
         return http.build();
     }

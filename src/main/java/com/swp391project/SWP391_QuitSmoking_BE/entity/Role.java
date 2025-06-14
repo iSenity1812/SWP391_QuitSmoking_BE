@@ -22,9 +22,11 @@ public class Role {
 
     @NotBlank(message = "Role name cannot be blank")
     @Size(max = 50, message = "Role name must not exceed 50 characters")
-    @Column(name = "RoleName", length = 50, unique = true, nullable = false)
+    // THAY ĐỔI DÒNG NÀY: Thêm columnDefinition với giá trị mặc định để xử lý các giá trị null hiện có
+    @Column(name = "RoleName", length = 50, unique = true, nullable = false, columnDefinition = "VARCHAR(50) DEFAULT 'USER'")
     private String roleName;
 
+    // Các phương thức getter/setter khác vẫn giữ nguyên
     public String getRoleName() {
         return roleName;
     }

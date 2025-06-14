@@ -6,6 +6,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.enums.TransactionStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.PaymentProcessingException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.VnPayException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.*;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.Role; // <-- THÊM IMPORT NÀY CHO ENUM ROLE
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +33,7 @@ public class PaymentService {
     @Autowired
     private MemberRepository memberRepository;
     @Autowired
-    private RoleRepository roleRepository;
+    private RoleRepository roleRepository; // Đây là RoleRepository cho entity.Role
     @Autowired
     private UserRepository userRepository;
     @Autowired
@@ -233,12 +234,17 @@ public class PaymentService {
             // Update user role
             User user = member.getUser();
             if (user != null) {
-                Role premiumRole = roleRepository.findByRoleName("ROLE_PREMIUM")
+                // Lấy entity.Role từ database
+                com.swp391project.SWP391_QuitSmoking_BE.entity.Role entityPremiumRole = roleRepository.findByRoleName("ROLE_PREMIUM")
                         .orElseThrow(() -> {
-                            logger.error("Premium role not found");
+                            logger.error("Premium role not found in database (entity.Role)");
                             return new PaymentProcessingException("Premium role not found", "ROLE_NOT_FOUND");
                         });
-                user.setRole(premiumRole);
+
+                // Chuyển đổi từ entity.Role sang enums.Role để gán vào User entity
+                Role enumPremiumRole = Role.valueOf(entityPremiumRole.getRoleName()); // <-- ĐÃ SỬA: CHUYỂN ĐỔI KIỂU
+
+                user.setRole(enumPremiumRole); // <-- GÁN KIỂU ENUM ĐÃ CHUYỂN ĐỔI
                 userRepository.save(user);
                 logger.info("Updated user role to PREMIUM for user: {}", user.getUserId());
             }
@@ -279,6 +285,7 @@ public class PaymentService {
         response.setTransactionId(request.getTransactionId());
         response.setStatus("CONFIRMED");
         response.setMessage("Thanh toán đã được xác nhận thành công.");
+        response.setSuccess(true); // <-- ĐÃ THÊM DÒNG NÀY ĐỂ ĐỒNG BỘ VỚI PaymentConfirmResponse
         return response;
     }
 }

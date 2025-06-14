@@ -26,6 +26,8 @@ public class VnPayConfig {
     @Value("${vnpay.pay-url}")
     private String payUrl;
 
+    // LƯU Ý: Đảm bảo rằng bạn đã cấu hình vnpay.return-url trong application.properties
+    // Hoặc nó sẽ được cập nhật động bằng updateReturnUrl()
     @NotBlank(message = "VNPay Return URL cannot be blank")
     @Value("${vnpay.return-url}")
     private String returnUrl;
@@ -40,6 +42,10 @@ public class VnPayConfig {
     private long minAmount; // 10,000 VND
 
     // Static fields for backward compatibility
+    // CÁC TRƯỜNG STATIC NÀY CÓ THỂ LÀ NGUYÊN NHÂN GÂY RẮC RỐI VÌ NÓ KHÔNG PHẢI LÀ SPRING BEAN PROPERTY
+    // NẾU BẠN KHÔNG SỬ DỤNG CÁC TRƯỜNG STATIC NÀY ĐỂ TRUY CẬP CẤU HÌNH Ở BẤT KỲ ĐÂU NGOÀI VnPayConfig,
+    // BẠN CÓ THỂ CÂN NHẮC XÓA CHÚNG ĐỂ ĐƠN GIẢN HÓA VÀ TRÁNH NHẦM LẪN.
+    // Nếu có sử dụng, hãy chắc chắn rằng bạn truy cập chúng SAU khi @PostConstruct được gọi.
     public static String vnp_TmnCode;
     public static String vnp_HashSecret;
     public static String vnp_PayUrl;
@@ -53,6 +59,7 @@ public class VnPayConfig {
         vnp_ReturnUrl = this.returnUrl;
 
         logger.info("VNPay configuration initialized for environment");
+        logger.info("VNPay TMN Code: {}", this.tmnCode); // Thêm log để kiểm tra giá trị thực tế
         logger.info("VNPay URL: {}", this.payUrl);
         logger.info("VNPay Return URL: {}", this.returnUrl);
         logger.info("VNPay Timeout: {} minutes", this.timeoutMinutes);

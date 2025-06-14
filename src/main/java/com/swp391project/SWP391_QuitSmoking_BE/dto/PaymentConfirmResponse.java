@@ -6,6 +6,7 @@ public class PaymentConfirmResponse {
     private UUID transactionId;
     private String status;
     private String message;
+    private boolean success; // <-- DÒNG NÀY ĐƯỢC THÊM
 
     public UUID getTransactionId() {
         return transactionId;
@@ -29,5 +30,14 @@ public class PaymentConfirmResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    // <-- CÁC GETTER/SETTER MỚI CHO TRƯỜNG 'success' ĐƯỢC THÊM
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public void setSuccess(boolean success) {
+        this.success = success;
     }
 }

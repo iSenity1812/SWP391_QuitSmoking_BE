@@ -53,7 +53,7 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getUserId().toString());
         claims.put("email", user.getEmail());
-        claims.put("role", user.getRole().getRoleName());
+        claims.put("role", user.getRole().name()); // <-- ĐÃ SỬA: dùng .name() thay vì .getRoleName()
         claims.put("isActive", user.isActive());
 
         return createToken(claims, user.getUsername());

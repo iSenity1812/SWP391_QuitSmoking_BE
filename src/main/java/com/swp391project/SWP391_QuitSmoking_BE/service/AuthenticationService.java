@@ -56,7 +56,7 @@ public class AuthenticationService {
                 user.getUserId(),
                 user.getUsername(),
                 user.getEmail(),
-                user.getRole().getRoleName(),
+                user.getRole().name(), // <-- ĐÃ SỬA: dùng .name() thay vì .getRoleName()
                 user.isActive()
         );
     }
