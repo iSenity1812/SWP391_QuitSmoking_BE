@@ -58,9 +58,10 @@ public class DailySummary {
     private String note;
 
     @NotNull(message = "Số tiền tiết kiệm không được để trống")
-    @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền tiết kiệm không thể là số âm")
-    @Digits(integer = 8, fraction = 2, message = "Số tiền tiết kiệm có tối đa 8 chữ số phần nguyên và 2 chữ số phần thập phân")
-    @Column(name = "MoneySaved", precision = 10, scale = 2, nullable = false)
+    @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền không thể là số âm")
+    //6 số nguyên, 2 số thập phân
+    @DecimalMax(value = "999999.99", inclusive = true, message = "Số tiền chỉ có thể tối đa 999.999VND")
+    @Column(name = "MoneySaved", nullable = false)
     private BigDecimal moneySaved;
 
     @Column(name = "CreatedDate", nullable = false, updatable = false)
@@ -74,6 +75,6 @@ public class DailySummary {
     @Column(name = "UpdatedAt", nullable = false)
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "dailySummary", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<CravingTracking> cravingTrackings; // Danh sách các theo dõi cơn thèm trong ngày này
+//    @OneToMany(fetch = FetchType.LAZY, mappedBy = "dailySummary", cascade = CascadeType.ALL, orphanRemoval = true)
+//    private List<CravingTracking> cravingTrackings; // Danh sách các theo dõi cơn thèm trong ngày này
 }

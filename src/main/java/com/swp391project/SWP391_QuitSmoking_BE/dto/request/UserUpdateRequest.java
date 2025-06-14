@@ -24,7 +24,7 @@ public class UserUpdateRequest {
     private String profilePicture;
 
     @Size(min = 8, message = "Password must be more than 8 characters")
-    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,30}$",
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,20}$",
             message = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character")
     private String password; // Mật khẩu mới (nếu có)
 //    private String confirmPassword; // Xác nhận mật khẩu mới (nếu có)

@@ -6,7 +6,6 @@ import lombok.Getter;
 
 @Data
 public class AccountResponse {
-    @Getter
     private String username;
     private String email;
     private String profilePicture; // URL của ảnh đại diện người dùng

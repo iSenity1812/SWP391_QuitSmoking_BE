@@ -9,6 +9,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.AuthenticationRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.util.JwtUtil;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,6 +22,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -33,10 +35,12 @@ public class AuthenticationService implements UserDetailsService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final ModelMapper modelMapper;
-
+    private final MemberService memberService;
+    private static final Logger log = org.slf4j.LoggerFactory.getLogger(AuthenticationService.class);
 
     @Autowired
     private EmailService emailService;
+
 
     @Autowired
     public AuthenticationService(
@@ -44,31 +48,37 @@ public class AuthenticationService implements UserDetailsService {
             PasswordEncoder passwordEncoder,
             @Lazy AuthenticationManager authenticationManager, // Đặt @Lazy ở đây!
             JwtUtil jwtUtil,
-            ModelMapper modelMapper
+            ModelMapper modelMapper,
+            MemberService memberService
     ) {
         this.authenticationRepository = authenticationRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.modelMapper = modelMapper;
+        this.memberService = memberService;
     }
 
 
     public AccountResponse authenticateUser(LoginRequest loginRequest) {
         Authentication authentication;
         try {
+            log.debug("Attempting to authenticate user with email: {}", loginRequest.getEmail());
             authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                    loginRequest.getEmail(), // Có thể là email hoặc username
-                    loginRequest.getPassword()
-                )
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.getEmail(), // Có thể là email hoặc username
+                            loginRequest.getPassword()
+                    )
             );
             // Quan trọng: Set SecurityContextHolder chỉ khi xác thực thành công
             // Nếu không, khi có lỗi sẽ không có authentication để set vào context.
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            log.info("User {} authenticated successfully.", loginRequest.getEmail());
         } catch (BadCredentialsException e) {
+            log.warn("Authentication failed for user {}: Invalid credentials.", loginRequest.getEmail());
             throw new BadCredentialsException("Invalid email/username or password.");
         } catch (Exception e) {
+            log.error("Authentication failed for user {}: {}", loginRequest.getEmail(), e.getMessage(), e);
             throw new RuntimeException("Authentication failed: " + e.getMessage());
         }
 
@@ -89,8 +99,11 @@ public class AuthenticationService implements UserDetailsService {
      * param User details to register.
      * return The registered user details.
      */
+
+    @Transactional
     public AccountResponse registerUser(RegisterRequest registerRequest) {
-    // 1. Kiem tra email
+        // 1. Kiem tra email
+        log.info("Attempting to register new user with email: {}", registerRequest.getEmail());
         if (authenticationRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
             throw new RuntimeException("Email already exists");
         }
@@ -106,10 +119,18 @@ public class AuthenticationService implements UserDetailsService {
         newUser.setNotificationSetting(new HashMap<>());
 
         User savedUser = authenticationRepository.save(newUser);
+        log.info("User {} registered successfully with ID: {}", savedUser.getUsername(), savedUser.getUserId());
+
+        log.info("Creating member record for user ID: {}", savedUser.getUserId());
+        memberService.createMemberForUser(savedUser); // Tạo Member cho User mới
+        log.info("Member record created for user ID: {}", savedUser.getUserId());
+
+        savedUser = authenticationRepository.findById(savedUser.getUserId()).orElse(savedUser);
+
+
         String jwtToken = jwtUtil.generateToken(savedUser);
 
         // Gửi mail chào mừng khi register  thành công
-
         try {
             String recipient = savedUser.getEmail();
             String subject = "Chào mừng bạn đã đến với ứng dụng QuitTogether!";
@@ -126,11 +147,12 @@ public class AuthenticationService implements UserDetailsService {
             String templateName = "welcomeTemplate"; // Tên template email chào mừng
             EmailDetail emailDetail = new EmailDetail(recipient, subject, body, templateName, templateVariables);
             emailService.sendEmail(emailDetail);
-            System.out.println("Gửi email thành công đến: " + recipient);
+            log.info("Welcome email sent successfully to: {}", recipient);
         } catch (Exception e) {
+            log.error("Failed to send welcome email to {}: {}", savedUser.getEmail(), e.getMessage(), e);
             throw new RuntimeException("Failed to send welcome email: " + e.getMessage());
         }
-        System.out.println("Send email thành công");
+
         // Chuyển đổi User sang AccountResponse để trả về
         AccountResponse accountResponse = modelMapper.map(savedUser, AccountResponse.class);
         accountResponse.setToken(jwtToken); // Gán token vào DTO
@@ -143,9 +165,17 @@ public class AuthenticationService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String identify) throws UsernameNotFoundException {
         // Tìm kiếm người dùng theo email
+        log.debug("Attempting to load user by username/email: {}", identify);
         User user = authenticationRepository.findByEmail(identify)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + identify));
-        if (!user.isActive()) throw new UsernameNotFoundException("This account with " + identify + " is locked");
+                .orElseThrow(() -> {
+                    log.warn("User not found with email: {}", identify);
+                    return new UsernameNotFoundException("User not found with email: " + identify);
+                });
+        if (!user.isActive()) {
+            log.warn("Account for user {} is locked.", identify);
+            throw new UsernameNotFoundException("This account with " + identify + " is locked");
+        }
+        log.info("User {} loaded successfully.", identify);
         return user;
     }
 }

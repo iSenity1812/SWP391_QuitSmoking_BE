@@ -1,13 +1,15 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
+import com.swp391project.SWP391_QuitSmoking_BE.dto.coach.CoachProfile;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.normalMember.MemberResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.AdminUserCreateRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserProfile;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserUpdateRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.DuplicateEmailException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.DuplicateUsernameException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
-import com.swp391project.SWP391_QuitSmoking_BE.repository.AuthenticationRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -19,23 +21,49 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
+    private final MemberService memberService;
+    private final CoachService coachService;
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
 
     public List<UserProfile> getAllUsers() {
         List<User> users = userRepository.findAll();
+        return users.stream().map(user -> {
+            UserProfile userProfile = modelMapper.map(user, UserProfile.class);
+            userProfile.setUserId(user.getUserId());
+            return userProfile;
+        }).toList();
+    }
+
+    //Lấy danh sách Member cho Admin
+    public List<UserProfile> getAllMembers() {
+        List<UserProfile> users = getAllUsers();
         return users.stream()
-                .map(user -> {
-                    UserProfile userProfile = modelMapper.map(user, UserProfile.class);
-                    userProfile.setUserId(user.getUserId());
-                    return userProfile;
-                })
-                .toList();
+                .filter(user -> (user.getRole() == Role.NORMAL_MEMBER || user.getRole() == Role.PREMIUM_MEMBER))
+                .collect(Collectors.toList());
+    }
+
+    //Lấy danh sách Coach cho Admin
+    public List<CoachProfile> getAllCoaches() {
+         List<User> users = userRepository.findAll();
+         return users.stream()
+                 .filter(user -> user.getRole() == Role.COACH)
+                 .map(user -> {
+                     CoachProfile coachProfile = modelMapper.map(user, CoachProfile.class);
+                     // Đảm bảo coach được tải để có fullName và bio
+                     if (user.getCoach() != null) {
+                         coachProfile.setFullName(user.getCoach().getFullName());
+                         coachProfile.setCoachBio(user.getCoach().getCoachBio());
+                     }
+                     return coachProfile;
+                 })
+                 .collect(Collectors.toList());
     }
 
     public UserProfile getUserById(UUID userId) {
@@ -48,7 +76,6 @@ public class UserService {
         return userRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
     }
-
 
     // MODULAR UPDATE METHODS
     // 1. Update username
@@ -152,6 +179,7 @@ public class UserService {
 
 
     // Create a new user with admin privileges
+    @Transactional
     public UserProfile createUser(AdminUserCreateRequest request) {
         // Kiểm tra xem username hoặc email đã tồn tại chưa
         if (userRepository.existsByUsername(request.getUsername())) {
@@ -175,6 +203,13 @@ public class UserService {
         newUser.setNotificationSetting(new HashMap<>());
 
         User savedUser = userRepository.save(newUser);
+
+        if (savedUser.getRole() == Role.NORMAL_MEMBER) {
+            memberService.createMemberForUser(savedUser);
+        } else if (savedUser.getRole() == Role.COACH) {
+            coachService.createCoachForUser(savedUser, request.getFullName(), request.getCoachBio());
+        }
+
         return modelMapper.map(savedUser, UserProfile.class);
     }
 
