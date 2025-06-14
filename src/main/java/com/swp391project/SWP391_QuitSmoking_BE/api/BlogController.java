@@ -58,7 +58,7 @@ public class BlogController {
                 .body(ApiResponse.success(blog, "Lấy thông tin blog thành công."));
     }
 
-    // --- ENDPOINT CHO THÀNH VIÊN (TẠO, SỬA, XÓA BLOG CỦA HỌ) ---
+    // --- ENDPOINT CHO THÀNH VIÊN (TẠO, SỬA, XÓA BLOG CỦA HỌ) --
 
     // Tạo Blog: Yêu cầu quyền là thành viên (NORMAL_MEMBER, PREMIUM_MEMBER, COACH, CONTENT_ADMIN)
     @PostMapping
