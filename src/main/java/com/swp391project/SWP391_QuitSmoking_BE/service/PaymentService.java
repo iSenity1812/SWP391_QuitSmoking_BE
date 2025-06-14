@@ -3,11 +3,17 @@ package com.swp391project.SWP391_QuitSmoking_BE.service;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.*;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.*;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.TransactionStatus;
+import com.swp391project.SWP391_QuitSmoking_BE.exception.PaymentProcessingException;
+import com.swp391project.SWP391_QuitSmoking_BE.exception.VnPayException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -19,82 +25,80 @@ import java.util.UUID;
 public class PaymentService {
     private static final Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
-    private final TransactionRepository transactionRepository;
-    private final SubscriptionRepository subscriptionRepository;
-    private final MemberRepository memberRepository;
-    private final RoleRepository roleRepository;
-    private final UserRepository userRepository;
-    private final VnPayService vnPayService;
-    private final TransactionMethodRepository transactionMethodRepository;
+    @Autowired
+    private TransactionRepository transactionRepository;
+    @Autowired
+    private SubscriptionRepository subscriptionRepository;
+    @Autowired
+    private MemberRepository memberRepository;
+    @Autowired
+    private RoleRepository roleRepository;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private VnPayService vnPayService;
+    @Autowired
+    private TransactionMethodRepository transactionMethodRepository;
+    @Autowired
+    private VnPaySecurityService securityService;
+    @Autowired
+    private PaymentAuditService auditService;
 
-    public PaymentService(
-            TransactionRepository transactionRepository,
-            SubscriptionRepository subscriptionRepository,
-            MemberRepository memberRepository,
-            RoleRepository roleRepository,
-            UserRepository userRepository,
-            VnPayService vnPayService,
-            TransactionMethodRepository transactionMethodRepository
-    ) {
-        this.transactionRepository = transactionRepository;
-        this.subscriptionRepository = subscriptionRepository;
-        this.memberRepository = memberRepository;
-        this.roleRepository = roleRepository;
-        this.userRepository = userRepository;
-        this.vnPayService = vnPayService;
-        this.transactionMethodRepository = transactionMethodRepository;
-    }
-
-    @Transactional
-    public PaymentOrderResponse createOrder(PaymentOrderRequest request) {
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
+    public PaymentOrderResponse createOrder(PaymentOrderRequest request, String clientIP) {
         logger.info("Creating payment order for subscription ID: {}, member ID: {}",
                 request.getSubscriptionId(), request.getMemberId());
 
-        Subscription subscription = subscriptionRepository.findById(request.getSubscriptionId())
-                .orElseThrow(() -> {
-                    logger.error("Subscription not found with ID: {}", request.getSubscriptionId());
-                    return new IllegalArgumentException("Subscription not found");
-                });
-
-        Member member = memberRepository.findById(request.getMemberId())
-                .orElseThrow(() -> {
-                    logger.error("Member not found with ID: {}", request.getMemberId());
-                    return new IllegalArgumentException("Member not found");
-                });
-
-        TransactionMethod vnPayMethod = transactionMethodRepository.findByMethodName("VNPAY")
-                .orElseThrow(() -> {
-                    logger.error("Transaction method VNPAY not found");
-                    return new RuntimeException("Transaction method VNPAY not found");
-                });
-
-        // Create transaction record
-        Transaction transaction = new Transaction();
-        UUID transactionId = UUID.randomUUID();
-        transaction.setTransactionId(transactionId);
-        transaction.setAmount(subscription.getPrice());
-        transaction.setMember(member);
-        transaction.setTransactionMethod(vnPayMethod);
-        transaction.setStatus(TransactionStatus.PENDING);
-        transaction.setTransactionDate(LocalDateTime.now());
-
-        transactionRepository.save(transaction);
-        logger.info("Created transaction with ID: {}", transactionId);
-
-        // Create VNPay request
-        VnPayRequest vnPayRequest = new VnPayRequest();
-        vnPayRequest.setAmount(subscription.getPrice().intValue());
-        vnPayRequest.setOrderInfo("Thanh toán gói: " + subscription.getName());
-        vnPayRequest.setTransactionId(transactionId.toString());
-        vnPayRequest.setOrderType("billpayment");
-        vnPayRequest.setLanguage("vn");
-
         try {
-            // Get client IP (in a real app, get this from HttpServletRequest)
-            String clientIp = "127.0.0.1";
+            // Validate request
+            validatePaymentOrderRequest(request);
+
+            Subscription subscription = subscriptionRepository.findById(request.getSubscriptionId())
+                    .orElseThrow(() -> {
+                        logger.error("Subscription not found with ID: {}", request.getSubscriptionId());
+                        return new PaymentProcessingException("Subscription not found", "SUBSCRIPTION_NOT_FOUND");
+                    });
+
+            Member member = memberRepository.findById(request.getMemberId())
+                    .orElseThrow(() -> {
+                        logger.error("Member not found with ID: {}", request.getMemberId());
+                        return new PaymentProcessingException("Member not found", "MEMBER_NOT_FOUND");
+                    });
+
+            TransactionMethod vnPayMethod = transactionMethodRepository.findByMethodName("VNPAY")
+                    .orElseThrow(() -> {
+                        logger.error("Transaction method VNPAY not found");
+                        return new PaymentProcessingException("Transaction method VNPAY not found", "METHOD_NOT_FOUND");
+                    });
+
+            // Create transaction record
+            Transaction transaction = new Transaction();
+            UUID transactionId = UUID.randomUUID();
+            transaction.setTransactionId(transactionId);
+            transaction.setAmount(subscription.getPrice());
+            transaction.setMember(member);
+            transaction.setTransactionMethod(vnPayMethod);
+            transaction.setStatus(TransactionStatus.PENDING);
+            transaction.setTransactionDate(LocalDateTime.now());
+
+            transactionRepository.save(transaction);
+            logger.info("Created transaction with ID: {}", transactionId);
+
+            // Log audit
+            auditService.logPaymentCreation(transactionId, member.getMemberId().toString(),
+                    subscription.getSubscriptionId().toString(), subscription.getPrice().toString(), clientIP);
+
+            // Create VNPay request
+            VnPayRequest vnPayRequest = new VnPayRequest();
+            vnPayRequest.setAmount(subscription.getPrice().intValue());
+            vnPayRequest.setOrderInfo("Thanh toan goi: " + subscription.getName());
+            vnPayRequest.setTransactionId(transactionId.toString());
+            vnPayRequest.setOrderType("billpayment");
+            vnPayRequest.setLanguage("vn");
 
             // Generate payment URL
-            String paymentUrl = vnPayService.createPaymentUrl(vnPayRequest, clientIp);
+            String paymentUrl = vnPayService.createPaymentUrl(vnPayRequest, clientIP);
 
             // Create response
             PaymentOrderResponse response = new PaymentOrderResponse();
@@ -107,22 +111,36 @@ public class PaymentService {
 
             logger.info("Payment order created successfully with payment URL");
             return response;
+
+        } catch (VnPayException e) {
+            logger.error("VNPay error creating payment order", e);
+            throw new PaymentProcessingException("VNPay service error: " + e.getMessage(), e.getErrorCode(), e);
+        } catch (PaymentProcessingException e) {
+            logger.error("Payment processing error", e);
+            throw e;
         } catch (Exception e) {
-            logger.error("Failed to create payment URL", e);
-            throw new RuntimeException("Failed to create payment URL: " + e.getMessage(), e);
+            logger.error("Unexpected error creating payment order", e);
+            throw new PaymentProcessingException("Failed to create payment order: " + e.getMessage(), "UNEXPECTED_ERROR", e);
         }
     }
 
-    @Transactional
-    public void confirmVnPayCallback(Map<String, String> fields) {
-        logger.info("Processing VNPay callback with fields: {}", fields);
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public void confirmVnPayCallback(Map<String, String> fields, String clientIP) {
+        logger.info("Processing VNPay callback with fields: {}", fields.keySet());
 
         try {
             // Extract transaction ID from VNPay response
             String txnRef = fields.get("vnp_TxnRef");
             if (txnRef == null || txnRef.isEmpty()) {
                 logger.error("Missing transaction reference in VNPay callback");
-                throw new IllegalArgumentException("Missing transaction reference");
+                throw new PaymentProcessingException("Missing transaction reference", "MISSING_TXN_REF");
+            }
+
+            // Security validation
+            if (!securityService.isValidCallbackRequest(clientIP, txnRef)) {
+                logger.error("Security validation failed for callback from IP: {}", clientIP);
+                auditService.logVnPayCallback(txnRef, fields, clientIP, false);
+                throw new PaymentProcessingException("Security validation failed", "SECURITY_VALIDATION_FAILED");
             }
 
             UUID transactionId;
@@ -130,76 +148,127 @@ public class PaymentService {
                 transactionId = UUID.fromString(txnRef);
             } catch (IllegalArgumentException e) {
                 logger.error("Invalid transaction ID format: {}", txnRef);
-                throw new IllegalArgumentException("Invalid transaction ID format");
+                auditService.logVnPayCallback(txnRef, fields, clientIP, false);
+                throw new PaymentProcessingException("Invalid transaction ID format", "INVALID_TXN_ID");
             }
 
-            // Find transaction
+            // Find transaction with pessimistic lock
             Transaction transaction = transactionRepository.findById(transactionId)
                     .orElseThrow(() -> {
                         logger.error("Transaction not found with ID: {}", transactionId);
-                        return new IllegalArgumentException("Transaction not found");
+                        auditService.logVnPayCallback(txnRef, fields, clientIP, false);
+                        return new PaymentProcessingException("Transaction not found", "TRANSACTION_NOT_FOUND");
                     });
 
-            // Check if already processed
+            // Check if already processed (idempotency)
             if (transaction.getStatus() == TransactionStatus.SUCCESS) {
                 logger.info("Transaction {} already marked as successful, skipping", transactionId);
+                securityService.markTransactionAsProcessed(txnRef);
                 return;
+            }
+
+            // Verify signature
+            if (!vnPayService.verifyVnpaySignature(fields)) {
+                logger.error("Invalid VNPay signature for transaction: {}", transactionId);
+                transaction.setStatus(TransactionStatus.FAILED);
+                transactionRepository.save(transaction);
+                auditService.logVnPayCallback(txnRef, fields, clientIP, false);
+                throw new PaymentProcessingException("Invalid VNPay signature", "INVALID_SIGNATURE");
             }
 
             // Process response code
             String responseCode = fields.get("vnp_ResponseCode");
-            logger.info("VNPay response code: {}", responseCode);
+            logger.info("VNPay response code: {} for transaction: {}", responseCode, transactionId);
 
             if ("00".equals(responseCode)) {
                 // Success case
+                processSuccessfulPayment(transaction, fields);
+                auditService.logVnPayCallback(txnRef, fields, clientIP, true);
                 logger.info("Payment successful for transaction: {}", transactionId);
-                transaction.setStatus(TransactionStatus.SUCCESS);
-                transaction.setTransactionDate(LocalDateTime.now());
-                transactionRepository.save(transaction);
-
-                // Update member subscription
-                Member member = transaction.getMember();
-                if (member == null) {
-                    logger.error("Transaction has no member linked: {}", transactionId);
-                    throw new RuntimeException("Transaction has no member linked");
-                }
-
-                Subscription subscription = member.getSubscription();
-                if (subscription != null) {
-                    Subscription paidSub = subscriptionRepository.findById(subscription.getSubscriptionId()).orElse(null);
-                    if (paidSub != null) {
-                        member.setSubscription(paidSub);
-                        member.setStartDate(LocalDateTime.now());
-                        member.setEndDate(LocalDateTime.now().plusDays(paidSub.getDuration()));
-                        member.setSubscriptionStatus(true);
-                        memberRepository.save(member);
-                        logger.info("Updated member subscription status for member: {}", member.getMemberId());
-                    }
-                }
-
-                // Update user role
-                User user = member.getUser();
-                if (user != null) {
-                    Role premiumRole = roleRepository.findByRoleName("ROLE_PREMIUM")
-                            .orElseThrow(() -> {
-                                logger.error("Premium role not found");
-                                return new RuntimeException("Premium role not found");
-                            });
-                    user.setRole(premiumRole);
-                    userRepository.save(user);
-                    logger.info("Updated user role to PREMIUM for user: {}", user.getUserId());
-                }
             } else {
                 // Failed case
+                processFailedPayment(transaction, responseCode);
+                auditService.logVnPayCallback(txnRef, fields, clientIP, false);
                 logger.warn("Payment failed for transaction: {}, response code: {}", transactionId, responseCode);
-                transaction.setStatus(TransactionStatus.FAILED);
-                transaction.setTransactionDate(LocalDateTime.now());
-                transactionRepository.save(transaction);
             }
 
+            // Mark as processed to prevent replay
+            securityService.markTransactionAsProcessed(txnRef);
+
+        } catch (PaymentProcessingException e) {
+            logger.error("Payment processing error in callback", e);
+            throw e;
         } catch (Exception e) {
-            logger.error("Error processing VNPay callback", e);
-            throw new RuntimeException("Failed to confirm VNPay payment: " + e.getMessage(), e);
+            logger.error("Unexpected error processing VNPay callback", e);
+            throw new PaymentProcessingException("Failed to confirm VNPay payment: " + e.getMessage(), "CALLBACK_ERROR", e);
+        }
+    }
+
+    private void processSuccessfulPayment(Transaction transaction, Map<String, String> fields) {
+        try {
+            transaction.setStatus(TransactionStatus.SUCCESS);
+            transaction.setTransactionDate(LocalDateTime.now());
+            transactionRepository.save(transaction);
+
+            // Update member subscription
+            Member member = transaction.getMember();
+            if (member == null) {
+                logger.error("Transaction has no member linked: {}", transaction.getTransactionId());
+                throw new PaymentProcessingException("Transaction has no member linked", "NO_MEMBER_LINKED");
+            }
+
+            // Get subscription from transaction amount (find matching subscription)
+            Subscription subscription = subscriptionRepository.findAll().stream()
+                    .filter(s -> s.getPrice().compareTo(transaction.getAmount()) == 0)
+                    .findFirst()
+                    .orElseThrow(() -> new PaymentProcessingException("No matching subscription found", "NO_MATCHING_SUBSCRIPTION"));
+
+            member.setSubscription(subscription);
+            member.setStartDate(LocalDateTime.now());
+            member.setEndDate(LocalDateTime.now().plusDays(subscription.getDuration()));
+            member.setSubscriptionStatus(true);
+            memberRepository.save(member);
+            logger.info("Updated member subscription status for member: {}", member.getMemberId());
+
+            // Update user role
+            User user = member.getUser();
+            if (user != null) {
+                Role premiumRole = roleRepository.findByRoleName("ROLE_PREMIUM")
+                        .orElseThrow(() -> {
+                            logger.error("Premium role not found");
+                            return new PaymentProcessingException("Premium role not found", "ROLE_NOT_FOUND");
+                        });
+                user.setRole(premiumRole);
+                userRepository.save(user);
+                logger.info("Updated user role to PREMIUM for user: {}", user.getUserId());
+            }
+        } catch (Exception e) {
+            logger.error("Error processing successful payment", e);
+            throw new PaymentProcessingException("Failed to process successful payment", "SUCCESS_PROCESSING_ERROR", e);
+        }
+    }
+
+    private void processFailedPayment(Transaction transaction, String responseCode) {
+        transaction.setStatus(TransactionStatus.FAILED);
+        transaction.setTransactionDate(LocalDateTime.now());
+        transactionRepository.save(transaction);
+
+        logger.info("Marked transaction as failed: {}, response code: {}",
+                transaction.getTransactionId(), responseCode);
+    }
+
+    private void validatePaymentOrderRequest(PaymentOrderRequest request) {
+        if (request == null) {
+            throw new PaymentProcessingException("Payment request cannot be null", "NULL_REQUEST");
+        }
+        if (request.getMemberId() == null) {
+            throw new PaymentProcessingException("Member ID cannot be null", "NULL_MEMBER_ID");
+        }
+        if (request.getSubscriptionId() == null) {
+            throw new PaymentProcessingException("Subscription ID cannot be null", "NULL_SUBSCRIPTION_ID");
+        }
+        if (request.getTransactionMethodId() == null) {
+            throw new PaymentProcessingException("Transaction method ID cannot be null", "NULL_METHOD_ID");
         }
     }
 
