@@ -38,11 +38,11 @@ public class DailySummary {
     private QuitPlan quitPlan;
 
     @Min(value = 0, message = "Số lượng thuốc đã hút không thể là số âm")
-    @Column(name = "TotalSmokedCount", nullable = false)
+    @Column(name = "TotalSmokedCount")
     private int totalSmokedCount = 0;
 
     @Min(value = 0, message = "Số lần thèm thuốc không thể là số âm")
-    @Column(name = "TotalCravingCount", nullable = false)
+    @Column(name = "TotalCravingCount")
     private int totalCravingCount = 0;
 
     @NotNull(message = "Ngày theo dõi không được để trống")

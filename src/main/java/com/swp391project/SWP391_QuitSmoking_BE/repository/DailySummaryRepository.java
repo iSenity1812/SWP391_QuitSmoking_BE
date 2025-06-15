@@ -15,5 +15,6 @@ public interface DailySummaryRepository extends JpaRepository<DailySummary, Inte
     //có thể chứa một giá trị non-null hoặc null
     Optional<DailySummary> findByQuitPlanAndTrackDate(QuitPlan quitPlan, LocalDate trackDate);
     List<DailySummary> findByQuitPlanAndTrackDateBetween(QuitPlan quitPlan, LocalDate startDate, LocalDate endDate);
-    List<DailySummary> findByQuitPlanOrderByTrackDateDesc(QuitPlan quitPlan);
+    List<DailySummary> findByQuitPlan(QuitPlan quitPlan);
+    Optional<DailySummary> findByTrackDate(LocalDate trackDate); //tìm kiếm theo ngày track
 }
