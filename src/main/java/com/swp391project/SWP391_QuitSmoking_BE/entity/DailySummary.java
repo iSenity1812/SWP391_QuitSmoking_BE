@@ -9,9 +9,13 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Getter
@@ -19,8 +23,8 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @ValidDailySummaryDates
-@Table(uniqueConstraints = { // Ràng buộc duy nhất trên cặp cột
-        @UniqueConstraint(columnNames = { "QuitPlanID", "TrackDate" })
+@Table(uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"QuitPlanID", "TrackDate"})
 })
 public class DailySummary {
     @Id
@@ -34,12 +38,12 @@ public class DailySummary {
     private QuitPlan quitPlan;
 
     @Min(value = 0, message = "Số lượng thuốc đã hút không thể là số âm")
-    @Column(name = "SmokedCount", nullable = false)
-    private int smokedCount = 0;
+    @Column(name = "TotalSmokedCount", nullable = false)
+    private int totalSmokedCount = 0; // Getter: getTotalSmokedCount()
 
     @Min(value = 0, message = "Số lần thèm thuốc không thể là số âm")
-    @Column(name = "CravingsCount", nullable = false)
-    private int cravingsCount = 0;
+    @Column(name = "TotalCravingCount", nullable = false)
+    private int totalCravingCount = 0; // Getter: getTotalCravingCount()
 
     @NotNull(message = "Ngày theo dõi không được để trống")
     @PastOrPresent(message = "Ngày theo dõi không thể theo dõi ở tương lai")
@@ -59,79 +63,17 @@ public class DailySummary {
     @Column(name = "MoneySaved", precision = 10, scale = 2, nullable = false)
     private BigDecimal moneySaved;
 
-    @NotNull(message = "Trạng thái hoàn thành kế hoạch không được để trống")
-    @Column(name = "IsPlanCompleted", nullable = false)
-    private boolean isPlanCompleted = false;
+    @Column(name = "CreatedDate", nullable = false, updatable = false)
+    private boolean isGoalAchievedToday = false; // Getter: isGoalAchievedToday()
 
-    public Integer getDailySummaryId() {
-        return dailySummaryId;
-    }
+    @CreationTimestamp
+    @Column(name = "CreatedAt", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    public QuitPlan getQuitPlan() {
-        return quitPlan;
-    }
+    @UpdateTimestamp
+    @Column(name = "UpdatedAt", nullable = false)
+    private LocalDateTime updatedAt;
 
-    public int getSmokedCount() {
-        return smokedCount;
-    }
-
-    public int getCravingsCount() {
-        return cravingsCount;
-    }
-
-    public java.time.LocalDate getTrackDate() {
-        return trackDate;
-    }
-
-    public com.swp391project.SWP391_QuitSmoking_BE.enums.Mood getMood() {
-        return mood;
-    }
-
-    public String getNote() {
-        return note;
-    }
-
-    public java.math.BigDecimal getMoneySaved() {
-        return moneySaved;
-    }
-
-    public boolean isPlanCompleted() {
-        return isPlanCompleted;
-    }
-
-    public void setDailySummaryId(Integer dailySummaryId) {
-        this.dailySummaryId = dailySummaryId;
-    }
-
-    public void setQuitPlan(QuitPlan quitPlan) {
-        this.quitPlan = quitPlan;
-    }
-
-    public void setSmokedCount(int smokedCount) {
-        this.smokedCount = smokedCount;
-    }
-
-    public void setCravingsCount(int cravingsCount) {
-        this.cravingsCount = cravingsCount;
-    }
-
-    public void setTrackDate(java.time.LocalDate trackDate) {
-        this.trackDate = trackDate;
-    }
-
-    public void setMood(com.swp391project.SWP391_QuitSmoking_BE.enums.Mood mood) {
-        this.mood = mood;
-    }
-
-    public void setNote(String note) {
-        this.note = note;
-    }
-
-    public void setMoneySaved(java.math.BigDecimal moneySaved) {
-        this.moneySaved = moneySaved;
-    }
-
-    public void setPlanCompleted(boolean planCompleted) {
-        isPlanCompleted = planCompleted;
-    }
+    @OneToMany(mappedBy = "dailySummary", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CravingTracking> cravingTrackings;
 }

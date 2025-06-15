@@ -227,7 +227,7 @@ public class PaymentService {
             member.setSubscription(subscription);
             member.setStartDate(LocalDateTime.now());
             member.setEndDate(LocalDateTime.now().plusDays(subscription.getDuration()));
-            member.setSubscriptionStatus(true);
+            member.setSubscriptionStatus(true); // Dòng này là đúng vì Member.subscriptionStatus là boolean
             memberRepository.save(member);
             logger.info("Updated member subscription status for member: {}", member.getMemberId());
 
@@ -242,9 +242,9 @@ public class PaymentService {
                         });
 
                 // Chuyển đổi từ entity.Role sang enums.Role để gán vào User entity
-                Role enumPremiumRole = Role.valueOf(entityPremiumRole.getRoleName()); // <-- ĐÃ SỬA: CHUYỂN ĐỔI KIỂU
+                Role enumPremiumRole = Role.valueOf(entityPremiumRole.getRoleName());
 
-                user.setRole(enumPremiumRole); // <-- GÁN KIỂU ENUM ĐÃ CHUYỂN ĐỔI
+                user.setRole(enumPremiumRole);
                 userRepository.save(user);
                 logger.info("Updated user role to PREMIUM for user: {}", user.getUserId());
             }
@@ -285,7 +285,7 @@ public class PaymentService {
         response.setTransactionId(request.getTransactionId());
         response.setStatus("CONFIRMED");
         response.setMessage("Thanh toán đã được xác nhận thành công.");
-        response.setSuccess(true); // <-- ĐÃ THÊM DÒNG NÀY ĐỂ ĐỒNG BỘ VỚI PaymentConfirmResponse
+        response.setSuccess(true);
         return response;
     }
 }

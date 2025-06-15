@@ -1,5 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
+import com.swp391project.SWP391_QuitSmoking_BE.enums.SubscriptionStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.validation.subscription.ValidSubscriptionDuration;
 import com.swp391project.SWP391_QuitSmoking_BE.validation.subscription.ValidSubscriptionState;
 import jakarta.persistence.Entity;
@@ -11,6 +12,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -18,93 +20,40 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ValidSubscriptionDuration // Custom annotation cho thời lượng đăng kí
-@ValidSubscriptionState // Custom annotation kiểm tra tính nhất quán về trạng thái đăng kí
+@ValidSubscriptionDuration
+@ValidSubscriptionState
 public class Member {
-    // MemberID dùng chung UserID làm khóa chính
-    // là khóa ngoại liên kết với bảng User
     @Id
     @Column(name = "MemberID")
     private UUID memberId;
 
-    @OneToOne // mối quan hệ với entity User
-    @MapsId // Khóa chính của Member được lấy từ khóa chính của User
+    @OneToOne
+    @MapsId
     @JoinColumn(name = "MemberID", referencedColumnName = "UserID")
     @NotNull(message = "Người dùng liên kết không được để trống")
-    private User user; // Tham chiếu đến đối tượng User mà Member này thuộc về
+    private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY) // chỉ được tải khi thực sự truy cập vào
+    // Các trường liên quan đến gói đăng ký trực tiếp trên Member, theo DB schema
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "SubscriptionID", referencedColumnName = "SubscriptionID")
-    private Subscription subscription; // có thể null nếu member chưa đăng kí gói
+    private Subscription subscription; // Getter: getSubscription(), Setter: setSubscription()
 
-    @PastOrPresent(message = "Ngày bắt đầu đăng ký không thể ở tương lai")
     @Column(name = "StartDate")
-    private LocalDateTime startDate; // có thể null nếu member chưa đăng kí gói
+    private LocalDateTime startDate; // Getter: getStartDate(), Setter: setStartDate()
 
     @Column(name = "EndDate")
-    private LocalDateTime endDate;
+    private LocalDateTime endDate; // Getter: getEndDate(), Setter: setEndDate()
 
-    @NotNull(message = "Trạng thái đăng ký không được để trống")
     @Column(name = "SubscriptionStatus", nullable = false)
-    private boolean subscriptionStatus = false; // Mặc định là false (chưa đăng ký)
+    private boolean subscriptionStatus = false; // Thay đổi từ enum sang boolean. Getter sẽ là isSubscriptionStatus()
 
     @Min(value = 0, message = "Streak không thể là số âm")
     @Column(name = "Streak", nullable = false)
     private int streak = 0;
 
-    public User getUser() {
-        return user;
-    }
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MemberSubscription> memberSubscriptions;
 
-    public Subscription getSubscription() {
-        return subscription;
-    }
-
-    public java.time.LocalDateTime getStartDate() {
-        return startDate;
-    }
-
-    public java.time.LocalDateTime getEndDate() {
-        return endDate;
-    }
-
-    public boolean isSubscriptionStatus() {
-        return subscriptionStatus;
-    }
-
-    public int getStreak() {
-        return streak;
-    }
-
-    public UUID getMemberId() {
-        return memberId;
-    }
-
-    public void setMemberId(java.util.UUID memberId) {
-        this.memberId = memberId;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public void setSubscription(Subscription subscription) {
-        this.subscription = subscription;
-    }
-
-    public void setStartDate(java.time.LocalDateTime startDate) {
-        this.startDate = startDate;
-    }
-
-    public void setEndDate(java.time.LocalDateTime endDate) {
-        this.endDate = endDate;
-    }
-
-    public void setSubscriptionStatus(boolean subscriptionStatus) {
-        this.subscriptionStatus = subscriptionStatus;
-    }
-
-    public void setStreak(int streak) {
-        this.streak = streak;
-    }
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<QuitPlan> quitPlans;
 }

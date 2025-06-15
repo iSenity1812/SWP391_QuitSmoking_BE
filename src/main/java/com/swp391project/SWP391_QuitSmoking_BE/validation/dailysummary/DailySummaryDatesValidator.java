@@ -67,7 +67,7 @@ public class DailySummaryDatesValidator implements ConstraintValidator<ValidDail
         }
 
         //isPlanCompleted chỉ được true khi smokedCount <= số điếu nên hút
-        if (dailySummary.isPlanCompleted()) { //Nếu đánh dấu là kế hoạch đã hoàn thành trong ngày
+        if (dailySummary.isGoalAchievedToday()) { // Đã sửa: isPlanCompleted() -> isGoalAchievedToday()
             if (quitPlanStartDate != null && quitPlanGoalDate != null && planType != null) {
                 //ChronoUnit.DAYS.between: tính số ngày giữa hai LocalDate + 1 để bao gồm cả ngày bắt đầu
                 long totalDays = ChronoUnit.DAYS.between(quitPlanStartDate.toLocalDate(), quitPlanGoalDate) + 1;
@@ -91,8 +91,8 @@ public class DailySummaryDatesValidator implements ConstraintValidator<ValidDail
 
                     if (allowedDay.isPresent()) {
                         int allowedCigarettes = allowedDay.get().getCigarettes();
-                        if (dailySummary.getSmokedCount() > allowedCigarettes) {
-                            context.buildConstraintViolationWithTemplate("Số điếu thuốc đã hút (" + dailySummary.getSmokedCount() + ") vượt quá số điếu cho phép (" + allowedCigarettes + ") để đánh dấu 'Hoàn thành kế hoạch'")
+                        if (dailySummary.getTotalSmokedCount() > allowedCigarettes) { // Đã sửa: getSmokedCount() -> getTotalSmokedCount()
+                            context.buildConstraintViolationWithTemplate("Số điếu thuốc đã hút (" + dailySummary.getTotalSmokedCount() + ") vượt quá số điếu cho phép (" + allowedCigarettes + ") để đánh dấu 'Hoàn thành kế hoạch'") // Đã sửa
                                     .addPropertyNode("smokedCount")
                                     .addConstraintViolation();
                             isValid = false;

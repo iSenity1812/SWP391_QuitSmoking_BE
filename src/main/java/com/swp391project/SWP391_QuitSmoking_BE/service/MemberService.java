@@ -32,7 +32,7 @@ public class MemberService {
             member.setSubscription(memberDetails.getSubscription());
             member.setStartDate(memberDetails.getStartDate());
             member.setEndDate(memberDetails.getEndDate());
-            member.setSubscriptionStatus(memberDetails.isSubscriptionStatus());
+            member.setSubscriptionStatus(memberDetails.isSubscriptionStatus()); // Dòng này đã đúng sau khi Member.java sửa
             member.setStreak(memberDetails.getStreak());
             return memberRepository.save(member);
         }).orElseThrow(() -> new RuntimeException("Member not found"));

@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -26,12 +27,12 @@ public class Transaction {
     @Column(name = "TransactionID", updatable = false, nullable = false, columnDefinition = "uuid")
     private UUID transactionId;
 
-    @ManyToOne(fetch = FetchType.LAZY) // Một member có thể có nhiều transactions
+    @ManyToOne(fetch = FetchType.LAZY) //Một member có thể có nhiều transactions
     @JoinColumn(name = "MemberID", referencedColumnName = "MemberID", nullable = false)
     @NotNull(message = "Thông tin thành viên không được để trống trong giao dịch")
     private Member member;
 
-    @ManyToOne(fetch = FetchType.LAZY) // Một TransactionMethod có thể được sử dụng bởi nhiều transactions
+    @ManyToOne(fetch = FetchType.LAZY) //Một TransactionMethod có thể được sử dụng bởi nhiều transactions
     @JoinColumn(name = "TransactionMethodID", referencedColumnName = "TransactionMethodID", nullable = false)
     @NotNull(message = "Phương thức giao dịch không được để trống")
     private TransactionMethod transactionMethod;
@@ -43,6 +44,7 @@ public class Transaction {
     private BigDecimal amount;
 
     @PastOrPresent(message = "Ngày giao dịch không thể ở tương lai")
+    @CreationTimestamp
     @Column(name = "TransactionDate", updatable = false)
     private LocalDateTime transactionDate;
 
@@ -50,48 +52,4 @@ public class Transaction {
     @Enumerated(EnumType.STRING)
     @Column(name = "Status", nullable = false)
     private TransactionStatus status = TransactionStatus.PENDING;
-
-    public Member getMember() {
-        return member;
-    }
-
-    public TransactionMethod getTransactionMethod() {
-        return transactionMethod;
-    }
-
-    public java.math.BigDecimal getAmount() {
-        return amount;
-    }
-
-    public java.time.LocalDateTime getTransactionDate() {
-        return transactionDate;
-    }
-
-    public com.swp391project.SWP391_QuitSmoking_BE.enums.TransactionStatus getStatus() {
-        return status;
-    }
-
-    public void setTransactionId(java.util.UUID transactionId) {
-        this.transactionId = transactionId;
-    }
-
-    public void setMember(Member member) {
-        this.member = member;
-    }
-
-    public void setTransactionMethod(TransactionMethod transactionMethod) {
-        this.transactionMethod = transactionMethod;
-    }
-
-    public void setAmount(java.math.BigDecimal amount) {
-        this.amount = amount;
-    }
-
-    public void setTransactionDate(java.time.LocalDateTime transactionDate) {
-        this.transactionDate = transactionDate;
-    }
-
-    public void setStatus(com.swp391project.SWP391_QuitSmoking_BE.enums.TransactionStatus status) {
-        this.status = status;
-    }
 }

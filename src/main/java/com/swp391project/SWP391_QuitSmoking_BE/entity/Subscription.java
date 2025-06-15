@@ -12,16 +12,17 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ValidDurationTypeConstraint // custom annotation kiểm tra giá trị giữa durationType và duration
+@ValidDurationTypeConstraint //custom annotation kiểm tra giá trị giữa durationType và duration
 public class Subscription implements IDurationAware {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // auto-increment
+    @GeneratedValue(strategy = GenerationType.IDENTITY) //auto-increment
     @Column(name = "SubscriptionID", updatable = false, nullable = false)
     private Integer subscriptionId;
 
@@ -40,61 +41,16 @@ public class Subscription implements IDurationAware {
     @NotNull(message = "Thời lượng gói đăng ký không được để trống")
     @Min(value = 1, message = "Thời lượng phải lớn hơn hoặc bằng 1")
     @Column(name = "Duration", nullable = false)
-    private Integer duration; // Chỉ lưu giá trị thời gian
+    private Integer duration; //Chỉ lưu giá trị thời gian
 
     @NotNull(message = "Dạng thời lượng gói đăng ký không được để trống")
     @Enumerated(EnumType.STRING)
     @Column(name = "DurationType", nullable = false)
-    private DurationType durationType; // Lưu dạng thời lượng
+    private DurationType durationType; //Lưu dạng thời lượng
 
     @Column(name = "Description", columnDefinition = "TEXT")
     private String description;
 
-    public Integer getSubscriptionId() {
-        return subscriptionId;
-    }
-
-    public Integer getDuration() {
-        return duration;
-    }
-
-    public DurationType getDurationType() {
-        return durationType;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public java.math.BigDecimal getPrice() {
-        return price;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setSubscriptionId(Integer subscriptionId) {
-        this.subscriptionId = subscriptionId;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setPrice(java.math.BigDecimal price) {
-        this.price = price;
-    }
-
-    public void setDuration(Integer duration) {
-        this.duration = duration;
-    }
-
-    public void setDurationType(com.swp391project.SWP391_QuitSmoking_BE.enums.DurationType durationType) {
-        this.durationType = durationType;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
+    @OneToMany(mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MemberSubscription> memberSubscriptions; // Danh sách các thành viên đã đăng ký gói này
 }

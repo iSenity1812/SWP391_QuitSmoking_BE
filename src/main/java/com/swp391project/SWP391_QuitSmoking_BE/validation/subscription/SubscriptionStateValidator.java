@@ -23,9 +23,9 @@ public class SubscriptionStateValidator implements ConstraintValidator<ValidSubs
         context.disableDefaultConstraintViolation(); //Tắt tin nhắn mặc định để tạo tin nhắn tùy chỉnh
 
         //Logic khi trạng thái đăng ký là đã đăng ký (true)
-        if (member.isSubscriptionStatus()) { // Nếu trạng thái là đã đăng ký (true)
+        if (member.isSubscriptionStatus()) { // Nếu trạng thái là đã đăng ký (true) - Dòng này đã đúng
             // Các trường liên quan đến gói phải có giá trị
-            if (member.getSubscription().getSubscriptionId() == null) {
+            if (member.getSubscription() == null || member.getSubscription().getSubscriptionId() == null) { // Đảm bảo getSubscription() không null
                 context.buildConstraintViolationWithTemplate("Subscription ID không được để trống khi đã đăng ký")
                         .addPropertyNode("subscriptionId").addConstraintViolation();
                 isValid = false;
@@ -56,7 +56,7 @@ public class SubscriptionStateValidator implements ConstraintValidator<ValidSubs
             }
         } else { // Nếu trạng thái là Chưa đăng ký (false)
             // Các trường liên quan đến gói phải là null
-            if (member.getSubscription().getSubscriptionId() != null) {
+            if (member.getSubscription() != null && member.getSubscription().getSubscriptionId() != null) { // Đảm bảo getSubscription() không null
                 context.buildConstraintViolationWithTemplate("Subscription ID phải là null khi chưa đăng ký")
                         .addPropertyNode("subscriptionId").addConstraintViolation();
                 isValid = false;

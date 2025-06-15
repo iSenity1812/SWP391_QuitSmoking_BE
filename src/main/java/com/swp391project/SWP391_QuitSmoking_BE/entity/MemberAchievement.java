@@ -1,7 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,35 +15,24 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "MemberAchievement")
-@IdClass(MemberAchievementId.class)
 public class MemberAchievement {
-    @Id
-    @Column(name = "AchievementID", nullable = false)
-    private Integer achievementId;
 
-    @Id
-    @Column(name = "MemberID", nullable = false, columnDefinition = "uuid")
-    private UUID memberId;
+    @EmbeddedId
+    private MemberAchievementId id;
 
-    @Column(name = "AchievedDate")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @MapsId("achievementId")
+    @JoinColumn(name = "AchievementID", referencedColumnName = "AchievementID", nullable = false)
+    private Achievement achievement;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @MapsId("memberId")
+    @JoinColumn(name = "MemberID", referencedColumnName = "MemberID", nullable = false)
+    private Member member;
+
+    @Column(name = "AchievedDate", nullable = false)
     private LocalDate achievedDate = LocalDate.now();
 
     @Column(name = "IsShared", nullable = false)
-    private boolean isShared = false;
-
-    public void setAchievementId(Integer achievementId) {
-        this.achievementId = achievementId;
-    }
-
-    public void setMemberId(java.util.UUID memberId) {
-        this.memberId = memberId;
-    }
-
-    public void setAchievedDate(java.time.LocalDate achievedDate) {
-        this.achievedDate = achievedDate;
-    }
-
-    public void setShared(boolean shared) {
-        isShared = shared;
-    }
+    private Boolean isShared = false;
 }
