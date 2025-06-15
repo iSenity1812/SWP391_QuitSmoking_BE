@@ -5,12 +5,12 @@ import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import com.swp391project.SWP391_QuitSmoking_BE.validation.quitplan.ValidQuitPlanDates;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
-        import jakarta.validation.constraints.*;
-        import lombok.*;
-
-        import java.math.BigDecimal;
+import jakarta.validation.constraints.*;
+import lombok.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+
 
 @Entity
 @Getter
@@ -29,11 +29,6 @@ public class QuitPlan {
     @JoinColumn(name = "MemberID", referencedColumnName = "MemberID", nullable = false)
     @NotNull(message = "Thông tin thành viên không được để trống")
     private Member member;
-
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "PlanTypeID", referencedColumnName = "PlanTypeID", nullable = false)
-//    @NotNull(message = "Loại kế hoạch không được để trống")
-//    private PlanType planType;
 
     @NotNull(message = "Loại kế hoạch giảm dần không được để trống")
     @Enumerated(EnumType.STRING)
@@ -78,5 +73,4 @@ public class QuitPlan {
     @Enumerated(EnumType.STRING)
     @Column(name = "Status", length = 20, nullable = false)
     private QuitPlanStatus status;
-
 }

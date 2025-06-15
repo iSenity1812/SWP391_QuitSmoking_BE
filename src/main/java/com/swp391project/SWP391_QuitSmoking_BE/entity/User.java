@@ -1,5 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
+
 import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
@@ -13,7 +14,6 @@ import org.hibernate.type.SqlTypes;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
