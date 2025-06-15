@@ -39,7 +39,8 @@ public class RawCravingTrackingService {
 
             // Tạo một key duy nhất cho sự kiện thô trong Redis
             // Cấu trúc key: raw_craving_event:{epoch_day}:{hour_of_day}:{uuid}
-            String key = String.format("raw_craving_event:%d:%d:%s",
+            String key = String.format("raw_craving_event:%s:%d:%d:%s",
+                    request.getMemberId().toString(),
                     request.getTrackTime().toLocalDate().toEpochDay(), // Ngày (Epoch Day)
                     request.getTrackTime().getHour(),
                     UUID.randomUUID().toString()); // ID duy nhất cho mỗi sự kiện

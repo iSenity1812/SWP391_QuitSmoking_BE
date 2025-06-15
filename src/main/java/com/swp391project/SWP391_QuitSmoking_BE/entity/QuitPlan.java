@@ -73,7 +73,7 @@ public class QuitPlan {
     @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền không thể là số âm")
     //6 số nguyên, 2 số thập phân
     @DecimalMax(value = "999999.99", inclusive = true, message = "Số tiền chỉ có thể tối đa 999.999VND")
-    @Column(name = "PricePerPack", nullable = false)
+    @Column(name = "PricePerPack", precision = 8, scale = 2, nullable = false)
     private BigDecimal PricePerPack;
 
      @NotNull(message = "Trạng thái kế hoạch không được để trống")

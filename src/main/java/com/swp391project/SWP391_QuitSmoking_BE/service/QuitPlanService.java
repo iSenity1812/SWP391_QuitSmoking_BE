@@ -1,41 +1,49 @@
-//package com.swp391project.SWP391_QuitSmoking_BE.service;
-//
-//import com.swp391project.SWP391_QuitSmoking_BE.dto.request.QuitPlanRequest;
-//import com.swp391project.SWP391_QuitSmoking_BE.dto.response.QuitPlanResponse;
-//import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
-//import com.swp391project.SWP391_QuitSmoking_BE.entity.PlanType;
-//import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
-//import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
-//import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
-//import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberRepository;
-//import com.swp391project.SWP391_QuitSmoking_BE.repository.PlanTypeRepository;
-//import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
-//import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
-//import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.stereotype.Service;
-//import org.springframework.transaction.annotation.Transactional;
-//
-//import java.time.LocalDate;
-//import java.time.LocalDateTime;
-//import java.util.List;
-//
-//@Service
-//public class QuitPlanService {
-//    private final QuitPlanRepository quitPlanRepository;// Cần để tìm Member
-//    private final MemberRepository memberRepository;
-//    private final PlanTypeRepository planTypeRepository; // Cần để tìm PlanType
-//
-//    @Autowired
-//    public QuitPlanService(
-//            QuitPlanRepository quitPlanRepository,
-//            MemberRepository memberRepository,
-//            PlanTypeRepository planTypeRepository
-//    ) {
-//        this.quitPlanRepository = quitPlanRepository;
-//        this.memberRepository = memberRepository;
-//        this.planTypeRepository = planTypeRepository;
-//    }
-//
+package com.swp391project.SWP391_QuitSmoking_BE.service;
+
+import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.PlanType;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
+import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberRepository;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.PlanTypeRepository;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+public class QuitPlanService {
+    private final QuitPlanRepository quitPlanRepository;
+    private final MemberRepository memberRepository;
+    private final PlanTypeRepository planTypeRepository;
+
+    @Autowired
+    public QuitPlanService(
+            QuitPlanRepository quitPlanRepository,
+            MemberRepository memberRepository,
+            PlanTypeRepository planTypeRepository
+    ) {
+        this.quitPlanRepository = quitPlanRepository;
+        this.memberRepository = memberRepository;
+        this.planTypeRepository = planTypeRepository;
+    }
+
+    @Transactional
+    public Optional<QuitPlan> getProgressQuitPlansByMemberId(UUID memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thành viên với ID: " + memberId));
+        return quitPlanRepository.findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.IN_PROGRESS);
+    }
+
 //    //Method để chuyển đổi Entity sang Response
 //    private QuitPlanResponse convertToResponseDto(QuitPlan quitPlan) {
 //        QuitPlanResponse response = new QuitPlanResponse();
@@ -110,4 +118,4 @@
 //                .map(this::convertToResponseDto)
 //                .collect(Collectors.toList());
 //    }
-//}
+}

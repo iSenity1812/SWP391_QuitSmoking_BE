@@ -8,12 +8,13 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class CravingTrackingResponse {
-    private Integer cravingTrackingId;
+    private UUID memberId;
     private LocalDateTime trackTime;
     private Integer smokedCount;
     private Integer cravingsCount;

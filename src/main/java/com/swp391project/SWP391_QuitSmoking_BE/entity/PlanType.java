@@ -11,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Entity
 @Getter
 @Setter
@@ -41,4 +43,7 @@ public class PlanType implements IDurationAware {
 
     @Column(name = "Description", columnDefinition = "TEXT")
     private String description;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "plan_type", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<QuitPlan> quitPlans;
 }
