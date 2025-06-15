@@ -13,8 +13,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort; // <-- Import này là cần thiết cho Sort.Direction
-import org.springframework.data.web.PageableDefault; // <-- Import này là cần thiết
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,12 +34,12 @@ public class BlogController {
     // --- ENDPOINT CÔNG KHAI CHO NGƯỜI DÙNG CUỐI (PUBLIC) ---
 
     // Lấy tất cả blog đã được PUBLISHED HOẶC tìm kiếm theo keyword (title/content), CÓ PHÂN TRANG
-    @GetMapping
+    @GetMapping // Endpoint này xử lý /api/blogs?keyword=... hoặc /api/blogs
     public ResponseEntity<ApiResponse<Page<BlogResponseDTO>>> getAllPublishedBlogs(
-            @RequestParam(required = false) String keyword, // Từ khóa tìm kiếm cho tiêu đề HOẶC nội dung
+            @RequestParam(required = false) String keyword,
             @PageableDefault(
                     page = 0,
-                    size = 10,
+                    size = 100,
                     sort = "createdAt",
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {
@@ -50,6 +50,7 @@ public class BlogController {
     }
 
     // Lấy thông tin một blog cụ thể bằng ID (chỉ blog đã PUBLISHED)
+    // URL: /api/blogs/{id}
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<BlogResponseDTO>> getBlogById(@PathVariable Integer id) {
         BlogResponseDTO blog = blogService.getBlogById(id);
@@ -130,7 +131,7 @@ public class BlogController {
     public ResponseEntity<ApiResponse<Page<BlogResponseDTO>>> getAllBlogsForAdmin(
             @PageableDefault(
                     page = 0,
-                    size = 10,
+                    size = 100,
                     sort = "createdAt",
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {
@@ -141,6 +142,7 @@ public class BlogController {
     }
 
     // Lấy blog theo ID cho admin (cho phép xem cả bài chưa PUBLISHED)
+    // URL: /api/blogs/admin/{id}
     @GetMapping("/admin/{id}")
     @PreAuthorize("hasRole('CONTENT_ADMIN')")
     public ResponseEntity<ApiResponse<BlogResponseDTO>> getBlogByIdForAdmin(
@@ -152,16 +154,17 @@ public class BlogController {
                 .body(ApiResponse.success(blog, "Lấy thông tin blog (Admin) thành công."));
     }
 
-    // --- NEW ADMIN FILTER/SEARCH ENDPOINTS ---
+    // --- NEW ADMIN FILTER/SEARCH ENDPOINTS (ĐÃ CÓ SẴN VÀ ĐÚNG) ---
 
     // Admin: Lấy blog theo trạng thái cụ thể
+    // URL: /api/blogs/admin/status/{status}?page=...&size=...&sort=...
     @GetMapping("/admin/status/{status}")
     @PreAuthorize("hasRole('CONTENT_ADMIN')")
     public ResponseEntity<ApiResponse<Page<BlogResponseDTO>>> getBlogsByStatusForAdmin(
-            @PathVariable BlogStatus status,
+            @PathVariable BlogStatus status, // <-- Ở đây bạn nhận BlogStatus enum trực tiếp
             @PageableDefault(
                     page = 0,
-                    size = 10,
+                    size = 100,
                     sort = "createdAt",
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {
@@ -172,13 +175,14 @@ public class BlogController {
     }
 
     // Admin: Lấy blog của một tác giả cụ thể
+    // URL: /api/blogs/admin/author/{authorId}?page=...&size=...&sort=...
     @GetMapping("/admin/author/{authorId}")
     @PreAuthorize("hasRole('CONTENT_ADMIN')")
     public ResponseEntity<ApiResponse<Page<BlogResponseDTO>>> getBlogsByAuthorForAdmin(
             @PathVariable UUID authorId,
             @PageableDefault(
                     page = 0,
-                    size = 10,
+                    size = 100,
                     sort = "createdAt",
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {
@@ -189,6 +193,7 @@ public class BlogController {
     }
 
     // Admin: Lấy blog theo trạng thái VÀ tác giả
+    // URL: /api/blogs/admin/status/{status}/author/{authorId}?page=...&size=...&sort=...
     @GetMapping("/admin/status/{status}/author/{authorId}")
     @PreAuthorize("hasRole('CONTENT_ADMIN')")
     public ResponseEntity<ApiResponse<Page<BlogResponseDTO>>> getBlogsByStatusAndAuthorForAdmin(
@@ -196,7 +201,7 @@ public class BlogController {
             @PathVariable UUID authorId,
             @PageableDefault(
                     page = 0,
-                    size = 10,
+                    size = 100,
                     sort = "createdAt",
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {

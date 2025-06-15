@@ -8,7 +8,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,4 +34,8 @@ public interface BlogRepository extends JpaRepository<Blog, Integer> { // Intege
 
     // Thêm phương thức để tìm kiếm blog theo trạng thái VÀ của một tác giả cụ thể (có phân trang)
     Page<Blog> findByStatusAndAuthor_UserId(BlogStatus status, UUID authorId, Pageable pageable); // <-- Thay đổi String thành BlogStatus
+
+    @Modifying // Báo hiệu đây là một truy vấn sửa đổi (UPDATE, DELETE, INSERT)
+    @Query("UPDATE Blog b SET b.isDeleted = true WHERE b.blogId = :id") // JPQL: dùng tên thuộc tính của Entity
+    void softDeleteById(@Param("id") Integer id);
 }

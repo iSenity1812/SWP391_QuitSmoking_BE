@@ -10,6 +10,8 @@ import com.swp391project.SWP391_QuitSmoking_BE.entity.Comment;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.BlogStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
+import com.swp391project.SWP391_QuitSmoking_BE.exception.AppException;
+import com.swp391project.SWP391_QuitSmoking_BE.exception.ErrorCode;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.BlogRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.CommentRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
@@ -81,21 +83,36 @@ public class CommentService {
 
     @Transactional
     public void deleteComment(Integer commentId, User currentUser) {
+        // 1. Tìm comment: Sử dụng AppException nếu không tìm thấy
         Comment commentToDelete = commentRepository.findById(commentId)
-                .orElseThrow(() -> new EntityNotFoundException("Comment not found with ID: " + commentId));
+                .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
 
-        // --- ĐIỀU CHỈNH DÒNG NÀY ---
-        boolean isAdmin = (currentUser.getRole() == Role.CONTENT_ADMIN); // <-- Sửa lỗi ở đây
-        // -------------------------
-
-        boolean isCommentOwner = commentToDelete.getUser().getUserId().equals(currentUser.getUserId());
-        boolean isBlogAuthor = commentToDelete.getBlog().getAuthor().getUserId().equals(currentUser.getUserId());
-
-        if (!isAdmin && !isCommentOwner && !isBlogAuthor) {
-            throw new AccessDeniedException("You are not authorized to delete this comment.");
+        // 2. Kiểm tra nếu comment đã bị xóa mềm:
+        if (commentToDelete.isDeleted()) {
+            throw new AppException(ErrorCode.COMMENT_ALREADY_DELETED);
         }
 
-        commentRepository.delete(commentToDelete);
+        // 3. Kiểm tra quyền hạn
+        // Giả định currentUser.getRole() trả về một Role enum duy nhất cho User hiện tại
+        Role userRole = currentUser.getRole();
+
+        // Kiểm tra xem người dùng có phải là CONTENT_ADMIN không
+        boolean isContentAdmin = (userRole == Role.CONTENT_ADMIN);
+
+        // Kiểm tra xem người dùng có phải là chủ sở hữu của comment không
+        boolean isCommentOwner = commentToDelete.getUser().getUserId().equals(currentUser.getUserId());
+
+        // Kiểm tra xem người dùng có phải là tác giả của blog mà comment thuộc về không
+        // Giả định Blog có getAuthor() và User có getId() cho ID của User
+        boolean isBlogAuthor = commentToDelete.getBlog().getAuthor().getUserId().equals(currentUser.getUserId());
+
+        // Nếu người dùng không phải ADMIN/CONTENT_ADMIN, không phải chủ comment, VÀ không phải tác giả blog
+        if (!isContentAdmin && !isCommentOwner && !isBlogAuthor) {
+            throw new AccessDeniedException("Bạn không có quyền xóa bình luận này.");
+        }
+
+        // 4. Thực hiện soft delete
+        commentRepository.softDeleteById(commentId); // Gọi phương thức soft delete đã tạo
     }
 
     private CommentResponseDTO convertToDtoWithReplies(Comment comment) {

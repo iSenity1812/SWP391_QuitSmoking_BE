@@ -14,6 +14,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.hibernate.annotations.Where;
 
 @Data
 @NoArgsConstructor
@@ -59,5 +60,6 @@ public class Blog {
     @OneToMany(mappedBy = "blog", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments; // Mối quan hệ một blog có nhiều comment
 
-
+    @Column(name = "is_deleted", nullable = false)
+    private boolean isDeleted = false; // Mặc định là false (chưa xóa)
 }

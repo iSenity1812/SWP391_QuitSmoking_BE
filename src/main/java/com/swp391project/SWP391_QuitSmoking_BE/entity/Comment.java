@@ -8,7 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-
+import org.hibernate.annotations.Where; // <-- Import này
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -48,6 +48,10 @@ public class Comment {
     @CreationTimestamp // CommentDate datetime [default: `now()`]
     @Column(name = "comment_date", nullable = false, updatable = false)
     private LocalDateTime commentDate;
+
+    // THÊM TRƯỜNG isDeleted
+    @Column(name = "is_deleted", nullable = false)
+    private boolean isDeleted = false; // Mặc định là false
 
     // Constructors, getters, setters được tạo bởi Lombok
 }
