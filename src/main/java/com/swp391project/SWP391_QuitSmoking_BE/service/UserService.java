@@ -13,6 +13,8 @@ import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundExcepti
 import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +66,15 @@ public class UserService {
                      return coachProfile;
                  })
                  .collect(Collectors.toList());
+    }
+
+    public UUID getUserIdFromUserDetails(UserDetails userDetails) {
+        // Tìm User trong database bằng username từ UserDetails (ít hiệu quả hơn vì cần thêm DB lookup)
+        // Đây là cách sẽ hoạt động với UserDetails mặc định của Spring.
+        String username = userDetails.getUsername();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found for username: " + username + " in security context."));
+        return user.getUserId(); // Giả định User entity của bạn có trường getUserId()
     }
 
     public UserProfile getUserById(UUID userId) {

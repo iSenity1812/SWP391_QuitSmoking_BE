@@ -9,6 +9,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -37,10 +38,10 @@ public class CoachService {
     public void createCoachForUser(User user, String fullName, String coachBio) {
 
         Coach coach = new Coach();
-        coach.setUserId(user.getUserId());
+        coach.setUser(user); // Coach trỏ đến User
         coach.setCoachBio(coachBio);
         coach.setFullName(fullName);
-        coach.setUser(user); // Coach trỏ đến User
+        coach.setRating(BigDecimal.valueOf(0.0));
         user.setCoach(coach); // User trỏ đến Coach
         coachRepository.save(coach);
     }

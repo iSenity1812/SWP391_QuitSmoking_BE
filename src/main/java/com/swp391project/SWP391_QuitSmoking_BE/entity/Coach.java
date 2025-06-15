@@ -10,6 +10,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -21,14 +24,17 @@ public class Coach {
     //CoachID dùng chung UserID làm khóa chính
     //là khóa ngoại liên kết với bảng User
     @Id
-    @Column(name = "UserID")
-    private UUID userId;
+    @Column(name = "coach_id")
+    private UUID coachId;
 
     @OneToOne(fetch = FetchType.LAZY) //mối quan hệ với entity User
     @MapsId //chỉ định khóa chính của Coach được lấy từ khóa chính của User
-    @JoinColumn(name = "UserID", referencedColumnName = "UserID")
+    @JoinColumn(name = "coach_id")
     @NotNull(message = "Người dùng liên kết không được để trống")
     private User user; // Tham chiếu đến đối tượng User mà Coach này thuộc về
+
+    @Column(precision = 3, scale = 2) // DECIMAL(3, 2)
+    private BigDecimal rating;
 
     @NotBlank(message = "Tên đầy đủ của huấn luyện viên không được để trống")
     @Size(max = 255, message = "Tên đầy đủ không được vượt quá 255 ký tự")
@@ -37,4 +43,7 @@ public class Coach {
 
     @Column(name = "CoachBio", columnDefinition = "TEXT")
     private String coachBio;
+
+    @OneToMany(mappedBy = "coach", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private Set<CoachSchedule> coachSchedules = new HashSet<>(); // Danh sách lịch làm việc của huấn luyện viên
 }
