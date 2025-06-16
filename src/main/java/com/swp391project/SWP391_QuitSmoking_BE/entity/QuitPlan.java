@@ -32,11 +32,6 @@ public class QuitPlan {
     @NotNull(message = "Thông tin thành viên không được để trống")
     private Member member;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "PlanTypeID", referencedColumnName = "PlanTypeID", nullable = false)
-    @NotNull(message = "Loại kế hoạch không được để trống")
-    private PlanType planType;
-
     @NotNull(message = "Loại kế hoạch giảm dần không được để trống")
     @Enumerated(EnumType.STRING)
     @Column(name = "ReductionType", length = 20, nullable = false)

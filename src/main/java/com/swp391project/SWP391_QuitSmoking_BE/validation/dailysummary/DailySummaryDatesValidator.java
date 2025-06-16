@@ -1,7 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.validation.dailysummary;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.PlanType;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
@@ -41,7 +40,6 @@ public class DailySummaryDatesValidator implements ConstraintValidator<ValidDail
         LocalDateTime quitPlanStartDate = quitPlan.getStartDate();
         LocalDate quitPlanGoalDate = quitPlan.getGoalDate();
         int initialSmokingAmount = quitPlan.getInitialSmokingAmount();
-        PlanType planType = quitPlan.getPlanType();
 
         boolean isValid = true;
         context.disableDefaultConstraintViolation();
@@ -74,7 +72,7 @@ public class DailySummaryDatesValidator implements ConstraintValidator<ValidDail
 
         //điều kiện để goal trong ngày đó chỉ được true khi smokedCount <= số điếu nên hút
         if (dailySummary.isGoalAchievedToday()) { //Nếu đánh dấu là kế hoạch đã hoàn thành trong ngày
-            if (quitPlanStartDate != null && quitPlanGoalDate != null && planType != null) {
+            if (quitPlanStartDate != null && quitPlanGoalDate != null) {
                 //ChronoUnit.DAYS.between: tính số ngày giữa hai LocalDate + 1 để bao gồm cả ngày bắt đầu
                 long totalDays = ChronoUnit.DAYS.between(quitPlanStartDate.toLocalDate(), quitPlanGoalDate) + 1;
 

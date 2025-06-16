@@ -2,16 +2,18 @@ package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.craving.CravingTrackingResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.craving.RawTrackingCreateRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.craving.RawTrackingResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
-import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -31,7 +33,6 @@ public class RawCravingTrackingService {
 
     //Tạo một sự kiện thô về cơn thèm/hút thuốc mới
     //lưu sự kiện thô vào Redis, việc tổng hợp sẽ được xử lý bởi Scheduled Task
-    @Transactional
     public RawTrackingResponse createRawCravingEvent(RawTrackingCreateRequest request) {
         try {
             // Chuyển đổi request DTO thành chuỗi JSON
@@ -53,5 +54,40 @@ public class RawCravingTrackingService {
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Lỗi khi chuyển đổi RawTrackingCreateRequest sang JSON: " + e.getMessage(), e);
         }
+    }
+
+    // Lấy tổng số lượng hút thuốc và thèm thuốc trong một giờ cụ thể từ Redis
+    // Phương thức này để FE có thể hiển thị tổng quan tạm thời cho người dùng
+    public Map<String, Integer> getHourlyRawTotals(UUID memberId, LocalDateTime targetHour) {
+        LocalDateTime startOfHour = targetHour.withMinute(0).withSecond(0).withNano(0);
+
+        String keyPattern = String.format("raw_craving_event:%s:%d:%d:*",
+                memberId.toString(),
+                startOfHour.toLocalDate().toEpochDay(),
+                startOfHour.getHour());
+
+        Set<String> rawEventKeys = stringRedisTemplate.keys(keyPattern);
+
+        int totalSmoked = 0;
+        int totalCravings = 0;
+
+        if (!rawEventKeys.isEmpty()) {
+            List<String> eventJsons = stringRedisTemplate.opsForValue().multiGet(rawEventKeys); // Lấy nhiều key cùng lúc
+            for (String eventJson : eventJsons) {
+                if (eventJson != null) {
+                    try {
+                        RawTrackingCreateRequest event = objectMapper.readValue(eventJson, RawTrackingCreateRequest.class);
+                        totalSmoked += event.getSmokedCount();
+                        totalCravings += event.getCravingsCount();
+                    } catch (JsonProcessingException e) {
+                        System.err.println("Lỗi khi đọc JSON từ Redis: " + e.getMessage());
+                    }
+                }
+            }
+        } else {
+            throw new RuntimeException("Không tìm thấy sự kiện nào trong Redis cho giờ: " + startOfHour);
+        }
+
+        return Map.of("smokedCount", totalSmoked, "cravingsCount", totalCravings);
     }
 }

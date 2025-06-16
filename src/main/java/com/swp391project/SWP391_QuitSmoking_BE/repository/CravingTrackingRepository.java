@@ -12,17 +12,13 @@ import java.util.Optional;
 
 @Repository
 public interface CravingTrackingRepository extends JpaRepository<CravingTracking, Integer> {
-    Optional<CravingTracking> findByHour(int hour);
     Optional<CravingTracking> findByDailySummaryAndTrackTime(DailySummary dailySummary, LocalDateTime trackTime);
-    List<CravingTracking> findAllByDate(LocalDate date);
-    Optional<CravingTracking> findByDateAndHour(LocalDate date, int hour);
-    Optional<CravingTracking> findByDateTime(LocalDateTime dateTime);
+    List<CravingTracking> findAllByTrackTime(LocalDate date);
+
+    Optional<CravingTracking> findByTrackTime(LocalDateTime trackTime);
     List<CravingTracking> findByDailySummary_DailySummaryId(Integer dailySummaryId);
     List<CravingTracking> findByDailySummary(DailySummary dailySummary);
 
     // Lấy tất cả các bản ghi trong một khoảng thời gian nhất định
-    List<CravingTracking> findAllByHourBetween(LocalDate startDate, LocalDate endDate);
-
-    // Lấy tất cả các bản ghi theo ngày và giờ lớn hơn hoặc bằng
-    List<CravingTracking> findAllByDateAndHourGreaterThanEqual(LocalDate date, int hour);
+    List<CravingTracking> findAllByTrackTimeBetween(LocalDateTime startDateTime, LocalDateTime endDateTime);
 }

@@ -10,13 +10,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/tracking")
+@RequestMapping("/api/checkin")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "user_api")
 public class RawCravingEventController {
@@ -24,7 +26,7 @@ public class RawCravingEventController {
 
     //Log một sự kiện thô về cơn thèm/hút thuốc
     //dữ liệu này được lưu tạm thời vào Redis và sẽ được tổng hợp sau
-    @PostMapping("/checkin")
+    @PostMapping
     @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER')")
     public ResponseEntity<ApiResponse<RawTrackingResponse>> logRawCravingEvent(@Valid @RequestBody RawTrackingCreateRequest request) {
         RawTrackingResponse createdEvent = rawCravingTrackingService.createRawCravingEvent(request);
@@ -33,5 +35,36 @@ public class RawCravingEventController {
                 .body(ApiResponse.success(createdEvent, "Tạo bản ghi mới thành công"));
     }
 
-    // Không cần các endpoint GET/PUT/DELETE cho raw events vì chúng chỉ là tạm thời và không được truy vấn trực tiếp
+    //FE có thể lấy tổng số liệu thô (chưa tổng hợp vào CravingTracking) cho một giờ cụ thể
+    //để hiển thị cập nhật tức thì trên UI
+    @GetMapping("/{memberId}")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> getHourlyRawTotals(@PathVariable UUID memberId) {
+        LocalDateTime now = LocalDateTime.now();
+        Map<String, Integer> totals = rawCravingTrackingService.getHourlyRawTotals(memberId, now);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(totals, "Lấy tổng số liệu thô thành công."));
+    }
+
+    //cho phép người dùng chỉ định một ngày giờ cụ thể, nếu không thì mặc định là ngày giờ hiện tại
+//    @GetMapping("/{memberId}")
+//    public ResponseEntity<ApiResponse<Map<String, Integer>>> getHourlyRawTotals(
+//            @PathVariable UUID memberId,
+//            @RequestParam(required = false) Integer year,
+//            @RequestParam(required = false) Integer month,
+//            @RequestParam(required = false) Integer day,
+//            @RequestParam(required = false) Integer hour) {
+//
+//        LocalDateTime targetHour;
+//        if (year == null || month == null || day == null || hour == null) {
+//            targetHour = LocalDateTime.now(); // Mặc định là hiện tại nếu thiếu tham số
+//        } else {
+//            targetHour = LocalDateTime.of(year, month, day, hour, 0); // Dùng tham số nếu có
+//        }
+//
+//        Map<String, Integer> totals = rawCravingTrackingService.getHourlyRawTotals(memberId, targetHour);
+//        return ResponseEntity
+//                .status(HttpStatus.OK)
+//                .body(ApiResponse.success(totals, "Lấy tổng số liệu thô thành công."));
+//    }
 }

@@ -17,8 +17,8 @@ public class CravingTrackingDataValidator implements ConstraintValidator<ValidCr
         }
 
         //Nếu cả smokedCount và cravingsCount đều bằng 0, không hợp lệ
-        boolean smokedCountIsZero = (cravingTracking.getSmokedCount() == null || cravingTracking.getSmokedCount() == 0);
-        boolean cravingsCountIsZero = (cravingTracking.getCravingsCount() == null || cravingTracking.getCravingsCount() == 0);
+        boolean smokedCountIsZero = (cravingTracking.getSmokedCount() == 0);
+        boolean cravingsCountIsZero = (cravingTracking.getCravingsCount() == 0);
 
         if (smokedCountIsZero && cravingsCountIsZero) {
             context.disableDefaultConstraintViolation();

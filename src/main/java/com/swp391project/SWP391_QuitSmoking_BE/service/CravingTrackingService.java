@@ -12,7 +12,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.enums.WithWhom;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.CravingTrackingDeletedException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.CravingTrackingRepository;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -23,8 +23,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@AllArgsConstructor
 @Service
+@RequiredArgsConstructor
 public class CravingTrackingService {
     private final CravingTrackingRepository cravingTrackingRepository;
     private final DailySummaryService dailySummaryService;
@@ -181,6 +181,18 @@ public class CravingTrackingService {
     }
 
     @Transactional
+    public void deleteCravingTracking(Integer id) {
+        CravingTracking cravingTracking = cravingTrackingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bản ghi với ID: " + id));
+        if(cravingTracking.getDailySummary() == null) {
+            throw new IllegalArgumentException("Bản ghi theo dõi không thuộc về DailySummary nào");
+        }
+        cravingTracking.getDailySummary().getCravingTrackings().remove(cravingTracking);
+        dailySummaryService.recalculateDailyTotals(cravingTracking.getDailySummary()); //cập nhật DailySummary
+        //cravingTrackingRepository.deleteById(id); // Không cần xóa trực tiếp vì orphanRemoval = true đã xử lý việc này
+    }
+
+    @Transactional
     public CravingTrackingResponse updateCravingTracking(Integer cravingTrackingId, CravingTrackingUpdateRequest request) {
         Optional<CravingTracking> existingTrackingOptional = cravingTrackingRepository.findById(cravingTrackingId);
 
@@ -232,8 +244,7 @@ public class CravingTrackingService {
 
     @Transactional
     public List<CravingTrackingResponse> getCravingTrackingsByDate(LocalDate date) {
-        List<CravingTracking> cravingTrackingList = cravingTrackingRepository.findAllByDate(date);
-
+        List<CravingTracking> cravingTrackingList = cravingTrackingRepository.findAllByTrackTime(date);
         if (cravingTrackingList.isEmpty()) {
             throw new ResourceNotFoundException("Không tìm thấy bản ghi nào cho ngày: " + date);
         }
@@ -244,7 +255,22 @@ public class CravingTrackingService {
     }
 
     @Transactional
+    public List<CravingTrackingResponse> getCravingTrackingResponsesByDailySummaryId(Integer dailySummaryId) {
+        List<CravingTracking> cravingTrackingList = cravingTrackingRepository.findByDailySummary_DailySummaryId(dailySummaryId);
+        if (cravingTrackingList.isEmpty()) {
+            throw new ResourceNotFoundException("Không tìm thấy bản ghi nào cho daily summary: " + dailySummaryId);
+        }
+        return cravingTrackingList.stream()
+                .map(this::convertToResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
     public List<CravingTracking> getCravingTrackingsByDailySummaryId(Integer dailySummaryId) {
-        return cravingTrackingRepository.findByDailySummary_DailySummaryId(dailySummaryId);
+        List<CravingTracking> cravingTrackingList = cravingTrackingRepository.findByDailySummary_DailySummaryId(dailySummaryId);
+        if (cravingTrackingList.isEmpty()) {
+            throw new ResourceNotFoundException("Không tìm thấy bản ghi nào cho daily summary: " + dailySummaryId);
+        }
+        return cravingTrackingList;
     }
 }

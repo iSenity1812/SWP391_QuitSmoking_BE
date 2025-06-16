@@ -6,6 +6,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.entity.CravingTracking;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.CravingTrackingRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
 import lombok.AllArgsConstructor;
@@ -28,9 +29,9 @@ class DailySummaryEditForbiddenException extends RuntimeException {
 @Service
 public class DailySummaryService {
     private final DailySummaryRepository dailySummaryRepository;
+    private final CravingTrackingRepository cravingTrackingRepository;
     private final QuitPlanRepository quitPlanRepository;
     private final QuitPlanService quitPlanService;
-    private final CravingTrackingService cravingTrackingService;
     private final ModelMapper modelMapper;
 
     private DailySummaryResponse convertToResponseDto(DailySummary dailySummary) {
@@ -181,14 +182,16 @@ public class DailySummaryService {
     }
 
     //Tái tính toán và cập nhật tổng số điếu hút và số lần thèm thuốc
-//để đồng bộ với các bản ghi CravingTracking liên quan
+    //để đồng bộ với các bản ghi CravingTracking liên quan
     @Transactional
     public void recalculateDailyTotals(DailySummary dailySummary) {
+        List<CravingTracking> cravingTrackingList = cravingTrackingRepository.findByDailySummary_DailySummaryId(dailySummary.getDailySummaryId());
+        if (cravingTrackingList.isEmpty()) {
+            throw new ResourceNotFoundException("Không tìm thấy bản ghi nào cho daily summary: " + dailySummary.getDailySummaryId());
+        }
         // Lấy tất cả CravingTracking records cho DailySummary này
-        int totalSmoked = cravingTrackingService.getCravingTrackingsByDailySummaryId(dailySummary.getDailySummaryId())
-                .stream().mapToInt(CravingTracking::getSmokedCount).sum();
-        int totalCravings = cravingTrackingService.getCravingTrackingsByDailySummaryId(dailySummary.getDailySummaryId())
-                .stream().mapToInt(CravingTracking::getCravingsCount).sum();
+        int totalSmoked = cravingTrackingList.stream().mapToInt(CravingTracking::getSmokedCount).sum();
+        int totalCravings = cravingTrackingList.stream().mapToInt(CravingTracking::getCravingsCount).sum();
 
         QuitPlan quitPlan = dailySummary.getQuitPlan();
         if (quitPlan == null) {

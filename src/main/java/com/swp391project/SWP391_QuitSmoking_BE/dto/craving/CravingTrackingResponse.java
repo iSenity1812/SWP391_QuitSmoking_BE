@@ -16,8 +16,8 @@ import java.util.UUID;
 public class CravingTrackingResponse {
     private UUID memberId;
     private LocalDateTime trackTime;
-    private Integer smokedCount;
-    private Integer cravingsCount;
+    private int smokedCount;
+    private int cravingsCount;
     private Set<Situation> situations;
     private Set<WithWhom> withWhoms;
 }
