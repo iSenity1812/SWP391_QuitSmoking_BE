@@ -1,50 +1,64 @@
+// src/main/java/com/swp391project/SWP391_QuitSmoking_BE/validation/subscription/SubscriptionDurationValidator.java
 package com.swp391project.SWP391_QuitSmoking_BE.validation.subscription;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.MemberSubscription;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
-import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator; // Import này cần thiết
+import java.util.Optional;
 
 public class SubscriptionDurationValidator implements ConstraintValidator<ValidSubscriptionDuration, Member> {
-    private static final long MAX_DURATION_MONTHS = 3;
-
     @Override
     public void initialize(ValidSubscriptionDuration constraintAnnotation) {
     }
 
     @Override
     public boolean isValid(Member member, ConstraintValidatorContext context) {
-        // Nếu đối tượng member, startDate hoặc endDate là null,
-        // các validation @NotNull khác sẽ xử lý. Validator này chỉ kiểm tra thời lượng nếu cả hai ngày đều có
-        if (member == null || member.getStartDate() == null || member.getEndDate() == null) {
+        boolean isValid = true;
+
+        if (member == null || member.getMemberSubscriptions() == null || member.getMemberSubscriptions().isEmpty()) {
+            // Nếu không có gói đăng ký nào, coi như hợp lệ cho validator này.
+            // Các validator @NotNull hoặc @Valid khác có thể xử lý việc thiếu gói nếu cần.
             return true;
         }
 
-        LocalDateTime startDate = member.getStartDate();
-        LocalDateTime endDate = member.getEndDate();
+        context.disableDefaultConstraintViolation(); // Tắt tin nhắn mặc định
 
-        // Đảm bảo ngày kết thúc không trước ngày bắt đầu
-        if (endDate.isBefore(startDate)) {
-            context.disableDefaultConstraintViolation();
-            context.buildConstraintViolationWithTemplate("Ngày kết thúc không thể trước ngày bắt đầu")
-                    .addPropertyNode("endDate") // Gắn lỗi với trường endDate
-                    .addConstraintViolation();
-            return false;
+        // Tìm gói đăng ký MỚI NHẤT đã mua để kiểm tra thời lượng.
+        // Bạn có thể thay đổi logic này để kiểm tra gói đang ACTIVE nếu muốn.
+        Optional<MemberSubscription> latestSubscriptionOpt = member.getMemberSubscriptions().stream()
+                .max(Comparator.comparing(MemberSubscription::getPurchasedAt)); // Lấy gói mới nhất theo thời gian mua
+
+        if (latestSubscriptionOpt.isPresent()) {
+            MemberSubscription latestSubscription = latestSubscriptionOpt.get();
+
+            // Kiểm tra các trường ngày tháng của gói đăng ký mới nhất
+            if (latestSubscription.getStartDate() == null || latestSubscription.getEndDate() == null) {
+                context.buildConstraintViolationWithTemplate("Gói đăng ký phải có ngày bắt đầu và ngày kết thúc.")
+                        .addPropertyNode("memberSubscriptions").addConstraintViolation();
+                isValid = false;
+            } else {
+                long durationInDays = ChronoUnit.DAYS.between(latestSubscription.getStartDate(), latestSubscription.getEndDate());
+                if (durationInDays < 0) {
+                    context.buildConstraintViolationWithTemplate("Ngày kết thúc gói đăng ký không được trước ngày bắt đầu.")
+                            .addPropertyNode("memberSubscriptions").addConstraintViolation();
+                    isValid = false;
+                }
+                // Thêm logic kiểm tra duration cụ thể nếu có (ví dụ: gói 30 ngày, 90 ngày)
+                // if (latestSubscription.getSubscription() != null && latestSubscription.getSubscription().getDuration() != durationInDays) {
+                //     context.buildConstraintViolationWithTemplate("Thời lượng gói đăng ký không khớp với loại gói đã chọn.")
+                //             .addPropertyNode("memberSubscriptions").addConstraintViolation();
+                //     isValid = false;
+                // }
+            }
+        } else {
+            // Không có gói nào để kiểm tra, coi như hợp lệ cho validator này nếu không có yêu cầu đặc biệt.
+            // Điều này có thể xảy ra nếu danh sách MemberSubscriptions rỗng sau khi filter.
         }
 
-        // Tính toán ngày kết thúc tối đa cho phép (startDate + 3 tháng)
-        LocalDateTime maxEndDateAllowed = startDate.plusMonths(MAX_DURATION_MONTHS);
-
-        // Kiểm tra nếu endDate vượt quá maxEndDateAllowed
-        if (endDate.isAfter(maxEndDateAllowed)) {
-            context.disableDefaultConstraintViolation();
-            context.buildConstraintViolationWithTemplate("Ngày kết thúc đăng ký không được vượt quá " + MAX_DURATION_MONTHS + " tháng kể từ ngày bắt đầu.")
-                    .addPropertyNode("endDate") // Gắn lỗi với trường endDate
-                    .addConstraintViolation();
-            return false;
-        }
-
-        return true;
+        return isValid;
     }
 }

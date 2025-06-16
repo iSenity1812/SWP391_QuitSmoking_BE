@@ -1,3 +1,4 @@
+// src/main/java/com/swp391project/SWP391_QuitSmoking_BE/service/PaymentService.java
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.*;
@@ -6,7 +7,8 @@ import com.swp391project.SWP391_QuitSmoking_BE.enums.TransactionStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.PaymentProcessingException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.VnPayException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.*;
-import com.swp391project.SWP391_QuitSmoking_BE.enums.Role; // <-- THÊM IMPORT NÀY CHO ENUM ROLE
+import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.SubscriptionStatus; // Đảm bảo import này đúng
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +35,7 @@ public class PaymentService {
     @Autowired
     private MemberRepository memberRepository;
     @Autowired
-    private RoleRepository roleRepository; // Đây là RoleRepository cho entity.Role
+    private RoleRepository roleRepository;
     @Autowired
     private UserRepository userRepository;
     @Autowired
@@ -44,6 +46,8 @@ public class PaymentService {
     private VnPaySecurityService securityService;
     @Autowired
     private PaymentAuditService auditService;
+    @Autowired // THÊM DÒNG NÀY ĐỂ INJECT MemberSubscriptionRepository
+    private MemberSubscriptionRepository memberSubscriptionRepository;
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
@@ -52,7 +56,6 @@ public class PaymentService {
                 request.getSubscriptionId(), request.getMemberId());
 
         try {
-            // Validate request
             validatePaymentOrderRequest(request);
 
             Subscription subscription = subscriptionRepository.findById(request.getSubscriptionId())
@@ -73,7 +76,6 @@ public class PaymentService {
                         return new PaymentProcessingException("Transaction method VNPAY not found", "METHOD_NOT_FOUND");
                     });
 
-            // Create transaction record
             Transaction transaction = new Transaction();
             UUID transactionId = UUID.randomUUID();
             transaction.setTransactionId(transactionId);
@@ -86,11 +88,9 @@ public class PaymentService {
             transactionRepository.save(transaction);
             logger.info("Created transaction with ID: {}", transactionId);
 
-            // Log audit
             auditService.logPaymentCreation(transactionId, member.getMemberId().toString(),
                     subscription.getSubscriptionId().toString(), subscription.getPrice().toString(), clientIP);
 
-            // Create VNPay request
             VnPayRequest vnPayRequest = new VnPayRequest();
             vnPayRequest.setAmount(subscription.getPrice().intValue());
             vnPayRequest.setOrderInfo("Thanh toan goi: " + subscription.getName());
@@ -98,10 +98,8 @@ public class PaymentService {
             vnPayRequest.setOrderType("billpayment");
             vnPayRequest.setLanguage("vn");
 
-            // Generate payment URL
             String paymentUrl = vnPayService.createPaymentUrl(vnPayRequest, clientIP);
 
-            // Create response
             PaymentOrderResponse response = new PaymentOrderResponse();
             response.setTransactionId(transactionId);
             response.setAmount(subscription.getPrice());
@@ -130,14 +128,14 @@ public class PaymentService {
         logger.info("Processing VNPay callback with fields: {}", fields.keySet());
 
         try {
-            // Extract transaction ID from VNPay response
             String txnRef = fields.get("vnp_TxnRef");
             if (txnRef == null || txnRef.isEmpty()) {
                 logger.error("Missing transaction reference in VNPay callback");
                 throw new PaymentProcessingException("Missing transaction reference", "MISSING_TXN_REF");
             }
 
-            // Security validation
+            // DÒNG NÀY CÓ THỂ ĐÃ GÂY LỖI TRƯỚC ĐÓ VÌ LỖI ĐÁNH MÁY TRONG SecurityService
+            // Nếu bạn đã sửa nó trong SecurityService, thì dòng này sẽ ổn.
             if (!securityService.isValidCallbackRequest(clientIP, txnRef)) {
                 logger.error("Security validation failed for callback from IP: {}", clientIP);
                 auditService.logVnPayCallback(txnRef, fields, clientIP, false);
@@ -153,7 +151,6 @@ public class PaymentService {
                 throw new PaymentProcessingException("Invalid transaction ID format", "INVALID_TXN_ID");
             }
 
-            // Find transaction with pessimistic lock
             Transaction transaction = transactionRepository.findById(transactionId)
                     .orElseThrow(() -> {
                         logger.error("Transaction not found with ID: {}", transactionId);
@@ -161,14 +158,12 @@ public class PaymentService {
                         return new PaymentProcessingException("Transaction not found", "TRANSACTION_NOT_FOUND");
                     });
 
-            // Check if already processed (idempotency)
             if (transaction.getStatus() == TransactionStatus.SUCCESS) {
                 logger.info("Transaction {} already marked as successful, skipping", transactionId);
                 securityService.markTransactionAsProcessed(txnRef);
                 return;
             }
 
-            // Verify signature
             if (!vnPayService.verifyVnpaySignature(fields)) {
                 logger.error("Invalid VNPay signature for transaction: {}", transactionId);
                 transaction.setStatus(TransactionStatus.FAILED);
@@ -177,23 +172,19 @@ public class PaymentService {
                 throw new PaymentProcessingException("Invalid VNPay signature", "INVALID_SIGNATURE");
             }
 
-            // Process response code
             String responseCode = fields.get("vnp_ResponseCode");
             logger.info("VNPay response code: {} for transaction: {}", responseCode, transactionId);
 
             if ("00".equals(responseCode)) {
-                // Success case
                 processSuccessfulPayment(transaction, fields);
                 auditService.logVnPayCallback(txnRef, fields, clientIP, true);
                 logger.info("Payment successful for transaction: {}", transactionId);
             } else {
-                // Failed case
                 processFailedPayment(transaction, responseCode);
                 auditService.logVnPayCallback(txnRef, fields, clientIP, false);
                 logger.warn("Payment failed for transaction: {}, response code: {}", transactionId, responseCode);
             }
 
-            // Mark as processed to prevent replay
             securityService.markTransactionAsProcessed(txnRef);
 
         } catch (PaymentProcessingException e) {
@@ -211,43 +202,49 @@ public class PaymentService {
             transaction.setTransactionDate(LocalDateTime.now());
             transactionRepository.save(transaction);
 
-            // Update member subscription
             Member member = transaction.getMember();
             if (member == null) {
                 logger.error("Transaction has no member linked: {}", transaction.getTransactionId());
                 throw new PaymentProcessingException("Transaction has no member linked", "NO_MEMBER_LINKED");
             }
 
-            // Get subscription from transaction amount (find matching subscription)
             Subscription subscription = subscriptionRepository.findAll().stream()
                     .filter(s -> s.getPrice().compareTo(transaction.getAmount()) == 0)
                     .findFirst()
                     .orElseThrow(() -> new PaymentProcessingException("No matching subscription found", "NO_MATCHING_SUBSCRIPTION"));
 
-            member.setSubscription(subscription);
-            member.setStartDate(LocalDateTime.now());
-            member.setEndDate(LocalDateTime.now().plusDays(subscription.getDuration()));
-            member.setSubscriptionStatus(true); // Dòng này là đúng vì Member.subscriptionStatus là boolean
-            memberRepository.save(member);
-            logger.info("Updated member subscription status for member: {}", member.getMemberId());
+            // --- BẮT ĐẦU PHẦN THAY ĐỔI LỚN ---
+            // Thay vì cập nhật Member, chúng ta tạo một MemberSubscription mới
+            MemberSubscription newMemberSubscription = new MemberSubscription();
+            newMemberSubscription.setMemberSubcriptionId(UUID.randomUUID()); // Tạo UUID mới cho PK
+            newMemberSubscription.setMember(member);
+            newMemberSubscription.setSubscription(subscription);
+            newMemberSubscription.setStartDate(LocalDateTime.now());
+            newMemberSubscription.setEndDate(LocalDateTime.now().plusDays(subscription.getDuration()));
+            newMemberSubscription.setSubscriptionStatus(SubscriptionStatus.ACTIVE); // Đặt trạng thái là ACTIVE từ enum
+            newMemberSubscription.setPurchasedAt(LocalDateTime.now()); // Thời điểm mua
 
-            // Update user role
+            memberSubscriptionRepository.save(newMemberSubscription); // Lưu bản ghi MemberSubscription mới
+            logger.info("Created new MemberSubscription for member: {} with ID: {}", member.getMemberId(), newMemberSubscription.getMemberSubcriptionId());
+
+            // --- KẾT THÚC PHẦN THAY ĐỔI LỚN ---
+
+
+            // Cập nhật vai trò người dùng (User Role) vẫn giữ nguyên
             User user = member.getUser();
             if (user != null) {
-                // Lấy entity.Role từ database
                 com.swp391project.SWP391_QuitSmoking_BE.entity.Role entityPremiumRole = roleRepository.findByRoleName("ROLE_PREMIUM")
                         .orElseThrow(() -> {
                             logger.error("Premium role not found in database (entity.Role)");
                             return new PaymentProcessingException("Premium role not found", "ROLE_NOT_FOUND");
                         });
 
-                // Chuyển đổi từ entity.Role sang enums.Role để gán vào User entity
                 Role enumPremiumRole = Role.valueOf(entityPremiumRole.getRoleName());
-
                 user.setRole(enumPremiumRole);
                 userRepository.save(user);
                 logger.info("Updated user role to PREMIUM for user: {}", user.getUserId());
             }
+
         } catch (Exception e) {
             logger.error("Error processing successful payment", e);
             throw new PaymentProcessingException("Failed to process successful payment", "SUCCESS_PROCESSING_ERROR", e);
@@ -273,9 +270,10 @@ public class PaymentService {
         if (request.getSubscriptionId() == null) {
             throw new PaymentProcessingException("Subscription ID cannot be null", "NULL_SUBSCRIPTION_ID");
         }
-        if (request.getTransactionMethodId() == null) {
-            throw new PaymentProcessingException("Transaction method ID cannot be null", "NULL_METHOD_ID");
-        }
+        // request.getTransactionMethodId() sẽ không cần thiết nếu luôn là VNPAY
+        // if (request.getTransactionMethodId() == null) {
+        //     throw new PaymentProcessingException("Transaction method ID cannot be null", "NULL_METHOD_ID");
+        // }
     }
 
     public PaymentConfirmResponse confirmPayment(PaymentConfirmRequest request) {

@@ -1,3 +1,4 @@
+// src/main/java/com/swp391project/SWP391_QuitSmoking_BE/service/MemberService.java
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
@@ -28,11 +29,14 @@ public class MemberService {
 
     public Member updateMember(UUID id, Member memberDetails) {
         return memberRepository.findById(id).map(member -> {
+            // Các trường này vẫn có thể cập nhật qua DTO hoặc các phương thức service khác
+            // Hiện tại, chỉ cập nhật User và Streak.
+            // Các thông tin Subscription (gói đăng ký) sẽ được quản lý qua MemberSubscriptionService riêng biệt.
             member.setUser(memberDetails.getUser());
-            member.setSubscription(memberDetails.getSubscription());
-            member.setStartDate(memberDetails.getStartDate());
-            member.setEndDate(memberDetails.getEndDate());
-            member.setSubscriptionStatus(memberDetails.isSubscriptionStatus()); // Dòng này đã đúng sau khi Member.java sửa
+            // member.setSubscription(memberDetails.getSubscription()); // ĐÃ BỎ - Lỗi ở đây trước đó
+            // member.setStartDate(memberDetails.getStartDate());     // ĐÃ BỎ - Lỗi ở đây trước đó
+            // member.setEndDate(memberDetails.getEndDate());         // ĐÃ BỎ - Lỗi ở đây trước đó
+            // member.setSubscriptionStatus(memberDetails.isSubscriptionStatus()); // ĐÃ BỎ - Lỗi ở đây trước đó
             member.setStreak(memberDetails.getStreak());
             return memberRepository.save(member);
         }).orElseThrow(() -> new RuntimeException("Member not found"));
