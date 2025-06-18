@@ -40,7 +40,6 @@ public class DailySummaryDatesValidator implements ConstraintValidator<ValidDail
         LocalDateTime quitPlanStartDate = quitPlan.getStartDate();
         LocalDate quitPlanGoalDate = quitPlan.getGoalDate();
         int initialSmokingAmount = quitPlan.getInitialSmokingAmount();
-//        PlanType planType = quitPlan.getPlanType();
 
         boolean isValid = true;
         context.disableDefaultConstraintViolation();

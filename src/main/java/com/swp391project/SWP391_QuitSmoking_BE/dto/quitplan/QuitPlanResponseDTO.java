@@ -1,6 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan;
 
-//import com.swp391project.SWP391_QuitSmoking_BE.entity.PlanType;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.PlanType;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import jakarta.validation.constraints.DecimalMax;
@@ -28,6 +28,7 @@ public class QuitPlanResponseDTO {
     private BigDecimal pricePerPack;
     private int cigarettesPerPack;
     private QuitPlanStatus status;
+}
 
     // có thể thêm các trường tính toán hoặc suy ra ở đây nếu cần cho hiển thị trên UI
     // Ví dụ: private BigDecimal estimatedSavings;

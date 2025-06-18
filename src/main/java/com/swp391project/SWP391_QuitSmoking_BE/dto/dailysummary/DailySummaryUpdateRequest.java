@@ -14,9 +14,9 @@ public class DailySummaryUpdateRequest {
     @NotNull(message = "ID nhật ký hàng ngày không được để trống")
     private Integer dailySummaryId;
     @Min(value = 0, message = "Số lượng thuốc đã hút không thể là số âm")
-    private int totalSmokedCount;
+    private Integer totalSmokedCount;
     @Min(value = 0, message = "Số lần thèm thuốc không thể là số âm")
-    private int totalCravingCount;
+    private Integer totalCravingCount;
     private Mood mood;
     private String note;
 }

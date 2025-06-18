@@ -16,13 +16,12 @@ import java.util.List;
 @NoArgsConstructor
 public class DailySummaryResponse {
     private Integer dailySummaryId;
-    private Integer quitPlanId;
-    private int totalSmokedCount;
-    private int totalCravingCount;
+    private Integer totalSmokedCount;
+    private Integer totalCravingCount;
     private LocalDate trackDate;
     private Mood mood;
     private String note;
     private BigDecimal moneySaved;
     private boolean isGoalAchievedToday;
-    private List<CravingTrackingResponse> cravingTrackings;
+//    private List<CravingTrackingResponse> cravingTrackings;
 }

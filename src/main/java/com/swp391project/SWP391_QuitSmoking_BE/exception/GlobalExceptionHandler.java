@@ -84,6 +84,14 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(HttpStatus.FORBIDDEN, "Không thể chỉnh sửa bảng theo dõi", ex.getMessage(), "TRACKING_EDIT_FORBIDDEN"));
     }
 
+    // Xử lý DailySummaryEditForbiddenException
+    @ExceptionHandler(DailySummaryEditForbiddenException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDailySummaryEditForbiddenException(DailySummaryEditForbiddenException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(HttpStatus.FORBIDDEN, "Không thể chỉnh sửa bảng hằng ngày", ex.getMessage(), "DAILYSUMMARY_EDIT_FORBIDDEN"));
+    }
+
     // Xử lý việc hệ thống xóa bảng ghi khi người dùng chỉnh sửa giá trị về 0
     @ExceptionHandler(CravingTrackingDeletedException.class)
     public ResponseEntity<ApiResponse<Void>> handleTrackingDeletedException(CravingTrackingDeletedException ex) {

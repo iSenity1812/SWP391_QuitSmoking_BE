@@ -14,7 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CravingTrackingResponse {
-    private UUID memberId;
+    private Integer cravingTrackingId;
     private LocalDateTime trackTime;
     private Integer smokedCount;
     private Integer cravingsCount;
