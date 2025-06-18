@@ -55,9 +55,9 @@ public class AppointmentService {
                     .orElseThrow(() -> new ResourceNotFoundException("Member not found with ID: " + callerId));
         } else if (callerRoles.contains(Role.COACH))  {
             if (request.getMemberIdToBook() != null) {
-
+                return null; // Fix later
             } else if (request.getEmail() != null ) {
-
+                return null; // Fix later
             }
         } else {
             throw new AccessDeniedException("Bạn không có quyền đặt lịch hẹn. Chỉ có Premium Member hoặc Coach mới có thể đặt lịch.");
