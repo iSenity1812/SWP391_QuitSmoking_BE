@@ -76,6 +76,22 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Lỗi yêu cầu", ex.getMessage(), "PASSWORD_MISMATCH"));
     }
 
+    // Xử lý CravingTrackingEditForbiddenException
+    @ExceptionHandler(CravingTrackingEditForbiddenException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTrackingEditForbiddenException(CravingTrackingEditForbiddenException ex) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(HttpStatus.FORBIDDEN, "Không thể chỉnh sửa bảng theo dõi", ex.getMessage(), "TRACKING_EDIT_FORBIDDEN"));
+    }
+
+    // Xử lý việc hệ thống xóa bảng ghi khi người dùng chỉnh sửa giá trị về 0
+    @ExceptionHandler(CravingTrackingDeletedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTrackingDeletedException(CravingTrackingDeletedException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Bảng ghi đã bị xóa", ex.getMessage(), "TRACKING_DELETED"));
+    }
+
     // Xử lý DataIntegrityViolationException (ví dụ từ lỗi khóa ngoại, unique constraint)
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {

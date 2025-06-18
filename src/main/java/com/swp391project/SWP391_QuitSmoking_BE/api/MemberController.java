@@ -34,13 +34,5 @@ public class MemberController {
                 .body(ApiResponse.success(member, "Lấy thông tin thành viên thành công"));
     }
 
-    //Lấy danh sách tất cả các thành viên
-//    @GetMapping
-//    @PreAuthorize("hasRole('SUPER_ADMIN')")
-//    public ResponseEntity<ApiResponse<List<MemberResponse>>> getAllMembers() {
-//        List<MemberResponse> members = memberService.getAllMembersWithUserDetails();
-//        return ResponseEntity
-//                .status(HttpStatus.OK)
-//                .body(ApiResponse.success(members, "Lấy danh sách thành viên thành công."));
-//    }
+
 }

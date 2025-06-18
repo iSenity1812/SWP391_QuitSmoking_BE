@@ -55,19 +55,19 @@ public class QuitPlan {
     @Column(name = "InitialSmokingAmount", nullable = false)
     private int initialSmokingAmount;
 
-    @NotNull(message = "Số tiền/gói thuốc không được để trống")
-    @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền không thể là số âm")
-    //6 số nguyên, 2 số thập phân
-    @DecimalMax(value = "999999.99", inclusive = true, message = "Số tiền chỉ có thể tối đa 999.999VND")
-    @Column(name = "PricePerPack", nullable = false)
-    private BigDecimal PricePerPack;
-
     @NotNull(message = "Số điều thuốc trong mỗi gói không được để trống")
     @Min(value = 1, message = "Số điều thuốc trong mỗi gói phải lớn hơn 0")
     @Max(value = 50, message = "Số điều thuốc trong mỗi gói không thể vượt quá 50")
     @Column(name = "CigarettesPerPack", nullable = false)
     @PositiveOrZero(message = "Số điều thuốc trong mỗi gói phải là số dương hoặc bằng 0")
     private int cigarettesPerPack;
+
+    @NotNull(message = "Số tiền/gói thuốc không được để trống")
+    @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền không thể là số âm")
+    //6 số nguyên, 2 số thập phân
+    @DecimalMax(value = "999999.99", inclusive = true, message = "Số tiền chỉ có thể tối đa 999.999VND")
+    @Column(name = "PricePerPack", precision = 8, scale = 2, nullable = false)
+    private BigDecimal PricePerPack;
 
     @NotNull(message = "Trạng thái kế hoạch không được để trống")
     @Enumerated(EnumType.STRING)

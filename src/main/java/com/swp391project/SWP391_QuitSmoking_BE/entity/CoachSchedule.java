@@ -7,12 +7,27 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Entity
 @Table(name = "coach_schedule", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"coach_id", "timeslot_id", "schedule_date"}) // Unique Constraint ở đây
 })
+//@NamedEntityGraph(
+//        name = "coachSchedule.with.coach.user.timeSlot",
+//        attributeNodes = {
+//                @NamedAttributeNode(value = "coach", subgraph = "coach-subgraph"),
+//                @NamedAttributeNode("timeSlot")
+//        },
+//        subgraphs = {
+//                @NamedSubgraph(
+//                        name = "coach-subgraph",
+//                        attributeNodes = @NamedAttributeNode("user")
+//                )
+//        }
+//)
 public class CoachSchedule {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,6 +59,10 @@ public class CoachSchedule {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @OneToOne(mappedBy = "coachSchedule", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-    private Appointment appointment; // Tham chiếu đến đối tượng Appointment liên kết
+//    @OneToOne(mappedBy = "coachSchedule", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+//    private Appointment appointment; // Tham chiếu đến đối tượng Appointment liên kết
+
+    @OneToMany(mappedBy = "coachSchedule", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private List<Appointment> appointments = new ArrayList<>(); // Sử dụng List để chứa nhiều Appointments
+
 }

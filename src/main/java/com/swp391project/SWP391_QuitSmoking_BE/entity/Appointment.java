@@ -8,9 +8,31 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "appointment", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"schedule_id"}) // Đảm bảo 1 CoachSchedule chỉ được đặt 1 lần
-})
+@Table(name = "appointment")
+//@NamedEntityGraph(
+//        name = "appointment.with.member.user.coachSchedule.coach.user.timeSlot",
+//        attributeNodes = {
+//                @NamedAttributeNode(value = "member", subgraph = "member-subgraph"),
+//                @NamedAttributeNode(value = "coachSchedule", subgraph = "coachSchedule-subgraph")
+//        },
+//        subgraphs = {
+//                @NamedSubgraph(
+//                        name = "member-subgraph",
+//                        attributeNodes = @NamedAttributeNode("user")
+//                ),
+//                @NamedSubgraph(
+//                        name = "coachSchedule-subgraph",
+//                        attributeNodes = {
+//                                @NamedAttributeNode("timeSlot"),
+//                                @NamedAttributeNode(value = "coach", subgraph = "coach-subgraph")
+//                        }
+//                ),
+//                @NamedSubgraph(
+//                        name = "coach-subgraph",
+//                        attributeNodes = @NamedAttributeNode("user")
+//                )
+//        }
+//)
 public class Appointment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,7 +42,8 @@ public class Appointment {
     @JoinColumn(name = "member_id", referencedColumnName = "MemberID", nullable = false)
     private Member member;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    //    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "schedule_id", nullable = false)
     private CoachSchedule coachSchedule; // Tham chiếu đến CoachSchedule đã được đặt
 
