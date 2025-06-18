@@ -21,6 +21,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -89,6 +90,7 @@ public class AuthenticationService implements UserDetailsService {
      * param User details to register.
      * return The registered user details.
      */
+    @Transactional
     public AccountResponse registerUser(RegisterRequest registerRequest) {
     // 1. Kiem tra email
         if (authenticationRepository.findByEmail(registerRequest.getEmail()).isPresent()) {
@@ -110,27 +112,27 @@ public class AuthenticationService implements UserDetailsService {
 
         // Gửi mail chào mừng khi register  thành công
 
-        try {
-            String recipient = savedUser.getEmail();
-            String subject = "Chào mừng bạn đã đến với ứng dụng QuitTogether!";
-            Map<String, Object> templateVariables = new HashMap<>();
-
-            // Thêm các biến cần thiết vào templateVariables
-            templateVariables.put("name", savedUser.getUsername());
-            templateVariables.put("link", "http://localhost:5173/login"); // Ví dụ về link đến trang chào mừng
-            templateVariables.put("buttonText", "Bắt đầu ngay"); // Văn bản nút trong email
-            templateVariables.put("websiteUrl", "http://localhost:5173"); // URL của trang web
-            templateVariables.put("supportUrl", "http://localhost:5173/support"); // URL hỗ trợ
-
-            String body = null;
-            String templateName = "welcomeTemplate"; // Tên template email chào mừng
-            EmailDetail emailDetail = new EmailDetail(recipient, subject, body, templateName, templateVariables);
-            emailService.sendEmail(emailDetail);
-            System.out.println("Gửi email thành công đến: " + recipient);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to send welcome email: " + e.getMessage());
-        }
-        System.out.println("Send email thành công");
+//        try {
+//            String recipient = savedUser.getEmail();
+//            String subject = "Chào mừng bạn đã đến với ứng dụng QuitTogether!";
+//            Map<String, Object> templateVariables = new HashMap<>();
+//
+//            // Thêm các biến cần thiết vào templateVariables
+//            templateVariables.put("name", savedUser.getUsername());
+//            templateVariables.put("link", "http://localhost:5173/login"); // Ví dụ về link đến trang chào mừng
+//            templateVariables.put("buttonText", "Bắt đầu ngay"); // Văn bản nút trong email
+//            templateVariables.put("websiteUrl", "http://localhost:5173"); // URL của trang web
+//            templateVariables.put("supportUrl", "http://localhost:5173/support"); // URL hỗ trợ
+//
+//            String body = null;
+//            String templateName = "welcomeTemplate"; // Tên template email chào mừng
+//            EmailDetail emailDetail = new EmailDetail(recipient, subject, body, templateName, templateVariables);
+//            emailService.sendEmail(emailDetail);
+//            System.out.println("Gửi email thành công đến: " + recipient);
+//        } catch (Exception e) {
+//            throw new RuntimeException("Failed to send welcome email: " + e.getMessage());
+//        }
+//        System.out.println("Send email thành công");
         // Chuyển đổi User sang AccountResponse để trả về
         AccountResponse accountResponse = modelMapper.map(savedUser, AccountResponse.class);
         accountResponse.setToken(jwtToken); // Gán token vào DTO

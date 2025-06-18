@@ -14,10 +14,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CravingTrackingResponse {
-    private UUID memberId;
+    private Integer cravingTrackingId;
     private LocalDateTime trackTime;
-    private int smokedCount;
-    private int cravingsCount;
+    private Integer smokedCount;
+    private Integer cravingsCount;
     private Set<Situation> situations;
     private Set<WithWhom> withWhoms;
 }

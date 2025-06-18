@@ -9,16 +9,15 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface CravingTrackingRepository extends JpaRepository<CravingTracking, Integer> {
-    Optional<CravingTracking> findByDailySummaryAndTrackTime(DailySummary dailySummary, LocalDateTime trackTime);
-    List<CravingTracking> findAllByTrackTime(LocalDate date);
+//    Optional<CravingTracking> findByDailySummaryAndTrackTime(DailySummary dailySummary, LocalDateTime trackTime);
 
-    Optional<CravingTracking> findByTrackTime(LocalDateTime trackTime);
+    List<CravingTracking> findAllByDailySummary_QuitPlan_Member_MemberIdAndTrackTimeBetween(
+            UUID memberId, LocalDateTime startTime, LocalDateTime endTime);
+
     List<CravingTracking> findByDailySummary_DailySummaryId(Integer dailySummaryId);
     List<CravingTracking> findByDailySummary(DailySummary dailySummary);
-
-    // Lấy tất cả các bản ghi trong một khoảng thời gian nhất định
-    List<CravingTracking> findAllByTrackTimeBetween(LocalDateTime startDateTime, LocalDateTime endDateTime);
 }

@@ -8,13 +8,13 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface DailySummaryRepository extends JpaRepository<DailySummary, Integer> {
     //được sử dụng trong DailySummaryDatesValidator để kiểm tra tính duy nhất
     //có thể chứa một giá trị non-null hoặc null
     Optional<DailySummary> findByQuitPlanAndTrackDate(QuitPlan quitPlan, LocalDate trackDate);
-    List<DailySummary> findByQuitPlanAndTrackDateBetween(QuitPlan quitPlan, LocalDate startDate, LocalDate endDate);
+    List<DailySummary> findByQuitPlan_Member_MemberIdAndTrackDateBetween(UUID memberId, LocalDate startDate, LocalDate endDate);
     List<DailySummary> findByQuitPlan(QuitPlan quitPlan);
-    Optional<DailySummary> findByTrackDate(LocalDate trackDate); //tìm kiếm theo ngày track
 }
