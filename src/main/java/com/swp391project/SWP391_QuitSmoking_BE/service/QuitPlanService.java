@@ -53,6 +53,13 @@ public class QuitPlanService {
     private static final double RELAPSE_PERCENTAGE_OVER_TARGET_THRESHOLD = 0.20; // 20%
 
     @Transactional
+    public Optional<QuitPlan> getProgressQuitPlansByMemberId(UUID memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thành viên với ID: " + memberId));
+        return quitPlanRepository.findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.IN_PROGRESS);
+    }
+
+    @Transactional
     public QuitPlanResponseDTO createQuitPlan(UUID memberId, QuitPlanCreateRequestDTO request) {
         // Kiểm tra sự tồn tại của Member (ID của Member chính là ID của User)
         // Vì Member entity sử dụng @MapsId, memberRepository.findById(userId) sẽ tìm Member có userId đó.

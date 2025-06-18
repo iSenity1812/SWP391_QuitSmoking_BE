@@ -75,6 +75,6 @@ public class DailySummary {
     @Column(name = "UpdatedAt", nullable = false)
     private LocalDateTime updatedAt;
 
-//    @OneToMany(fetch = FetchType.LAZY, mappedBy = "dailySummary", cascade = CascadeType.ALL, orphanRemoval = true)
-//    private List<CravingTracking> cravingTrackings; // Danh sách các theo dõi cơn thèm trong ngày này
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "dailySummary", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CravingTracking> cravingTrackings; // Danh sách các theo dõi cơn thèm trong ngày này
 }

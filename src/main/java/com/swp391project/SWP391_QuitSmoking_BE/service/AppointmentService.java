@@ -76,7 +76,7 @@ public class AppointmentService {
         }
 //        // Tạo Appointment
         Appointment appointment = new Appointment();
-        appointment.setMember(memberToBook);
+//        appointment.setMember(memberToBook);
         appointment.setCoachSchedule(coachSchedule);
         appointment.setStatus(AppointmentStatus.CONFIRMED); // Mặc định là CONFIRMED khi đặt thành công
         appointment.setNote(request.getNote());

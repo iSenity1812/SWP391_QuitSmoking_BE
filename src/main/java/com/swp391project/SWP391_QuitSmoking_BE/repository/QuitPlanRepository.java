@@ -58,4 +58,6 @@ public interface QuitPlanRepository extends JpaRepository<QuitPlan, Integer> {
 
     @Query("SELECT q FROM QuitPlan q JOIN FETCH q.member m JOIN FETCH m.user WHERE m.memberId = :memberId ORDER BY q.createdAt DESC")
     List<QuitPlan> findByMemberIdWithMemberAndUser(@Param("memberId") UUID memberId);
+
+    Optional<QuitPlan> findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(UUID memberId, QuitPlanStatus quitPlanStatus);
 }
