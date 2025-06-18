@@ -5,13 +5,16 @@ import com.swp391project.SWP391_QuitSmoking_BE.entity.CoachSchedule;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.TimeSlot;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Repository
 public interface CoachScheduleRepository extends JpaRepository<CoachSchedule, Long> {
     // Tìm lịch của một Coach theo ngày và timeslot (để kiểm tra trùng lặp trước khi tạo)
     // Sẽ dùng coach.coachId để truy vấn
@@ -59,8 +62,17 @@ public interface CoachScheduleRepository extends JpaRepository<CoachSchedule, Lo
     Page<CoachSchedule> findByIsBookedFalseAndScheduleDateOrderByCoach_FullNameAscTimeSlot_StartTimeAsc(
             LocalDate scheduleDate, Pageable pageable);
 
+    List<CoachSchedule> findByCoach_CoachIdAndIsBookedFalseAndScheduleDateGreaterThanEqualOrderByScheduleDateAscTimeSlot_StartTimeAsc(UUID coachId, LocalDate now, Pageable pageable);
+
     // Tìm lịch hẹn sắp tới của một Coach (1 hoặc 2 lịch gần nhất)
     // Sắp xếp theo ngày và giờ bắt đầu tăng dần, chỉ lấy những lịch chưa đặt và ở tương lai/hiện tại
-    List<CoachSchedule> findByCoach_CoachIdAndIsBookedFalseAndScheduleDateGreaterThanEqualOrderByScheduleDateAscTimeSlot_StartTimeAsc(
-            UUID coachId, LocalDate currentDate, Pageable pageable);
+//    List<CoachSchedule> findByCoach_CoachIdAndIsBookedFalseAndScheduleDateGreaterThanEqualOrderByScheduleDateAscTimeSlot_StartTimeAsc(
+//            UUID coachId, LocalDate currentDate, Pageable pageable);
+//
+//    @EntityGraph(value = "coachSchedule.with.coach.user.timeSlot", type = EntityGraph.EntityGraphType.LOAD)
+//    List<CoachSchedule> findByCoach_CoachId(UUID coachId);
+//
+//    @EntityGraph(value = "coachSchedule.with.coach.user.timeSlot", type = EntityGraph.EntityGraphType.LOAD)
+//    List<CoachSchedule> findByCoach_CoachIdAndScheduleDateBetweenAndIsBookedFalse(
+//            UUID coachId, LocalDate startDate, LocalDate endDate);
 }

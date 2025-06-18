@@ -58,7 +58,7 @@ public class CoachScheduleController {
     public ResponseEntity<ApiResponse<List<CoachScheduleResponseDTO>>> getMyCoachSchedules(
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID coachId = userService.getUserIdFromUserDetails(userDetails);
-        List<CoachScheduleResponseDTO> schedules = coachScheduleService.getMyCoachSchedules(coachId); // Đổi tên DTO
+        List<CoachScheduleResponseDTO> schedules = coachScheduleService.getMyCoachSchedules(coachId);
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success(schedules, "Lấy danh sách lịch trình của bạn thành công"));
