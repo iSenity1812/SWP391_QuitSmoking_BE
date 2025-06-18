@@ -53,28 +53,36 @@ public class AppointmentService {
             }
             memberToBook = memberRepository.findById(callerId)
                     .orElseThrow(() -> new ResourceNotFoundException("Member not found with ID: " + callerId));
-        } else if (callerRoles.contains(Role.COACH))  {
-            if (request.getMemberIdToBook() != null) {
-                return null; // Fix later
-            } else if (request.getEmail() != null ) {
-                return null; // Fix later
+        } else if (callerRoles.contains(Role.COACH)) {
+            if (request.getMemberIdToBook() == null) {
+                throw new IllegalArgumentException("Coach phải chỉ định Member ID để đặt lịch hộ.");
             }
+
+            memberToBook = memberRepository.findById(request.getMemberIdToBook())
+                    .orElseThrow(() -> new ResourceNotFoundException("Member not found with ID: " + callerId));
+
+            // Kiểm tra xem Coach có quyền đặt lịch cho Member này không
         } else {
             throw new AccessDeniedException("Bạn không có quyền đặt lịch hẹn. Chỉ có Premium Member hoặc Coach mới có thể đặt lịch.");
         }
 
-
-//        Member member = memberRepository.findById(memberId)
-//                .orElseThrow(() -> new ResourceNotFoundException("Member not found with ID: " + memberId));
-//
         CoachSchedule coachSchedule = coachScheduleRepository.findById(request.getCoachScheduleId())
                 .orElseThrow(() -> new ResourceNotFoundException("CoachSchedule not found with ID: " + request.getCoachScheduleId()));
-//
-//        // Kiểm tra xem lịch trình đã bị đặt chưa
+
+        LocalDate scheduleDate = coachSchedule.getScheduleDate();
+        LocalTime startTime = coachSchedule.getTimeSlot().getStartTime();
+        LocalDateTime appointmentTime = LocalDateTime.of(scheduleDate, startTime);
+
+        // Kiểm tra xem lịch trình có hợp lệ không
+        if (appointmentTime.isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Lịch trình không hợp lệ. Vui lòng chọn lịch trong tương lai.");
+        }
+
+        // Kiểm tra xem lịch trình đã bị đặt chưa
         if (coachSchedule.isBooked()) {
             throw new IllegalStateException("Lịch trình này đã được đặt. Vui lòng chọn lịch khác.");
         }
-//        // Tạo Appointment
+        // Tạo Appointment
         Appointment appointment = new Appointment();
         appointment.setMember(memberToBook);
         appointment.setCoachSchedule(coachSchedule);
@@ -90,14 +98,25 @@ public class AppointmentService {
         coachSchedule.setBooked(true);
         coachScheduleRepository.save(coachSchedule);
 
-        return modelMapper.map(savedAppointment, AppointmentResponseDTO.class);
+        AppointmentResponseDTO dto = modelMapper.map(savedAppointment, AppointmentResponseDTO.class);
+        if (appointment.getCoachSchedule() != null &&
+                appointment.getCoachSchedule().getCoach() != null &&
+                appointment.getCoachSchedule().getCoach().getUser() != null) {
+
+            User coachUser = appointment.getCoachSchedule().getCoach().getUser();
+            dto.getCoachSchedule().getCoach().setUsername(coachUser.getUsername());
+            dto.getCoachSchedule().getCoach().setEmail(coachUser.getEmail());
+        }
+
+        return dto;
     }
 
     /**
      * Hủy một lịch hẹn
+     *
      * @param appointmentId Id của lịch hẹn
      * @param currentUserId ID của người dùng hiện tại (để kiểm tra quyền)
-     * @param isAdmin xác định người dùng có phải admin không
+     * @param isAdmin       xác định người dùng có phải admin không
      * @return AppointmentResponseDTO đã được hủy
      */
     @Transactional
@@ -138,8 +157,8 @@ public class AppointmentService {
 
         // Kiểm tra trạng thái hiện tại của lịch hẹn
         if (appointment.getStatus() == AppointmentStatus.CANCELLED ||
-            appointment.getStatus() == AppointmentStatus.COMPLETED ||
-            appointment.getStatus() == AppointmentStatus.MISSED) {
+                appointment.getStatus() == AppointmentStatus.COMPLETED ||
+                appointment.getStatus() == AppointmentStatus.MISSED) {
             throw new IllegalStateException("Không thể hủy lịch hẹn ở trạng thái hiện tại (" + appointment.getStatus() + ").");
         }
         appointment.setStatus(AppointmentStatus.CANCELLED);
@@ -156,14 +175,15 @@ public class AppointmentService {
 
     /**
      * Update trạng thái lịch hẹn (chỉ Admin hoặc Coach)
+     *
      * @param appointmentId Id của lịch hẹn
-     * @param newStatus Trạng thái mới
+     * @param newStatus     Trạng thái mới
      * @param currentUserId id của người dùng hiện tại (kiểm tra coach/admin)
-     * @param isAdmin Là Admin hay không
+     * @param isAdmin       Là Admin hay không
      * @return AppointmentResponseDTO đã cập nhật
      */
     @Transactional
-    public AppointmentResponseDTO updateAppointmentStatus(Long appointmentId, AppointmentStatus newStatus, UUID currentUserId, boolean isAdmin)  {
+    public AppointmentResponseDTO updateAppointmentStatus(Long appointmentId, AppointmentStatus newStatus, UUID currentUserId, boolean isAdmin) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + appointmentId));
 
@@ -198,10 +218,11 @@ public class AppointmentService {
 
     /**
      * Lấy tất cả lịch hẹn của một Member, có phân trang và lọc theo khoảng ngày.
-     * @param memberId ID của thành viên.
+     *
+     * @param memberId  ID của thành viên.
      * @param startDate Ngày bắt đầu.
-     * @param endDate Ngày kết thúc.
-     * @param pageable Thông tin phân trang.
+     * @param endDate   Ngày kết thúc.
+     * @param pageable  Thông tin phân trang.
      * @return Trang của AppointmentResponseDTO.
      */
     @Transactional(readOnly = true)
@@ -213,11 +234,12 @@ public class AppointmentService {
 
     /**
      * Lấy tất cả lịch hẹn của một Coach, có phân trang và lọc theo khoảng ngày và trạng thái.
-     * @param coachId ID của coach.
+     *
+     * @param coachId   ID của coach.
      * @param startDate Ngày bắt đầu.
-     * @param endDate Ngày kết thúc.
-     * @param statuses Danh sách trạng thái muốn lọc (nếu null/empty thì lấy tất cả).
-     * @param pageable Thông tin phân trang.
+     * @param endDate   Ngày kết thúc.
+     * @param statuses  Danh sách trạng thái muốn lọc (nếu null/empty thì lấy tất cả).
+     * @param pageable  Thông tin phân trang.
      * @return Trang của AppointmentResponseDTO.
      */
     @Transactional(readOnly = true)
@@ -255,10 +277,11 @@ public class AppointmentService {
 
     /**
      * Lấy tất cả lịch hẹn (cho Admin), có phân trang và lọc theo khoảng ngày và trạng thái.
+     *
      * @param startDate Ngày bắt đầu.
-     * @param endDate Ngày kết thúc.
-     * @param statuses Danh sách trạng thái muốn lọc.
-     * @param pageable Thông tin phân trang.
+     * @param endDate   Ngày kết thúc.
+     * @param statuses  Danh sách trạng thái muốn lọc.
+     * @param pageable  Thông tin phân trang.
      * @return Trang của AppointmentResponseDTO.
      */
     @Transactional(readOnly = true)
@@ -289,8 +312,9 @@ public class AppointmentService {
 
     /**
      * Lấy các lịch hẹn sắp tới của một Member.
+     *
      * @param memberId ID của thành viên.
-     * @param limit Số lượng lịch hẹn muốn lấy.
+     * @param limit    Số lượng lịch hẹn muốn lấy.
      * @return Danh sách AppointmentResponseDTO.
      */
     @Transactional(readOnly = true)
@@ -329,8 +353,9 @@ public class AppointmentService {
 
     /**
      * Lấy các lịch hẹn sắp tới của một Coach.
+     *
      * @param coachId ID của coach.
-     * @param limit Số lượng lịch hẹn muốn lấy.
+     * @param limit   Số lượng lịch hẹn muốn lấy.
      * @return Danh sách AppointmentResponseDTO.
      */
     @Transactional(readOnly = true)
