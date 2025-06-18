@@ -17,6 +17,6 @@ public class CoachScheduleResponseDTO {
     private TimeSlotResponseDTO timeSlot; // Thông tin TimeSlot
     private LocalDate scheduleDate;
     private boolean isBooked;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+//    private LocalDateTime createdAt;
+//    private LocalDateTime updatedAt;
 }

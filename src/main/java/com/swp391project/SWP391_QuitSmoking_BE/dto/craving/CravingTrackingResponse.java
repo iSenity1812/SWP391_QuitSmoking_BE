@@ -7,16 +7,17 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Set;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CravingTrackingResponseDTO {
-    private Integer cravingTrackingId;
-    private Integer dailySummaryId;
+public class CravingTrackingResponse {
+    private UUID memberId;
     private LocalDateTime trackTime;
     private Integer smokedCount;
     private Integer cravingsCount;
-    private Situation situation;
-    private WithWhom withWhom;
+    private Set<Situation> situations;
+    private Set<WithWhom> withWhoms;
 }

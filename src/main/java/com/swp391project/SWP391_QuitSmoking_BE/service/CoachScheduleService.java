@@ -79,6 +79,7 @@ public class CoachScheduleService {
      * @param coachId ID của Coach
      * @return Danh sách CoachScheduleResponseDTO
      */
+    @Transactional(readOnly = true)
     public List<CoachScheduleResponseDTO> getMyCoachSchedules(UUID coachId) {
         List<CoachSchedule> schedules = coachScheduleRepository.findByCoach_CoachIdOrderByScheduleDateAscTimeSlot_StartTimeAsc(coachId);
         return schedules.stream()
@@ -93,6 +94,7 @@ public class CoachScheduleService {
      * @param endDate Ngày kết thúc
      * @return Danh sách CoachScheduleResponseDTO trống
      */
+    @Transactional(readOnly = true)
     public List<CoachScheduleResponseDTO> getAvailableCoachSchedules(UUID coachId, LocalDate startDate, LocalDate endDate) {
         List<CoachSchedule> availableSchedules = coachScheduleRepository.findByCoach_CoachIdAndIsBookedFalseAndScheduleDateBetweenOrderByScheduleDateAscTimeSlot_StartTimeAsc(
                 coachId, startDate, endDate);
@@ -107,6 +109,7 @@ public class CoachScheduleService {
      * @param endDate Ngày kết thúc
      * @return Danh sách CoachScheduleResponseDTO trống
      */
+    @Transactional(readOnly = true)
     public List<CoachScheduleResponseDTO> getAllAvailableSchedules(LocalDate startDate, LocalDate endDate) {
         List<CoachSchedule> availableSchedules = coachScheduleRepository.findByIsBookedFalseAndScheduleDateBetweenOrderByCoach_FullNameAscScheduleDateAscTimeSlot_StartTimeAsc(
                 startDate, endDate);
@@ -171,6 +174,7 @@ public class CoachScheduleService {
      * @param scheduleId ID của CoachSchedule
      * @return CoachSchedule nếu tìm thấy, ngược lại ném ngoại lệ
      */
+    @Transactional(readOnly = true)
     public CoachSchedule getCoachScheduleById(Long scheduleId) {
         return coachScheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new ResourceNotFoundException("CoachSchedule not found with ID: " + scheduleId));
@@ -182,6 +186,7 @@ public class CoachScheduleService {
     * @param coachId ID của Coach
     * @return Danh sách CoachScheduleResponseDTO đã đặt
     */
+    @Transactional(readOnly = true)
     public List<CoachScheduleResponseDTO> getBookedCoachSchedules(UUID coachId) {
         List<CoachSchedule> bookedSchedules = coachScheduleRepository.findByCoach_CoachIdAndIsBookedTrueOrderByScheduleDateAscTimeSlot_StartTimeAsc(coachId);
         return bookedSchedules.stream()
@@ -197,6 +202,7 @@ public class CoachScheduleService {
      * @param pageable Thông tin phân trang (số trang, kích thước trang, sắp xếp)
      * @return Trang của CoachScheduleResponseDTO
      */
+    @Transactional(readOnly = true)
     public Page<CoachScheduleResponseDTO> getMyCoachSchedulesPaged(UUID coachId, LocalDate startDate, LocalDate endDate, Pageable pageable) {
         Page<CoachSchedule> schedulesPage = coachScheduleRepository.findByCoach_CoachIdAndScheduleDateBetweenOrderByScheduleDateAscTimeSlot_StartTimeAsc(
                 coachId, startDate, endDate, pageable);
@@ -211,6 +217,7 @@ public class CoachScheduleService {
      * @param pageable Thông tin phân trang
      * @return Trang của CoachScheduleResponseDTO trống
      */
+    @Transactional(readOnly = true)
     public Page<CoachScheduleResponseDTO> getAvailableCoachSchedulesPaged(UUID coachId, LocalDate startDate, LocalDate endDate, Pageable pageable) {
         Page<CoachSchedule> availableSchedulesPage = coachScheduleRepository.findByCoach_CoachIdAndIsBookedFalseAndScheduleDateBetweenOrderByScheduleDateAscTimeSlot_StartTimeAsc(
                 coachId, startDate, endDate, pageable);
@@ -224,6 +231,7 @@ public class CoachScheduleService {
      * @param pageable Thông tin phân trang
      * @return Trang của CoachScheduleResponseDTO trống
      */
+    @Transactional(readOnly = true)
     public Page<CoachScheduleResponseDTO> getAllAvailableSchedulesPaged(LocalDate startDate, LocalDate endDate, Pageable pageable) {
         Page<CoachSchedule> availableSchedulesPage = coachScheduleRepository.findByIsBookedFalseAndScheduleDateBetweenOrderByCoach_FullNameAscScheduleDateAscTimeSlot_StartTimeAsc(
                 startDate, endDate, pageable);
@@ -236,6 +244,7 @@ public class CoachScheduleService {
      * @param limit Số lượng lịch hẹn muốn lấy (ví dụ: 1 hoặc 2)
      * @return Danh sách các CoachScheduleResponseDTO sắp tới
      */
+    @Transactional(readOnly = true)
     public List<CoachScheduleResponseDTO> getUpcomingCoachSchedules(UUID coachId, int limit) {
         // lấy lịch từ ngày hiện tại trở đi, sắp xếp và chỉ lấy 'limit' bản ghi đầu tiên
         Pageable pageable = PageRequest.of(0, limit, Sort.by("scheduleDate", "timeSlot.startTime").ascending());
