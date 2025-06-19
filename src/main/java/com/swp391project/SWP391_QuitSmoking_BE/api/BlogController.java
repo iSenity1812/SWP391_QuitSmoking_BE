@@ -210,4 +210,15 @@ public class BlogController {
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success(blogs, "Lấy danh sách blog theo trạng thái '" + status + "' và tác giả '" + authorId + "' thành công."));
     }
+
+    @GetMapping("/my-blogs") // Ví dụ: /api/blogs/my-blogs
+    @PreAuthorize("hasAnyRole('NORMAL_MEMBER', 'PREMIUM_MEMBER', 'COACH', 'CONTENT_ADMIN')")
+    public ResponseEntity<ApiResponse<Page<BlogResponseDTO>>> getMyBlogs(
+            @AuthenticationPrincipal User currentUser,
+            @PageableDefault(page = 0, size = 100, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<BlogResponseDTO> blogs = blogService.getBlogsByAuthor(currentUser.getUserId(), pageable); // Cần phương thức này trong BlogService
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(blogs, "Lấy danh sách blog của tôi thành công."));
+    }
 }

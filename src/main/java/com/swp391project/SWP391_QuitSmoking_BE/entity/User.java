@@ -73,7 +73,7 @@ public class User implements UserDetails {
             flags = Pattern.Flag.CASE_INSENSITIVE
     )
     @Column(name = "ProfilePicture", length = 255)
-    private String profilePicture;
+        private String profilePicture;
 
     @JdbcTypeCode(SqlTypes.JSON) // Annotation của Hibernate để xử lý JSON
     @Column(name = "NotificationSetting", columnDefinition = "json")

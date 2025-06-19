@@ -37,6 +37,16 @@ public class BlogService {
         return modelMapper.map(blog, BlogResponseDTO.class);
     }
 
+    @Transactional(readOnly = true)
+    public Page<BlogResponseDTO> getBlogsByAuthor(UUID authorId, Pageable pageable) {
+        // Tìm kiếm các bài blog thuộc về tác giả có authorId được chỉ định.
+        // Giả định entity Blog có trường 'author' là một quan hệ tới entity User.
+        // Spring Data JPA sẽ tự động tạo phương thức này nếu bạn tuân thủ quy tắc đặt tên.
+        // `findByAuthor_UserId` nghĩa là "tìm kiếm Blog nơi trường 'author' có 'userId' bằng với authorId đã cho."
+        Page<Blog> blogs = blogRepository.findByAuthor_UserId(authorId, pageable);
+        return blogs.map(this::convertToBlogResponseDTO);
+    }
+
     // --- Phương thức công khai cho người dùng cuối (tìm kiếm và phân trang) ---
     @Transactional(readOnly = true)
     public Page<BlogResponseDTO> getAllPublishedBlogs(String keyword, Pageable pageable) {

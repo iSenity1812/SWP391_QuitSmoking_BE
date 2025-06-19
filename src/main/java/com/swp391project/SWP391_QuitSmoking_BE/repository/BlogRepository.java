@@ -2,6 +2,7 @@
 
 package com.swp391project.SWP391_QuitSmoking_BE.repository; // Kiểm tra lại package này là 'repository' hay 'repositories'
 
+import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Blog;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.BlogStatus; // <-- Đảm bảo import enum này
 import org.springframework.data.domain.Page;
@@ -38,4 +39,6 @@ public interface BlogRepository extends JpaRepository<Blog, Integer> { // Intege
     @Modifying // Báo hiệu đây là một truy vấn sửa đổi (UPDATE, DELETE, INSERT)
     @Query("UPDATE Blog b SET b.isDeleted = true WHERE b.blogId = :id") // JPQL: dùng tên thuộc tính của Entity
     void softDeleteById(@Param("id") Integer id);
+
+    Page<BlogResponseDTO> getBlogsByAuthor(UUID authorId, Pageable pageable);
 }
