@@ -11,7 +11,6 @@ public class UserProfile {
     private String username; // Username of the user
     private String email; // Email address of the user
     private String profilePicture; // URL of the user's avatar image
-    private String password; // Password for the user account
     private Role role;
     private boolean isActive; // Indicates if the user account is active
 }

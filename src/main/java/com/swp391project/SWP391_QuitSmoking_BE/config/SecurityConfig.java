@@ -6,6 +6,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.util.JwtUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -85,15 +86,17 @@ public class SecurityConfig {
         return new CorsFilter(source);
     }
 
-    // Trong SecurityConfig.java
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         return http
-                .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(
+                .csrf(AbstractHttpConfigurer::disable) // Tắt CSRF protection, có thể cần tùy theo ứng dụng
+                // Nên bật CSRF protection nếu ứng dụng, Với JWT, Stateless session thì có thể tắt CSRF
+                .authorizeHttpRequests( // Cấu hình phân quyền truy cập
                         req -> req
-                                // 1. Các endpoint CÔNG KHAI hoàn toàn, không cần xác thực
+//                            // -- Public endpoints - không cần xác thực
+//                        .requestMatchers("/api/auth/**").permitAll() // Cho phép truy cập không cần xác thực cho các endpoint auth
+//                        .requestMatchers("/", "/home", "/blogs", "/about", "/contact", "/programs").permitAll() // Cho phép truy cập không cần xác thực cho các trang chủ và blog
+//                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                 .requestMatchers(
                                         "/api/auth/login",
                                         "/api/auth/register",
@@ -104,25 +107,20 @@ public class SecurityConfig {
                                         "/v3/api-docs/**",
                                         "/swagger-resources/**",
                                         "/webjars/**"
-                                ).permitAll()
-
-                                // 2. Các endpoint yêu cầu ĐĂNG NHẬP (authenticated) nhưng không yêu cầu role cụ thể
+                                ).permitAll() // Swagger UI
+//
+//                            .requestMatchers(HttpMethod.POST, "/api/users").hasRole("SUPER_ADMIN")
+//                            .requestMatchers(HttpMethod.GET, "/api/users").hasRole("SUPER_ADMIN")
+//                            .requestMatchers(HttpMethod.DELETE, "/api/users/{userId}").hasRole("SUPER_ADMIN")
+                                .requestMatchers("/api/auth/login", "/api/auth/register").permitAll() // Cho phép truy cập không cần xác thực cho tất cả các endpoint
+//                        .requestMatchers(HttpMethod.GET, "/api/admin/**").hasAnyRole("CONTENT_ADMIN", "SUPER_ADMIN") // Chỉ cho phép người dùng đã xác thực truy cập
                                 .requestMatchers("/api/auth/logout").authenticated()
-
-                                // 3. Các endpoint yêu cầu ROLE cụ thể
                                 .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
-                                // .requestMatchers(HttpMethod.POST, "/api/users").hasRole("SUPER_ADMIN") // Ví dụ, nếu bạn có các quy tắc này
-                                // .requestMatchers(HttpMethod.GET, "/api/users").hasRole("SUPER_ADMIN")
-                                // .requestMatchers(HttpMethod.DELETE, "/api/users/{userId}").hasRole("SUPER_ADMIN")
-                                // .requestMatchers(HttpMethod.GET, "/api/admin/**").hasAnyRole("CONTENT_ADMIN", "SUPER_ADMIN")
-
-
-                                // 4. Bất kỳ request nào còn lại đều yêu cầu XÁC THỰC
+                                .requestMatchers("/api/coaches/**").hasRole("COACH")
                                 .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class).build();
+                .authenticationProvider(authenticationProvider()) // Sử dụng DaoAuthenticationProvider để xác thực người dùng
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class).build(); // JWT filter
     }
-    }
-
+}

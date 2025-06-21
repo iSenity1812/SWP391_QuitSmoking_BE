@@ -70,10 +70,12 @@ public class CommentService {
         return convertToDtoWithReplies(comment);
     }
 
+    @Transactional
     public Page<CommentResponseDTO> getCommentsByBlogId(Integer blogId, Pageable pageable) {
         Page<Comment> commentsPage = commentRepository.findByBlog_BlogIdAndParentCommentIsNull(blogId, pageable);
         return commentsPage.map(this::convertToDtoWithReplies);
     }
+
 
     public CommentResponseDTO getCommentById(Integer commentId) {
         Comment comment = commentRepository.findById(commentId)
@@ -117,6 +119,18 @@ public class CommentService {
 
     private CommentResponseDTO convertToDtoWithReplies(Comment comment) {
         CommentResponseDTO dto = modelMapper.map(comment, CommentResponseDTO.class);
+        System.out.println("DEBUG in convertToDtoWithReplies - Comment ID: " + comment.getCommentId());
+        System.out.println("DEBUG - Is Blog object loaded? " + (comment.getBlog() != null));
+        if (comment.getBlog() != null) {
+            System.out.println("DEBUG - Blog ID from getBlog(): " + comment.getBlog().getBlogId());
+        }
+
+        if (comment.getBlog() != null) {
+            dto.setBlogId(comment.getBlog().getBlogId());
+        } else {
+            System.err.println("WARNING: Comment with ID " + comment.getCommentId() + " has a null Blog object. blogId will be null in DTO.");
+            dto.setBlogId(null);
+        }
         if (comment.getUser() != null) {
             dto.setUser(modelMapper.map(comment.getUser(), UserResponseDTO.class));
         }
