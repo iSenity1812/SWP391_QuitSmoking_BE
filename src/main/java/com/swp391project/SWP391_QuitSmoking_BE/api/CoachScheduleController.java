@@ -2,9 +2,13 @@ package com.swp391project.SWP391_QuitSmoking_BE.api;
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.WeeklyScheduleResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.CoachRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.service.CoachScheduleService;
 import com.swp391project.SWP391_QuitSmoking_BE.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -13,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,6 +34,7 @@ import java.util.UUID;
 public class CoachScheduleController {
     private final CoachScheduleService coachScheduleService;
     private final UserService userService;
+    private final CoachRepository coachRepository;
 
     /**
      * API cho Coach tạo lịch
@@ -212,6 +218,69 @@ public class CoachScheduleController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success(schedules, "Lấy các lịch trình sắp tới của bạn thành công"));
+    }
+
+    /**
+     * API cho Coach: Lấy lịch trình tuần của một Coach.
+     * @param requestedCoachId ID của Coach cần lấy lịch trình (nếu không cung cấp, sẽ lấy của chính Coach đang đăng nhập).
+     * @param dateInWeek Ngày trong tuần để lấy lịch trình (nếu không cung cấp, sẽ lấy tuần hiện tại).
+     * @return Lịch trình tuần của Coach, bao gồm thông tin cuộc hẹn nếu có.
+     */
+    @Operation(summary = "Lấy lịch trình tuần của Coach",
+            description = "Lấy chi tiết lịch trình đã đăng ký của một Coach trong một tuần cụ thể, bao gồm thông tin cuộc hẹn nếu có. Ngày trong tuần có thể là bất kỳ ngày nào trong tuần đó.")
+    @GetMapping("/weekly")
+    @PreAuthorize("hasAnyRole('CONTENT_ADMIN', 'COACH', 'PREMIUM_MEMBER')") // Premium Member có thể xem lịch trình của coach để đặt
+    public ResponseEntity<ApiResponse<WeeklyScheduleResponseDTO>> getCoachWeeklySchedule(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam(name = "coachId", required = false) UUID requestedCoachId,
+            @RequestParam(name = "dateInWeek", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate dateInWeek) {
+
+        UUID currentUserId = userService.getUserIdFromUserDetails(userDetails);
+        // Kiểm tra quyền: ADMIN có thể xem của bất kỳ ai. COACH chỉ xem của chính mình. PREMIUM_MEMBER có thể xem của bất kỳ coach nào.
+        boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CONTENT_ADMIN"));
+        boolean isCoach = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_COACH"));
+        boolean isPremiumMember = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_PREMIUM_MEMBER"));
+
+
+        UUID targetCoachId;
+
+        if (requestedCoachId == null) {
+            // Nếu coachId không được cung cấp trong request
+            if (isCoach) {
+                // Nếu người dùng hiện tại là COACH, thì lấy lịch của chính họ
+                targetCoachId = currentUserId;
+            } else {
+                // Nếu không phải COACH (ví dụ: Member, Admin) và không cung cấp coachId, thì không biết lấy lịch của ai
+                throw new IllegalArgumentException("Vui lòng cung cấp coachId để xem lịch trình.");
+            }
+        } else {
+            // Nếu coachId được cung cấp trong request
+            targetCoachId = requestedCoachId;
+
+            // Kiểm tra quyền truy cập lịch của coach khác
+            if (isCoach && !isAdmin && !currentUserId.equals(targetCoachId)) {
+                // Coach chỉ được xem lịch của chính mình, trừ khi là Admin
+                throw new AccessDeniedException("Bạn không có quyền truy cập lịch trình của coach khác.");
+            }
+            // Premium Member và Admin có thể xem lịch của coach khác
+        }
+
+        // Đảm bảo targetCoachId tồn tại trong hệ thống
+        if (!coachRepository.existsById(targetCoachId)) {
+            throw new ResourceNotFoundException("Coach not found with ID: " + targetCoachId);
+        }
+
+        if (dateInWeek == null) {
+            dateInWeek = LocalDate.now(); // Mặc định là tuần hiện tại
+        }
+
+        WeeklyScheduleResponseDTO responseData = coachScheduleService.getWeeklyScheduleForCoach(targetCoachId, dateInWeek);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(responseData, "Lấy lịch trình tuần thành công"));
     }
 
 }

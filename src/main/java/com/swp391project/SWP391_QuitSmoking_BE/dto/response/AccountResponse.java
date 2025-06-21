@@ -6,6 +6,7 @@ import lombok.Getter;
 
 @Data
 public class AccountResponse {
+    private String userId; // ID của người dùng, có thể là UUID hoặc String tùy thuộc vào cách lưu trữ
     private String username;
     private String email;
     private String profilePicture; // URL của ảnh đại diện người dùng

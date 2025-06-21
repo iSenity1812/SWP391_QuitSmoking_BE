@@ -1,10 +1,15 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
+import com.swp391project.SWP391_QuitSmoking_BE.dto.appointment.AppointmentDetailsDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.WeeklyScheduleResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.timeslot.RegisteredSlotDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.Appointment;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Coach;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.CoachSchedule;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.TimeSlot;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.AppointmentStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.CoachRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.CoachScheduleRepository;
@@ -19,10 +24,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.temporal.TemporalAdjusters;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -253,5 +258,86 @@ public class CoachScheduleService {
         return upcomingSchedules.stream()
                 .map(schedule -> modelMapper.map(schedule, CoachScheduleResponseDTO.class))
                 .collect(Collectors.toList());
+    }
+
+
+    @Transactional(readOnly = true)
+    public WeeklyScheduleResponseDTO getWeeklyScheduleForCoach(UUID coachId, LocalDate dateInWeek) {
+        // Tìm ngày đầu tuần (thứ Hai) và cuối tuần (Chủ Nhật)
+        LocalDate weekStart = dateInWeek.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate weekEnd = dateInWeek.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+
+        // Lấy tất cả CoachSchedule cho coach trong tuần đó với eager loading các mối quan hệ
+        List<CoachSchedule> rawCoachSchedules = coachScheduleRepository.findByCoachIdAndScheduleDateBetweenWithDetails(
+                coachId, weekStart, weekEnd);
+
+
+        // Map CoachSchedule theo ngày và TimeSlot để xử lý các bản ghi trùng lặp do JOIN FETCH
+        // Sử dụng Map<LocalDate, Map<Integer, CoachSchedule>> để dễ dàng tìm kiếm slot theo ngày và timeslotId
+        Map<LocalDate, Map<Integer, CoachSchedule>> schedulesByDateAndTimeSlot = rawCoachSchedules.stream()
+                .collect(Collectors.groupingBy(
+                        CoachSchedule::getScheduleDate,
+                        Collectors.toMap(
+                                cs -> cs.getTimeSlot().getTimeSlotId(), //
+                                cs -> cs,
+                                (existing, replacement) -> existing // Xử lý các bản ghi trùng lặp do LEFT JOIN FETCH với @OneToMany
+                        )
+                ));
+
+        List<RegisteredSlotDTO> registeredSlots = new ArrayList<>();
+
+        // Trong trường hợp này, chúng ta sẽ chỉ tạo RegisteredSlotDTO cho các CoachSchedule đã đăng ký.
+        // Để đảm bảo thứ tự, chúng ta sẽ lặp qua các ngày và sau đó các timeslot có sẵn.
+        for (LocalDate date = weekStart; !date.isAfter(weekEnd); date = date.plusDays(1)) {
+            Map<Integer, CoachSchedule> dailySchedules = schedulesByDateAndTimeSlot.getOrDefault(date, java.util.Collections.emptyMap());
+
+            // Lấy tất cả TimeSlots cho ngày hiện tại từ các CoachSchedule đã tìm thấy
+            // Nếu bạn có một danh sách TimeSlot chuẩn, bạn có thể lặp qua đó để đảm bảo tất cả slot đều được hiển thị
+            // Kể cả những slot mà coach chưa đăng ký.
+            // Hiện tại, chúng ta chỉ tạo slot DTO cho những coachSchedule thực sự có trong DB.
+            List<CoachSchedule> sortedDailySchedules = dailySchedules.values().stream()
+                    .sorted(Comparator.comparing(cs -> cs.getTimeSlot().getStartTime()))
+                    .collect(Collectors.toList());
+
+            for (CoachSchedule coachSchedule : sortedDailySchedules) {
+                RegisteredSlotDTO slotDto = new RegisteredSlotDTO();
+                slotDto.setDate(coachSchedule.getScheduleDate());
+                slotDto.setTimeSlotId(coachSchedule.getTimeSlot().getTimeSlotId());
+                slotDto.setLabel(coachSchedule.getTimeSlot().getLabel());
+                slotDto.setStartTime(coachSchedule.getTimeSlot().getStartTime().toString());
+                slotDto.setEndTime(coachSchedule.getTimeSlot().getEndTime().toString());
+
+                // Logic cho isAvailable: Một slot được coi là "available" nếu KHÔNG CÓ cuộc hẹn CONFIRMED nào.
+                boolean hasConfirmedAppointment = coachSchedule.getAppointments().stream()
+                        .anyMatch(apt -> apt.getStatus() == AppointmentStatus.CONFIRMED);
+                slotDto.setAvailable(!hasConfirmedAppointment);
+
+                // Lấy TẤT CẢ các cuộc hẹn liên quan đến CoachSchedule này
+                List<AppointmentDetailsDTO> appointmentDetailsList = coachSchedule.getAppointments().stream()
+                        .map(apt -> {
+                            AppointmentDetailsDTO aptDetailsDto = new AppointmentDetailsDTO();
+                            aptDetailsDto.setAppointmentId(apt.getAppointmentId());
+                            aptDetailsDto.setStatus(apt.getStatus());
+                            aptDetailsDto.setNotes(apt.getNote());
+
+                            if (apt.getMember() != null && apt.getMember().getUser() != null) {
+                                aptDetailsDto.setClientId(apt.getMember().getMemberId()); // MemberID của Member
+                                aptDetailsDto.setClientName(apt.getMember().getUser().getUsername()); // Giả sử User có fullName
+                            }
+                            return aptDetailsDto;
+                        })
+                        // Sắp xếp các cuộc hẹn nếu cần (ví dụ theo booking_time)
+                        .sorted(Comparator.comparing(AppointmentDetailsDTO::getAppointmentId)) // Sắp xếp theo ID hoặc booking_time
+                        .collect(Collectors.toList());
+
+                slotDto.setAppointmentDetails(appointmentDetailsList); // Set List of appointments
+                registeredSlots.add(slotDto);
+            }
+        }
+        return WeeklyScheduleResponseDTO.builder()
+                .weekStartDate(weekStart)
+                .weekEndDate(weekEnd)
+                .registeredSlots(registeredSlots)
+                .build();
     }
 }

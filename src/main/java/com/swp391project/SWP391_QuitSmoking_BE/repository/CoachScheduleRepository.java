@@ -7,6 +7,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -64,6 +66,21 @@ public interface CoachScheduleRepository extends JpaRepository<CoachSchedule, Lo
 
     List<CoachSchedule> findByCoach_CoachIdAndIsBookedFalseAndScheduleDateGreaterThanEqualOrderByScheduleDateAscTimeSlot_StartTimeAsc(UUID coachId, LocalDate now, Pageable pageable);
 
+    // Query để lấy tất cả CoachSchedule cho một Coach trong một khoảng thời gian
+    // và fetch eagerly các mối quan hệ cần thiết để tránh N+1
+    @Query("SELECT cs FROM CoachSchedule cs " +
+            "LEFT JOIN FETCH cs.timeSlot ts " +
+            "LEFT JOIN FETCH cs.appointments apt " +
+            "LEFT JOIN FETCH apt.member m " +
+            "LEFT JOIN FETCH m.user u_member " +
+            "WHERE cs.coach.coachId = :coachId " +
+            "AND cs.scheduleDate BETWEEN :startDate AND :endDate " +
+            "ORDER BY cs.scheduleDate ASC, ts.startTime ASC")
+    List<CoachSchedule> findByCoachIdAndScheduleDateBetweenWithDetails(
+            @Param("coachId") UUID coachId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
     // Tìm lịch hẹn sắp tới của một Coach (1 hoặc 2 lịch gần nhất)
     // Sắp xếp theo ngày và giờ bắt đầu tăng dần, chỉ lấy những lịch chưa đặt và ở tương lai/hiện tại
 //    List<CoachSchedule> findByCoach_CoachIdAndIsBookedFalseAndScheduleDateGreaterThanEqualOrderByScheduleDateAscTimeSlot_StartTimeAsc(
