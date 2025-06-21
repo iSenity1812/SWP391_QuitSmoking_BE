@@ -48,7 +48,7 @@ public class Blog {
     private LocalDateTime lastUpdated;
 
     @Enumerated(EnumType.STRING) // <-- RẤT QUAN TRỌNG: Lưu enum dưới dạng String trong DB
-    private BlogStatus status; // Ví dụ: 'PENDING_APPROVAL', 'PUBLISHED', 'REJECTED'
+    private BlogStatus status; // Ví dụ: 'PENDING', 'PUBLISHED', 'REJECTED'
 
     @ManyToOne(fetch = FetchType.LAZY) // Many blogs to one user (approved by)
     @JoinColumn(name = "approved_by", nullable = true) // ApprovedBy uuid (có thể null)

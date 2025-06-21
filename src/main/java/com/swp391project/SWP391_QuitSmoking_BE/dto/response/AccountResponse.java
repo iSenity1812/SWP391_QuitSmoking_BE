@@ -4,9 +4,12 @@ import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
 import lombok.Data;
 import lombok.Getter;
 
+import java.util.UUID;
+
 @Data
 public class AccountResponse {
     @Getter
+    private UUID userId;
     private String username;
     private String email;
     private String profilePicture; // URL của ảnh đại diện người dùng
