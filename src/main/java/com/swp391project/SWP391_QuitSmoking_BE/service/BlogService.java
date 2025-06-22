@@ -4,6 +4,7 @@ package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.comment.CommentResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Blog;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.BlogStatus;
@@ -20,7 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID; // Dùng cho User ID nếu là UUID
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,13 +32,26 @@ public class BlogService {
 
     private final BlogRepository blogRepository;
     private final ModelMapper modelMapper; // Đảm bảo đã inject ModelMapper
+    private final CommentService commentService;
 
     // Helper method để chuyển đổi Entity sang DTO (sử dụng ModelMapper)
     private BlogResponseDTO convertToBlogResponseDTO(Blog blog) {
         if (blog == null) return null;
-        // Đảm bảo ModelMapper của bạn đã được cấu hình để map Blog entity
-        // sang BlogResponseDTO, bao gồm cả author.id thành authorId và author.username thành authorUsername.
-        return modelMapper.map(blog, BlogResponseDTO.class);
+
+        BlogResponseDTO dto = modelMapper.map(blog, BlogResponseDTO.class);
+
+        // BỔ SUNG QUAN TRỌNG: Ánh xạ comments vào BlogResponseDTO
+        if (blog.getComments() != null && !blog.getComments().isEmpty()) {
+            // Đảm bảo convertToDtoWithReplies trong CommentService là public và KHÔNG static
+            List<CommentResponseDTO> commentDTOs = blog.getComments().stream()
+                    .map(commentService::convertToDtoWithReplies)
+                    .collect(Collectors.toList());
+            dto.setComments(commentDTOs);
+        } else {
+            dto.setComments(Collections.emptyList());
+        }
+
+        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -123,9 +140,9 @@ public class BlogService {
 
         // Nếu blog đang PUBLISHED hoặc REJECTED, khi tác giả sửa, chuyển về PENDING để admin duyệt lại
         // Admin (ADMIN/CONTENT_ADMIN) có thể sửa mà không chuyển về PENDING
-        if (!isContentAdmin && (existingBlog.getStatus() == BlogStatus.PUBLISHED || existingBlog.getStatus() == BlogStatus.REJECTED)) {
-            existingBlog.setStatus(BlogStatus.PENDING);
-        }
+//        if (!isContentAdmin && (existingBlog.getStatus() == BlogStatus.PUBLISHED || existingBlog.getStatus() == BlogStatus.REJECTED)) {
+//            existingBlog.setStatus(BlogStatus.PENDING);
+//        }
 
         existingBlog = blogRepository.save(existingBlog);
         return convertToBlogResponseDTO(existingBlog);

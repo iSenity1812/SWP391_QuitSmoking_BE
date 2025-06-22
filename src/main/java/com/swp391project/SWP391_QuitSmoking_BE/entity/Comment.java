@@ -19,6 +19,7 @@ import java.util.UUID;
 @Builder
 @Entity
 @Table(name = "comments") // Đảm bảo tên bảng là "comments"
+@Where(clause = "is_deleted = false")
 public class Comment {
 
     @Id

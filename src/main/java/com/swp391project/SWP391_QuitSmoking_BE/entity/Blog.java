@@ -1,6 +1,6 @@
-// src/main/java/com/swp391project/SWP391_QuitSmoking_BE/models/Blog.java
+// src/main/java/com/swp391project.SWP391_QuitSmoking_BE/entity/Blog.java
 
-package com.swp391project.SWP391_QuitSmoking_BE.entity;
+package com.swp391project.SWP391_QuitSmoking_BE.entity; // Gói của bạn là .entity chứ không phải .models như comment
 
 import com.swp391project.SWP391_QuitSmoking_BE.enums.BlogStatus;
 import jakarta.persistence.*;
@@ -10,56 +10,60 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.Where; // <--- Đảm bảo import này
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import org.hibernate.annotations.Where;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "blogs") // Đảm bảo tên bảng là "blogs"
+@Table(name = "blogs")
+@Where(clause = "is_deleted = false") // <--- THÊM DÒNG NÀY VÀO ĐÂY
 public class Blog {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // int [pk, increment]
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "blog_id")
     private Integer blogId;
 
-    @ManyToOne(fetch = FetchType.LAZY) // Many blogs to one user (author)
-    @JoinColumn(name = "author_id", nullable = false) // AuthorID uuid [not null]
-    private User author; // Giả định bạn có entity User
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "author_id", nullable = false)
+    private User author;
 
-    @Column(name = "title", nullable = false, length = 255) // Title varchar(255) [not null]
+    @Column(name = "title", nullable = false, length = 255)
     private String title;
 
-    @Column(name = "content", nullable = false, columnDefinition = "TEXT") // Content text [not null]
+    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @CreationTimestamp // CreatedAt datetime [default: `now()`]
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp // LastUpdated datetime
+    @UpdateTimestamp
     @Column(name = "last_updated")
     private LocalDateTime lastUpdated;
 
-    @Enumerated(EnumType.STRING) // <-- RẤT QUAN TRỌNG: Lưu enum dưới dạng String trong DB
-    private BlogStatus status; // Ví dụ: 'PENDING', 'PUBLISHED', 'REJECTED'
+    @Enumerated(EnumType.STRING)
+    private BlogStatus status;
 
-    @ManyToOne(fetch = FetchType.LAZY) // Many blogs to one user (approved by)
-    @JoinColumn(name = "approved_by", nullable = true) // ApprovedBy uuid (có thể null)
-    private User approvedBy; // Giả định bạn có entity User
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approved_by", nullable = true)
+    private User approvedBy;
 
-    @Column(name = "approved_at") // ApprovedAt datetime
+    @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
     @OneToMany(mappedBy = "blog", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Comment> comments; // Mối quan hệ một blog có nhiều comment
+    // Để lọc comments đã xóa mềm, Comment entity cũng cần @Where(clause = "is_deleted = false")
+    // và/hoặc bạn có thể thêm @Where(clause = "is_deleted = false") ngay trên mối quan hệ này
+    // Tuy nhiên, nếu Comment entity có @Where thì không cần thêm ở đây nữa.
+    private List<Comment> comments;
 
     @Column(name = "is_deleted", nullable = false)
-    private boolean isDeleted = false; // Mặc định là false (chưa xóa)
+    private boolean isDeleted = false;
 }

@@ -1,5 +1,3 @@
-// src/main/java/com/swp391project/SWP391_QuitSmoking_BE/services/CommentService.java
-
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.comment.CommentRequestDTO;
@@ -117,23 +115,26 @@ public class CommentService {
         commentRepository.softDeleteById(commentId); // Gọi phương thức soft delete đã tạo
     }
 
-    private CommentResponseDTO convertToDtoWithReplies(Comment comment) {
+    public CommentResponseDTO convertToDtoWithReplies(Comment comment) {
         CommentResponseDTO dto = modelMapper.map(comment, CommentResponseDTO.class);
         System.out.println("DEBUG in convertToDtoWithReplies - Comment ID: " + comment.getCommentId());
         System.out.println("DEBUG - Is Blog object loaded? " + (comment.getBlog() != null));
         if (comment.getBlog() != null) {
             System.out.println("DEBUG - Blog ID from getBlog(): " + comment.getBlog().getBlogId());
-        }
-
-        if (comment.getBlog() != null) {
-            dto.setBlogId(comment.getBlog().getBlogId());
+            dto.setBlogId(comment.getBlog().getBlogId()); // Explicitly set blogId
         } else {
             System.err.println("WARNING: Comment with ID " + comment.getCommentId() + " has a null Blog object. blogId will be null in DTO.");
             dto.setBlogId(null);
         }
+
         if (comment.getUser() != null) {
             dto.setUser(modelMapper.map(comment.getUser(), UserResponseDTO.class));
         }
+
+        if (comment.getParentComment() != null) {
+            dto.setParentCommentId(comment.getParentComment().getCommentId());
+        }
+
         if (comment.getReplies() != null && !comment.getReplies().isEmpty()) {
             dto.setReplies(comment.getReplies().stream()
                     .map(this::convertToDtoWithReplies)
