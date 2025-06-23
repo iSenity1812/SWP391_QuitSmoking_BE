@@ -39,6 +39,21 @@ public class DataInitializer {
                 userRepository.save(adminUser);
                 System.out.println("Default SUPER_ADMIN user created: superadmin");
             }
+
+            if (userRepository.findByUsername("contentadmin").isEmpty()) {
+                User adminUser = new User();
+                adminUser.setUsername("contentadmin");
+                adminUser.setEmail("contentadmin@example.com");
+                    adminUser.setPasswordHash(passwordEncoder.encode("StrongAdmin@123")); // Mật khẩu mạnh cho admin
+                adminUser.setCreatedAt(LocalDateTime.now());
+                adminUser.setUpdatedAt(LocalDateTime.now());
+                adminUser.setActive(true);
+                adminUser.setRole(Role.CONTENT_ADMIN); // <--- Gán vai trò SUPER_ADMIN trực tiếp
+                adminUser.setNotificationSetting(Map.of("emailNotifications", true, "pushNotifications", true)); // Khởi tạo
+
+                userRepository.save(adminUser);
+                System.out.println("Default CONTENT_ADMIN user created: contentadmin");
+            }
         };
     }
 }

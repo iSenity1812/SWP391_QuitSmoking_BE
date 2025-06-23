@@ -45,7 +45,7 @@ public class Challenge {
     private BigDecimal targetValue;
 
     @Column(name = "Unit", length = 50)
-    private String unit; // Ví dụ: 'cigarettes', 'USD', 'VND'
+    private String unit; // Ví dụ: 'cigarettes', 'VND'
 
     @Column(name = "Status", length = 50)
     private String status; // 'Active', 'Completed', 'Given Up'

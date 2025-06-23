@@ -131,7 +131,7 @@ public class BlogService {
         Role userRole = currentUser.getRole();
         boolean isContentAdmin = (userRole == Role.CONTENT_ADMIN);
 
-        if (!isAuthor && !isContentAdmin) {
+        if (!isAuthor) {
             throw new AccessDeniedException("Bạn không có quyền sửa blog này.");
         }
 
@@ -140,9 +140,9 @@ public class BlogService {
 
         // Nếu blog đang PUBLISHED hoặc REJECTED, khi tác giả sửa, chuyển về PENDING để admin duyệt lại
         // Admin (ADMIN/CONTENT_ADMIN) có thể sửa mà không chuyển về PENDING
-//        if (!isContentAdmin && (existingBlog.getStatus() == BlogStatus.PUBLISHED || existingBlog.getStatus() == BlogStatus.REJECTED)) {
-//            existingBlog.setStatus(BlogStatus.PENDING);
-//        }
+        if (existingBlog.getStatus() == BlogStatus.PUBLISHED || existingBlog.getStatus() == BlogStatus.REJECTED) {
+            existingBlog.setStatus(BlogStatus.PUBLISHED);
+        }
 
         existingBlog = blogRepository.save(existingBlog);
         return convertToBlogResponseDTO(existingBlog);
