@@ -20,4 +20,8 @@ public interface TimeSlotRepository extends JpaRepository<TimeSlot, Integer> {
     List<TimeSlot> findByIsDeletedFalse();
 
     List<TimeSlot> findByIsDeletedFalseOrderByStartTimeAsc();
+
+    List<TimeSlot> findByStartTimeGreaterThanEqualAndEndTimeLessThanEqual(LocalTime startTime, LocalTime endTime);
+
+    Optional<TimeSlot> findByEndTime(LocalTime endTime);
 }

@@ -13,6 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RegisteredSlotDTO {
+    private Integer coachScheduleId; // ID của lịch trình của Coach
     private LocalDate date;
     private Integer timeSlotId;
     private String label;

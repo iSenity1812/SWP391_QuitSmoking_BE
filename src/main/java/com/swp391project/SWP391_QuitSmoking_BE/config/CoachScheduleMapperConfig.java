@@ -36,7 +36,8 @@ public class CoachScheduleMapperConfig {
                         .addMapping(src -> src.getCoach().getCoachId(), CoachSimpleResponseDTO::setCoachId)
                         .addMapping(src -> src.getCoach().getUsername(), CoachSimpleResponseDTO::setUsername)
                         .addMapping(src -> src.getCoach().getEmail(), CoachSimpleResponseDTO::setEmail)
-                        .addMapping(src -> src.getCoach().getFullName(), CoachSimpleResponseDTO::setFullName);
+                        .addMapping(src -> src.getCoach().getFullName(), CoachSimpleResponseDTO::setFullName)
+                        .addMapping(src -> src.getCoach().getRating(), CoachSimpleResponseDTO::setRating);
 
         // Ánh xạ từ CoachSchedule Entity sang CoachScheduleResponseDTO
         modelMapper.createTypeMap(CoachSchedule.class, CoachScheduleResponseDTO.class)

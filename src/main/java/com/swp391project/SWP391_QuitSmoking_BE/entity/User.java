@@ -84,7 +84,7 @@ public class User implements UserDetails {
     private String profilePicture;
 
     @JdbcTypeCode(SqlTypes.JSON) // Annotation của Hibernate để xử lý JSON
-    @Column(name = "NotificationSetting", columnDefinition = "json")
+    @Column(name = "NotificationSetting", columnDefinition = "jsonb")
     @NotNull(message = "Cài đặt thông báo không được để trống")
     private Map<String, Object> notificationSetting;
 

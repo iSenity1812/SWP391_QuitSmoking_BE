@@ -107,7 +107,7 @@ public class SecurityConfig {
 //                        .requestMatchers(HttpMethod.GET, "/api/admin/**").hasAnyRole("CONTENT_ADMIN", "SUPER_ADMIN") // Chỉ cho phép người dùng đã xác thực truy cập
                         .requestMatchers("/api/auth/logout").authenticated()
                         .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
-                            .requestMatchers("/api/coaches/**").hasRole("COACH")
+                            .requestMatchers("/api/coaches/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

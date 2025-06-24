@@ -1,5 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.api;
 
+import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.AvailableScheduleSearchRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.WeeklyScheduleResponseDTO;
@@ -24,6 +25,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -45,10 +47,10 @@ public class CoachScheduleController {
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestBody List<CoachScheduleRequestDTO> requests) {
         UUID coachId = userService.getUserIdFromUserDetails(userDetails);
-        List<CoachScheduleResponseDTO> createdSchedules = coachScheduleService.createCoachSchedules(coachId, requests);
+        List<CoachScheduleResponseDTO> createdSchedules = coachScheduleService. createCoachSchedules(coachId, requests);
         if (createdSchedules.isEmpty() && !requests.isEmpty()) {
             return ResponseEntity
-                    .status(HttpStatus.OK)
+                    .status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.success(createdSchedules, "Các lịch trình đã tồn tại hoặc không có lịch trình mới được tạo."));
         }
         return ResponseEntity
@@ -112,7 +114,7 @@ public class CoachScheduleController {
 
         coachScheduleService.softDeleteCoachSchedule(scheduleId, currentUserId, isAdmin);
         return ResponseEntity
-                .status(HttpStatus.NO_CONTENT)
+                .status(HttpStatus.OK)
                 .body(ApiResponse.success(null, "Xóa lịch trình huấn luyện viên thành công"));
     }
 
@@ -283,4 +285,39 @@ public class CoachScheduleController {
                 .body(ApiResponse.success(responseData, "Lấy lịch trình tuần thành công"));
     }
 
+    /**
+     * API cho Premium member
+     */
+    @Operation(summary = "Lấy lịch trình của các Coach trong ngày cụ thể theo khoảng thời gian",
+            description = "Lấy danh sách lịch trình của các Coach trong khoảng thời gian cụ thể của ngày cụ thể")
+    @GetMapping("/available/today-by-time-range")
+    @PreAuthorize("hasRole('PREMIUM_MEMBER')")
+    public ResponseEntity<ApiResponse<List<CoachScheduleResponseDTO>>> getAvailableSchedulesTodayByTimeRange(
+            @RequestParam@org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.TIME) LocalTime startTime,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.TIME) LocalTime endTime
+    ) {
+        List<CoachScheduleResponseDTO> availableSchedules = coachScheduleService.findAvailableSchedulesTodayByTimeRange(date, startTime, endTime);
+        if (availableSchedules.isEmpty()) {
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ApiResponse.success(availableSchedules, "Không có lịch trình trống trong khoảng thời gian đã chọn"));
+        }
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(availableSchedules, "Lấy danh sách lịch trình trống trong khoảng thời gian đã chọn thành công"));
+    }
+
+    @Operation(summary = "Lấy lịch trình rảnh của tất cả các Coach trong khoảng ngày và giờ",
+            description = "Lấy danh sách lịch trình rảnh của tất cả các Coach trong khoảng ngày và giờ cụ thể")
+    @PostMapping("/available/by-date-time-range") // Sử dụng POST nếu bạn dùng RequestBody DTO, hoặc GET với nhiều @RequestParam
+    @PreAuthorize("hasRole('PREMIUM_MEMBER')")
+    public ResponseEntity<ApiResponse<List<CoachScheduleResponseDTO>>> getAvailableSchedulesByDateRangeAndTimeRange(
+            @RequestBody AvailableScheduleSearchRequestDTO searchRequest) {
+
+        List<CoachScheduleResponseDTO> availableSchedules = coachScheduleService.findAvailableSchedulesByDateRangeAndTimeRange(searchRequest);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(availableSchedules, "Lấy danh sách lịch rảnh của tất cả các huấn luyện viên trong khoảng ngày và giờ thành công"));
+    }
 }
