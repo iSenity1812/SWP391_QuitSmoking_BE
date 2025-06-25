@@ -1,10 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.appointment.AppointmentDetailsDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.AvailableScheduleSearchRequestDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleRequestDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleResponseDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.WeeklyScheduleResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.*;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.timeslot.RegisteredSlotDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Appointment;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Coach;
@@ -432,6 +429,44 @@ public class CoachScheduleService {
 
         return schedules.stream()
                 .map(schedule -> modelMapper.map(schedule, CoachScheduleResponseDTO.class)) // Sử dụng ModelMapper
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<CoachScheduleResponseDTO> findAvailableSchedulesByDateAndTimeSlot(SearchAvailableScheduleBySlotDTO request) {
+        // end date ko được truước start date
+        if (request.getStartDate() == null) {
+            throw new IllegalArgumentException("Ngày bắt đầu không được để trống.");
+        }
+
+        // Nếu endDate không được cung cấp, mặc định là startDate
+        if (request.getEndDate() == null) {
+            request.setEndDate(request.getStartDate());
+        }
+
+        if (request.getStartDate().isAfter(request.getEndDate())) {
+            throw new IllegalArgumentException("Ngày bắt đầu không thể sau ngày kết thúc.");
+        }
+
+        // Nếu timeslot rỗng -> chuyển sang null
+        List<Integer> timeSlotIds = request.getTimeSlotIds();
+        if (timeSlotIds == null || timeSlotIds.isEmpty()) {
+            timeSlotIds = null; // Chuyển sang null nếu không có timeslot nào được chọn
+        }
+        
+        List<CoachSchedule> schedules = coachScheduleRepository.findAvailableSchedulesByDateRangeAndTimeslots(
+                request.getStartDate(), request.getEndDate(), timeSlotIds);
+
+        return schedules.stream()
+                .map(schedule -> {
+                    CoachScheduleResponseDTO dto = modelMapper.map(schedule, CoachScheduleResponseDTO.class);
+                    if (schedule.getCoach() != null && schedule.getCoach().getUser() != null) {
+                        dto.getCoach().setFullName(schedule.getCoach().getFullName());
+                        dto.getCoach().setEmail(schedule.getCoach().getUser().getEmail());
+                        dto.getCoach().setUsername(schedule.getCoach().getUser().getUsername());
+                    }
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 }

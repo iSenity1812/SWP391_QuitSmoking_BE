@@ -48,18 +48,28 @@ public class AppointmentService {
         // Xác định người gọi
         if (callerRoles.contains(Role.PREMIUM_MEMBER)) {
             // Nếu là member -> chỉ cho phép đặt lịch của chính mình
-            if (request.getMemberIdToBook() != null && !request.getMemberIdToBook().equals(callerId)) {
-                throw new AccessDeniedException("Bạn không có quyền đặt lịch cho thành viên khác.");
-            }
+//            if (request.getMemberIdToBook() != null && !request.getMemberIdToBook().equals(callerId)) {
+//                throw new AccessDeniedException("Bạn không có quyền đặt lịch cho thành viên khác.");
+//            }
             memberToBook = memberRepository.findById(callerId)
                     .orElseThrow(() -> new ResourceNotFoundException("Member not found with ID: " + callerId));
         } else if (callerRoles.contains(Role.COACH)) {
-            if (request.getMemberIdToBook() == null) {
-                throw new IllegalArgumentException("Coach phải chỉ định Member ID để đặt lịch hộ.");
+//            if (request.getMemberIdToBook() == null) {
+//                throw new IllegalArgumentException("Coach phải chỉ định Member ID để đặt lịch hộ.");
+//            }
+            if(request.getEmail() == null || request.getEmail().isEmpty()) {
+                throw new IllegalArgumentException("Email của Member không được để trống.");
             }
 
-            memberToBook = memberRepository.findById(request.getMemberIdToBook())
-                    .orElseThrow(() -> new ResourceNotFoundException("Member not found with ID: " + callerId));
+//            memberToBook = memberRepository.findById(request.getMemberIdToBook())
+//                    .orElseThrow(() -> new ResourceNotFoundException("Member not found with ID: " + callerId));
+            memberToBook = memberRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new ResourceNotFoundException("Member not found with email: " + request.getEmail()));
+
+            // Kiem tra role member, coach chi duoc dat lich cho Premium Member
+            if (memberToBook.getUser().getRole() != Role.PREMIUM_MEMBER) {
+                throw new IllegalArgumentException("Bạn chỉ có thể đặt lịch cho Premium Member.");
+            }
 
             // Kiểm tra xem Coach có quyền đặt lịch cho Member này không
         } else {
@@ -68,6 +78,11 @@ public class AppointmentService {
 
         CoachSchedule coachSchedule = coachScheduleRepository.findById(request.getCoachScheduleId())
                 .orElseThrow(() -> new ResourceNotFoundException("CoachSchedule not found with ID: " + request.getCoachScheduleId()));
+
+        // Kiểm tra CoachSchedule cos bi xoa ko
+        if (coachSchedule.isDeleted()) {
+            throw new ResourceNotFoundException("Lịch trình coach với id: " + request.getCoachScheduleId() + " đã bị xóa.");
+        }
 
         LocalDate scheduleDate = coachSchedule.getScheduleDate();
         LocalTime startTime = coachSchedule.getTimeSlot().getStartTime();
@@ -116,26 +131,18 @@ public class AppointmentService {
      *
      * @param appointmentId Id của lịch hẹn
      * @param currentUserId ID của người dùng hiện tại (để kiểm tra quyền)
-     * @param isAdmin       xác định người dùng có phải admin không
      * @return AppointmentResponseDTO đã được hủy
      */
     @Transactional
-    public AppointmentResponseDTO cancelAppointment(Long appointmentId, UUID currentUserId, boolean isAdmin) {
+    public AppointmentResponseDTO cancelAppointment(Long appointmentId, UUID currentUserId) {
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with ID: " + appointmentId));
 
 
         UUID memberId = appointment.getMember().getMemberId();
-        UUID coachId = appointment.getCoachSchedule().getCoach().getCoachId();
-
         boolean isMemberCancelling = memberId.equals(currentUserId);
-        boolean isCoachCancelling = coachId.equals(currentUserId);
-
-        // Kiểm tra quyền truy cập
-        // Admin có thể hủy bất kỳ lịch hẹn nào
-        // Coach có thể hủy bất kỳ lịch hẹn nào của mình
-        // Member chỉ có thể hủy lịch hẹn của chính mình nếu còn hơn 2 tiếng truớc thời gian hẹn
-        if (!isAdmin && !isCoachCancelling && !isMemberCancelling) {
+        // Kiểm tra quyền truy cập (Chỉ có member mới được hủy)
+        if (!isMemberCancelling) {
             throw new AccessDeniedException("Bạn không có quyền hủy lịch hẹn này.");
         }
 
@@ -148,12 +155,11 @@ public class AppointmentService {
         LocalDateTime now = LocalDateTime.now();
 
         // Nếu member -> ktra quy tắc 2h
-        if (isMemberCancelling && !isAdmin) {
-            long hourUntilAppointment = Duration.between(now, appointmentTime).toHours();
-            if (hourUntilAppointment < 2) {
-                throw new IllegalStateException("Bạn chỉ có thể hủy lịch hẹn ít nhất 2 tiếng trước thời gian hẹn.");
-            }
+        long hourUntilAppointment = Duration.between(now, appointmentTime).toHours();
+        if (hourUntilAppointment < 2) {
+            throw new IllegalStateException("Bạn chỉ có thể hủy lịch hẹn ít nhất 2 tiếng trước thời gian hẹn.");
         }
+
 
         // Kiểm tra trạng thái hiện tại của lịch hẹn
         if (appointment.getStatus() == AppointmentStatus.CANCELLED ||
@@ -170,7 +176,19 @@ public class AppointmentService {
         coachSchedule.setBooked(false);
         coachScheduleRepository.save(coachSchedule);
 
-        return modelMapper.map(updatedAppointment, AppointmentResponseDTO.class);
+//        return modelMapper.map(, AppointmentResponseDTO.class);
+
+        AppointmentResponseDTO dto = modelMapper.map(updatedAppointment, AppointmentResponseDTO.class);
+        if (appointment.getCoachSchedule() != null &&
+                appointment.getCoachSchedule().getCoach() != null &&
+                appointment.getCoachSchedule().getCoach().getUser() != null) {
+
+            User coachUser = appointment.getCoachSchedule().getCoach().getUser();
+            dto.getCoachSchedule().getCoach().setUsername(coachUser.getUsername());
+            dto.getCoachSchedule().getCoach().setEmail(coachUser.getEmail());
+        }
+
+        return dto;
     }
 
     /**
@@ -192,18 +210,41 @@ public class AppointmentService {
             throw new AccessDeniedException("Bạn không có quyền cập nhật trạng thái lịch hẹn này.");
         }
 
-        // 1. Không cho phép chuyển từ CANCELLED sang trạng thái khác
-        if (appointment.getStatus() == AppointmentStatus.CANCELLED && newStatus != AppointmentStatus.CANCELLED) {
-            throw new IllegalStateException("Không thể chuyển trạng thái từ CANCELLED sang trạng thái khác.");
+        AppointmentStatus currentStatus = appointment.getStatus();
+
+        // Các trạng thái cuối cùng (CANCELLED, COMPLETED, MISSED) không thể chuyển sang trạng thái khác
+        if ((currentStatus == AppointmentStatus.CANCELLED ||
+                currentStatus == AppointmentStatus.COMPLETED ||
+                currentStatus == AppointmentStatus.MISSED) && newStatus != currentStatus) {
+            throw new IllegalStateException("Không thể chuyển trạng thái từ '" + currentStatus + "' sang trạng thái khác vì nó là trạng thái cuối cùng.");
         }
 
-        // 2. Không cho phép chuyển từ COMPLETED hoặc MISSED sang CONFIRMED
-        if ((appointment.getStatus() == AppointmentStatus.COMPLETED || appointment.getStatus() == AppointmentStatus.MISSED) && newStatus == AppointmentStatus.CONFIRMED) {
-            throw new IllegalStateException("Không thể chuyển trạng thái từ " + appointment.getStatus() + " sang CONFIRMED.");
+        // Xử lý các chuyển đổi từ trạng thái CONFIRMED
+        if (currentStatus == AppointmentStatus.CONFIRMED) {
+            if (newStatus != AppointmentStatus.COMPLETED &&
+                    newStatus != AppointmentStatus.MISSED &&
+                    newStatus != AppointmentStatus.CANCELLED) {
+                throw new IllegalStateException("Lịch hẹn ở trạng thái CONFIRMED chỉ có thể chuyển sang COMPLETED, MISSED hoặc CANCELLED.");
+            }
         }
 
-        // Nếu trạng thái mới là CANCELLED -> cập nhật trạng thái isBooked của CoachSchedule
-        if (newStatus == AppointmentStatus.CANCELLED && appointment.getStatus() != AppointmentStatus.CANCELLED) {
+        //        Validation dựa trên thời gian cuộc hẹn
+        LocalDateTime appointmentDateTime = LocalDateTime.of(
+                appointment.getCoachSchedule().getScheduleDate(),
+                appointment.getCoachSchedule().getTimeSlot().getStartTime()
+        );
+
+        if (newStatus == AppointmentStatus.CONFIRMED && appointmentDateTime.isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Không thể xác nhận lịch hẹn đã qua thời gian bắt đầu.");
+        }
+
+        // Nếu cố gắng chuyển sang COMPLETED/MISSED mà thời gian chưa đến
+        if ((newStatus == AppointmentStatus.COMPLETED || newStatus == AppointmentStatus.MISSED) && appointmentDateTime.isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Chỉ có thể đánh dấu hoàn thành hoặc bỏ lỡ sau khi thời gian lịch hẹn đã trôi qua.");
+        }
+
+        // Nếu trạng thái mới là CANCELLED và trạng thái cũ không phải CANCELLED -> cập nhật trạng thái isBooked của CoachSchedule
+        if (newStatus == AppointmentStatus.CANCELLED && currentStatus != AppointmentStatus.CANCELLED) {
             CoachSchedule coachSchedule = appointment.getCoachSchedule();
             coachSchedule.setBooked(false);
             coachScheduleRepository.save(coachSchedule);

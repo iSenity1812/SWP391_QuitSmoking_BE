@@ -130,6 +130,28 @@ public interface CoachScheduleRepository extends JpaRepository<CoachSchedule, Lo
     );
 
     Optional<CoachSchedule> findByCoachAndScheduleDateAndTimeSlotAndIsDeletedFalse(Coach coach, @NotNull(message = "Schedule date không thể null") @FutureOrPresent(message = "Schedule date must be today or in the future") LocalDate scheduleDate, TimeSlot timeSlot);
+
+
+    // Phương thức để lấy tất cả các TimeSlot (để Frontend hiển thị lựa chọn)
+    @Query("SELECT ts FROM TimeSlot ts WHERE ts.isDeleted = FALSE")
+    List<TimeSlot> findAllActiveTimeSlots();
+
+
+    // Phương thức tìm kiếm các lịch trình trống dựa trên khoảng ngày và timeSlotIds
+    @Query("SELECT cs FROM CoachSchedule cs " +
+            "JOIN FETCH cs.coach c " +      // Lấy Coach cùng lúc
+            "JOIN FETCH c.user u " +        // Lấy User của Coach cùng lúc
+            "JOIN FETCH cs.timeSlot ts " +  // Lấy TimeSlot cùng lúc
+            "WHERE cs.isBooked = FALSE " +  // Lịch trình chưa được đặt
+            "AND cs.isDeleted = FALSE " +   // Lịch trình chưa bị xóa
+            "AND cs.scheduleDate BETWEEN :startDate AND :endDate " + // Trong khoảng ngày
+            "AND (:timeSlotIds IS NULL OR ts.timeSlotId IN :timeSlotIds)") // Lọc theo timeSlotIds nếu được cung cấp
+    List<CoachSchedule> findAvailableSchedulesByDateRangeAndTimeslots(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("timeSlotIds") List<Integer> timeSlotIds
+    );
+
     // Tìm lịch hẹn sắp tới của một Coach (1 hoặc 2 lịch gần nhất)
     // Sắp xếp theo ngày và giờ bắt đầu tăng dần, chỉ lấy những lịch chưa đặt và ở tương lai/hiện tại
 //    List<CoachSchedule> findByCoach_CoachIdAndIsBookedFalseAndScheduleDateGreaterThanEqualOrderByScheduleDateAscTimeSlot_StartTimeAsc(

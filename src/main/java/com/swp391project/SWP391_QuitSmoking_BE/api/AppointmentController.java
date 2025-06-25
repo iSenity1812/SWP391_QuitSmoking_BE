@@ -167,15 +167,15 @@ public class AppointmentController {
      * API cho Member/Coach Hủy lịch hẹn, có thể cân nhắc thêm admin
      */
     @PutMapping("/{appointmentId}/cancel")
-    @PreAuthorize("hasAnyRole('PREMIUM_MEMBER', 'COACH')")
+    @PreAuthorize("hasRole('PREMIUM_MEMBER')")
     public ResponseEntity<ApiResponse<AppointmentResponseDTO>> cancelAppointment(
             @PathVariable Long appointmentId,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID currentUserId = userService.getUserIdFromUserDetails(userDetails);
-        boolean isAdmin = userDetails.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+//        boolean isAdmin = userDetails.getAuthorities().stream()
+//                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"));
 
-        AppointmentResponseDTO response = appointmentService.cancelAppointment(appointmentId, currentUserId, isAdmin);
+        AppointmentResponseDTO response = appointmentService.cancelAppointment(appointmentId, currentUserId);
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success(response, "Hủy lịch hẹn thành công"));

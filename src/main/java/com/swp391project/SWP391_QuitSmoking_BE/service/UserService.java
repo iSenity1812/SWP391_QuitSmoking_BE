@@ -265,6 +265,7 @@ public class UserService {
     }
 
     // Xóa người dùng
+    @Transactional
     public void deleteUser(UUID userId) {
         User user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User with ID: " + userId + " is not exist."));

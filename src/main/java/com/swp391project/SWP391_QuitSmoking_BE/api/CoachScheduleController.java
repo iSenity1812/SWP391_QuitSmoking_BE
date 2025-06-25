@@ -1,9 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.api;
 
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.AvailableScheduleSearchRequestDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleRequestDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleResponseDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.WeeklyScheduleResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.*;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.CoachRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
@@ -320,4 +317,18 @@ public class CoachScheduleController {
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success(availableSchedules, "Lấy danh sách lịch rảnh của tất cả các huấn luyện viên trong khoảng ngày và giờ thành công"));
     }
+
+    @Operation(summary = "Lấy lịch trình rảnh của các Coach theo các time slot trong khoảng ngày")
+    @PostMapping("/available/by-date-and-timeslot")
+    @PreAuthorize("hasRole('PREMIUM_MEMBER')")
+    public ResponseEntity<ApiResponse<List<CoachScheduleResponseDTO>>> getAvailableSchedulesByDateAndTimeSlot(
+            @RequestBody SearchAvailableScheduleBySlotDTO searchRequest
+            ){
+
+        List<CoachScheduleResponseDTO> availableSchedules = coachScheduleService.findAvailableSchedulesByDateAndTimeSlot(searchRequest);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(availableSchedules, "Lấy danh sách lịch trình rảnh của các Coach trong ngày và khoảng thời gian thành công"));
+    }
+
 }
