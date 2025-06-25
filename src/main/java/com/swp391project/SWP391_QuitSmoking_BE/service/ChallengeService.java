@@ -20,15 +20,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-// Để sử dụng ModelMapper, bạn cần thêm dependency này vào pom.xml hoặc build.gradle
-// Maven:
-// <dependency>
-//     <groupId>org.modelmapper</groupId>
-//     <artifactId>modelmapper</artifactId>
-//     <version>3.2.0</version> // </dependency>
-// Gradle:
-// implementation 'org.modelmapper:modelmapper:3.2.0'
-import org.modelmapper.ModelMapper; // Import ModelMapper
+import org.modelmapper.ModelMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -37,34 +29,32 @@ public class ChallengeService {
 
     private final ChallengeRepository challengeRepository;
     private final MemberRepository memberRepository;
-    private final ModelMapper modelMapper; // Inject ModelMapper
-
-    // Bạn cần cấu hình ModelMapper trong một @Configuration class
-    // Ví dụ:
-    // @Configuration
-    // public class AppConfig {
-    //     @Bean
-    //     public ModelMapper modelMapper() {
-    //         return new ModelMapper();
-    //     }
-    // }
+    private final ModelMapper modelMapper;
 
     // --- Phương thức chuyển đổi Entity sang DTO ---
     private ChallengeResponseDTO convertToDtoChallenge(Challenge challenge) {
-        // ModelMapper sẽ tự động ánh xạ các trường có tên giống nhau.
-        // Điều này giúp tránh boilerplate code.
-        return modelMapper.map(challenge, ChallengeResponseDTO.class);
+        ChallengeResponseDTO dto = new ChallengeResponseDTO();
+        dto.setChallengeID(challenge.getChallengeID());
+        dto.setMemberID(challenge.getMember() != null ? challenge.getMember().getMemberId() : null);
+        dto.setChallengeName(challenge.getChallengeName());
+        dto.setDescription(challenge.getDescription());
+        dto.setStartDate(challenge.getStartDate());
+        dto.setEndDate(challenge.getEndDate());
+        dto.setTargetValue(challenge.getTargetValue());
+        dto.setUnit(challenge.getUnit());
+        dto.setStatus(challenge.getStatus());
+        return dto;
     }
-    // ---------------------------------------------
 
     @Transactional
     public ChallengeResponseDTO createChallenge(UUID currentUserId, ChallengeRequestDTO request) {
         log.info("Attempting to create challenge for user ID: {}", currentUserId);
 
-        Member member = memberRepository.findByMemberId(currentUserId)
+        // Tìm Member dựa trên UserID - sử dụng method name mới
+        Member member = memberRepository.findByUser_UserId(currentUserId)
                 .orElseThrow(() -> {
-                    log.warn("Member not found with ID: {}", currentUserId);
-                    return new ResourceNotFoundException("Không tìm thấy thành viên với ID: " + currentUserId);
+                    log.warn("Member not found with User ID: {}", currentUserId);
+                    return new ResourceNotFoundException("Không tìm thấy thành viên với User ID: " + currentUserId);
                 });
 
         User user = member.getUser();
@@ -83,7 +73,7 @@ public class ChallengeService {
         }
 
         Challenge newChallenge = new Challenge();
-        newChallenge.setMemberID(currentUserId);
+        newChallenge.setMember(member);
         newChallenge.setChallengeName(request.getChallengeName());
         newChallenge.setDescription(request.getDescription());
         newChallenge.setStartDate(request.getStartDate());
@@ -95,15 +85,14 @@ public class ChallengeService {
         Challenge savedChallenge = challengeRepository.save(newChallenge);
         log.info("Challenge created successfully with ID: {} for user ID: {}", savedChallenge.getChallengeID(), currentUserId);
 
-        // Sử dụng phương thức chuyển đổi mới
         return convertToDtoChallenge(savedChallenge);
     }
 
     @Transactional(readOnly = true)
     public List<ChallengeResponseDTO> getChallengesByMemberId(UUID memberId) {
         log.info("Fetching challenges for member ID: {}", memberId);
-        List<Challenge> challenges = challengeRepository.findByMemberID(memberId);
-        // Sử dụng phương thức chuyển đổi mới
+        // Sử dụng method name mới
+        List<Challenge> challenges = challengeRepository.findByMember_User_UserId(memberId);
         return challenges.stream()
                 .map(this::convertToDtoChallenge)
                 .collect(Collectors.toList());
@@ -118,16 +107,16 @@ public class ChallengeService {
                     return new ResourceNotFoundException("Không tìm thấy thử thách với ID: " + challengeId);
                 });
 
-        Member member = memberRepository.findByMemberId(currentUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thành viên với ID: " + currentUserId));
+        Member member = memberRepository.findByUser_UserId(currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thành viên với User ID: " + currentUserId));
         User user = member.getUser();
 
-        if (!challenge.getMemberID().equals(currentUserId) &&
+        // Kiểm tra quyền truy cập
+        if (!challenge.getMember().getMemberId().equals(currentUserId) &&
                 !(user != null && (user.getRole() == Role.SUPER_ADMIN || user.getRole() == Role.CONTENT_ADMIN || user.getRole() == Role.COACH))) {
             log.warn("User ID {} is not authorized to view challenge ID {}", currentUserId, challengeId);
             throw new ValidationException("Bạn không có quyền xem thử thách này.");
         }
-        // Sử dụng phương thức chuyển đổi mới
         return convertToDtoChallenge(challenge);
     }
 
@@ -141,7 +130,7 @@ public class ChallengeService {
                     return new ResourceNotFoundException("Không tìm thấy thử thách với ID: " + challengeId);
                 });
 
-        if (!existingChallenge.getMemberID().equals(currentUserId)) {
+        if (!existingChallenge.getMember().getMemberId().equals(currentUserId)) {
             log.warn("User ID {} is not authorized to update challenge ID {}", currentUserId, challengeId);
             throw new ValidationException("Bạn không có quyền cập nhật thử thách này.");
         }
@@ -155,7 +144,6 @@ public class ChallengeService {
 
         Challenge updatedChallenge = challengeRepository.save(existingChallenge);
         log.info("Challenge ID {} updated successfully by user ID: {}", challengeId, currentUserId);
-        // Sử dụng phương thức chuyển đổi mới
         return convertToDtoChallenge(updatedChallenge);
     }
 
@@ -169,11 +157,12 @@ public class ChallengeService {
                     return new ResourceNotFoundException("Không tìm thấy thử thách với ID: " + challengeId);
                 });
 
-        Member member = memberRepository.findByMemberId(currentUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thành viên với ID: " + currentUserId));
+        Member member = memberRepository.findByUser_UserId(currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thành viên với User ID: " + currentUserId));
         User user = member.getUser();
 
-        if (!challenge.getMemberID().equals(currentUserId) && (user == null || user.getRole() == null || user.getRole() != Role.SUPER_ADMIN)) {
+        if (!challenge.getMember().getMemberId().equals(currentUserId) &&
+                (user == null || user.getRole() == null || user.getRole() != Role.SUPER_ADMIN)) {
             log.warn("User ID {} (Role: {}) is not authorized to delete challenge ID {}", currentUserId, user != null ? user.getRole() : "NULL", challengeId);
             throw new ValidationException("Bạn không có quyền xóa thử thách này.");
         }
@@ -186,7 +175,6 @@ public class ChallengeService {
     public List<ChallengeResponseDTO> getAllChallengesForAdmin() {
         log.info("Fetching all challenges for admin access.");
         List<Challenge> challenges = challengeRepository.findAll();
-        // Sử dụng phương thức chuyển đổi mới
         return challenges.stream()
                 .map(this::convertToDtoChallenge)
                 .collect(Collectors.toList());
@@ -205,7 +193,6 @@ public class ChallengeService {
         challenge.setStatus(newStatus);
         Challenge updatedChallenge = challengeRepository.save(challenge);
         log.info("Challenge ID {} status updated to {} by admin user {}", challengeId, newStatus, adminUserId);
-        // Sử dụng phương thức chuyển đổi mới
         return convertToDtoChallenge(updatedChallenge);
     }
 }

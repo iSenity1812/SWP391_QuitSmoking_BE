@@ -26,8 +26,9 @@ public class Challenge {
     private Integer challengeID;
 
 
-    @Column(name = "MemberID")
-    private User memberID; // Khóa ngoại tới bảng Member
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "MemberID", referencedColumnName = "MemberID", nullable = false)
+    private Member member; // Thay đổi từ User memberID thành Member member
 
     @Column(name = "ChallengeName", nullable = false, length = 100)
     private String challengeName;
@@ -50,5 +51,10 @@ public class Challenge {
 
     @Column(name = "Status", length = 50)
     private String status; // 'Active', 'Completed', 'Given Up'
-}
 
+
+    // Thêm method helper để lấy UserID
+    public UUID getMemberUserId() {
+        return member != null ? member.getMemberId() : null;
+    }
+}

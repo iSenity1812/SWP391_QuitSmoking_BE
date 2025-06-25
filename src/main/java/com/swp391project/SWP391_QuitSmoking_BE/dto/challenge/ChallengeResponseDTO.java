@@ -18,22 +18,23 @@ import java.util.UUID;
 @Builder
 public class ChallengeResponseDTO {
     private Integer challengeID;
-    private UUID memberID;
+    private UUID memberID; // UserID của member
     private String challengeName;
     private String description;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate startDate;
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
 
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate endDate;
+
     private BigDecimal targetValue;
     private String unit;
     private String status;
 
     public ChallengeResponseDTO(Challenge challenge) {
         this.challengeID = challenge.getChallengeID();
-        this.memberID = challenge.getMemberID();
+        this.memberID = challenge.getMember() != null ? challenge.getMember().getMemberId() : null;
         this.challengeName = challenge.getChallengeName();
         this.description = challenge.getDescription();
         this.startDate = challenge.getStartDate();

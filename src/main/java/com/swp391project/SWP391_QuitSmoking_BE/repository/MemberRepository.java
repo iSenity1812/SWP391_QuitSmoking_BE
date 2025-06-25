@@ -15,6 +15,6 @@ public interface MemberRepository extends JpaRepository<Member, UUID> {
     // Tìm Member theo User
     Optional<Member> findByUser(User user);
 
-    // Tìm Member theo User ID
-    Optional<Member> findByUserId(UUID userId);
+    // Tìm Member theo User ID - sửa lại để sử dụng đúng tên property
+    Optional<Member> findByUser_UserId(UUID userId);
 }
