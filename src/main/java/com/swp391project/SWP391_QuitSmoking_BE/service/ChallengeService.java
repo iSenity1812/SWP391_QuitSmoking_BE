@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -76,7 +75,7 @@ public class ChallengeService {
         log.info("User ID {} (Role: {}) is authorized to create a challenge (Service check).", currentUserId, user.getRole());
 
         if (request.getStartDate() == null) {
-            request.setStartDate(LocalDateTime.now());
+            request.setStartDate(LocalDate.now());
         }
         if (request.getEndDate() != null && request.getEndDate().isBefore(request.getStartDate())) {
             log.error("Validation failed: End date {} is before start date {}", request.getEndDate(), request.getStartDate());

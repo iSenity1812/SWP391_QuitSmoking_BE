@@ -23,10 +23,10 @@ public class ChallengeRequestDTO {
     private String description; // Mô tả có thể null
 
     @FutureOrPresent(message = "Ngày bắt đầu phải là ngày hiện tại hoặc trong tương lai")
-    private LocalDateTime startDate;
+    private LocalDate startDate;
 
     @NotNull(message = "Ngày kết thúc không được để trống")
-    private LocalDateTime endDate; // Ngày kết thúc có thể null, validation sẽ được xử lý trong service
+    private LocalDate endDate; // Ngày kết thúc có thể null, validation sẽ được xử lý trong service
 
     @NotNull(message = "Giá trị mục tiêu không được để trống")
     @DecimalMin(value = "0.0", inclusive = false, message = "Giá trị mục tiêu phải lớn hơn 0")

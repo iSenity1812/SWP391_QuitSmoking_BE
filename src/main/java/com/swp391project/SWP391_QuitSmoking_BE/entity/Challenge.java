@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.UUID;
 
 
@@ -25,8 +25,9 @@ public class Challenge {
     @Column(name = "ChallengeID")
     private Integer challengeID;
 
+
     @Column(name = "MemberID")
-    private UUID memberID; // Khóa ngoại tới bảng Member
+    private User memberID; // Khóa ngoại tới bảng Member
 
     @Column(name = "ChallengeName", nullable = false, length = 100)
     private String challengeName;
@@ -36,10 +37,10 @@ public class Challenge {
 
     @CreationTimestamp
     @Column(name = "StartDate")
-    private LocalDateTime startDate;
+    private LocalDate startDate;
 
     @Column(name = "EndDate")
-    private LocalDateTime endDate;
+    private LocalDate endDate;
 
     @Column(name = "TargetValue", precision = 10, scale = 2)
     private BigDecimal targetValue;

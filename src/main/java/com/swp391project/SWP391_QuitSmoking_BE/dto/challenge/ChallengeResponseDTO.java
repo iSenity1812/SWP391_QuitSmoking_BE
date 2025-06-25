@@ -23,10 +23,10 @@ public class ChallengeResponseDTO {
     private String description;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime startDate;
+    private LocalDate startDate;
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
 
-    private LocalDateTime endDate;
+    private LocalDate endDate;
     private BigDecimal targetValue;
     private String unit;
     private String status;

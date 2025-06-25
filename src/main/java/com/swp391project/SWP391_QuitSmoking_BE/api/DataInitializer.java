@@ -40,19 +40,19 @@ public class DataInitializer {
                 System.out.println("Default SUPER_ADMIN user created: superadmin");
             }
 
-            if (userRepository.findByUsername("contentadmin").isEmpty()) {
+            if (userRepository.findByUsername("premiumuser").isEmpty()) {
                 User adminUser = new User();
-                adminUser.setUsername("contentadmin");
-                adminUser.setEmail("contentadmin@example.com");
-                    adminUser.setPasswordHash(passwordEncoder.encode("StrongAdmin@123")); // Mật khẩu mạnh cho admin
+                adminUser.setUsername("premiumuser");
+                adminUser.setEmail("premium@example.com");
+                    adminUser.setPasswordHash(passwordEncoder.encode("anhduy@12A1")); // Mật khẩu mạnh cho admin
                 adminUser.setCreatedAt(LocalDateTime.now());
                 adminUser.setUpdatedAt(LocalDateTime.now());
                 adminUser.setActive(true);
-                adminUser.setRole(Role.CONTENT_ADMIN); // <--- Gán vai trò SUPER_ADMIN trực tiếp
+                adminUser.setRole(Role.PREMIUM_MEMBER); // <--- Gán vai trò SUPER_ADMIN trực tiếp
                 adminUser.setNotificationSetting(Map.of("emailNotifications", true, "pushNotifications", true)); // Khởi tạo
 
                 userRepository.save(adminUser);
-                System.out.println("Default CONTENT_ADMIN user created: contentadmin");
+                System.out.println("Default PREMIUM_MEMBER user created: premiumuser");
             }
         };
     }

@@ -68,7 +68,7 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
         config.addAllowedOrigin("http://localhost:5173");
-        config.addAllowedOrigin("http://localhost:3000"); // Giữ lại nếu bạn có thể chạy frontend trên cổng này
+        config.addAllowedOrigin("http://localhost:5174"); // Giữ lại nếu bạn có thể chạy frontend trên cổng này
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
         source.registerCorsConfiguration("/**", config);
