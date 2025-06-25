@@ -84,7 +84,7 @@ public class TaskController {
 
     // --- API XEM DANH SÁCH & CHI TIẾT TIP ---
     // Get all Tips: Tương tự như Quiz, cho phép các role xem danh sách Tip
-    @GetMapping("/tips")
+    @GetMapping("/admin/tips")
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('CONTENT_ADMIN')")
     public ResponseEntity<ApiResponse<List<TipResponseDTO>>> getAllTips() {
         List<TipResponseDTO> tips = tipService.getAllTips();
