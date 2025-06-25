@@ -100,6 +100,21 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Bảng ghi đã bị xóa", ex.getMessage(), "TRACKING_DELETED"));
     }
 
+    // Xử lý việc hệ thống xóa bảng ghi khi người dùng chỉnh sửa giá trị về 0
+    @ExceptionHandler(DailySummaryDeletedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSummaryDeletedException(DailySummaryDeletedException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Nhật ký đã bị xóa", ex.getMessage(), "SUMMARY_DELETED"));
+    }
+
+    @ExceptionHandler(QuitPlanChangedTypeException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePlanTypeChangedException(QuitPlanChangedTypeException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "PlanType đã bị thay đổi", ex.getMessage(), "PlANTYPE_CHANGED"));
+    }
+
     // Xử lý DataIntegrityViolationException (ví dụ từ lỗi khóa ngoại, unique constraint)
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {

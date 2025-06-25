@@ -33,7 +33,7 @@ public class QuitPlanCreateRequestDTO {
     private LocalDateTime startDate; // Người dùng nhập ngày bắt đầu
 
     @NotNull(message = "Ngày mục tiêu không được để trống")
-    @Future(message = "Ngày mục tiêu phải ở tương lai")
+    @FutureOrPresent(message = "Ngày mục tiêu phải ở tương lai")
     private LocalDate goalDate;
 
     @Min(value = 1, message = "Số lượng thuốc ban đầu phải lớn hơn 0")
@@ -45,10 +45,8 @@ public class QuitPlanCreateRequestDTO {
     @Min(value = 1, message = "Số điếu thuốc trong mỗi gói phải lớn hơn 0")
     private int cigarettesPerPack; // Số điếu thuốc trong mỗi gói
 
-
     @NotNull(message = "Số tiền/gói thuốc không được để trống")
-    @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền không thể là số âm")
-    //6 số nguyên, 2 số thập phân
-    @DecimalMax(value = "999999.99", inclusive = true, message = "Số tiền chỉ có thể tối đa 999.999VND")
+    @DecimalMin(value = "0.00", message = "Số tiền không thể là số âm")
+    @DecimalMax(value = "999999.99", inclusive = true, message = "Số tiền chỉ có thể tối đa 999.999VND") //6 số nguyên, 2 số thập phân
     private BigDecimal PricePerPack;
 }

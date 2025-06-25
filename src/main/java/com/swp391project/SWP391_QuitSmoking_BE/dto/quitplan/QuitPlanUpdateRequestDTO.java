@@ -22,9 +22,8 @@ public class QuitPlanUpdateRequestDTO {
     @Min(value = 1, message = "Số điếu thuốc trong mỗi gói phải lớn hơn 0")
     private Integer cigarettesPerPack; // Số điếu thuốc trong mỗi gói
 
-
-    @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền không thể là số âm")
     //6 số nguyên, 2 số thập phân
+    @DecimalMin(value = "0.00", inclusive = true, message = "Số tiền không thể là số âm")
     @DecimalMax(value = "999999.99", inclusive = true, message = "Số tiền chỉ có thể tối đa 999.999VND")
     private BigDecimal PricePerPack;
 }

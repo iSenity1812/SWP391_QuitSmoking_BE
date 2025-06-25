@@ -4,21 +4,22 @@ import com.swp391project.SWP391_QuitSmoking_BE.dto.dailysummary.DailySummaryCrea
 import com.swp391project.SWP391_QuitSmoking_BE.dto.dailysummary.DailySummaryResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.dailysummary.DailySummaryUpdateRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.DailySummaryEditForbiddenException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.service.DailySummaryService;
-import com.swp391project.SWP391_QuitSmoking_BE.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,19 +28,21 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/diary")
-@AllArgsConstructor
+@RequiredArgsConstructor
+@SecurityRequirement(name = "diary_api")
 public class DailySummaryController {
     private final DailySummaryService dailySummaryService;
-    private final UserService userService;
 
     private UUID getAuthenticatedMemberId(UserDetails userDetails) {
-        if (userDetails == null) {
-            throw new AccessDeniedException("Người dùng chưa được xác thực");
+        if (!(userDetails instanceof User currentUser)) {
+            throw new AccessDeniedException("Người dùng chưa được xác thực hoặc không có quyền truy cập");
         }
-        return userService.getUserIdFromUserDetails(userDetails);
+        return currentUser.getUserId();
     }
 
     // Tạo bản ghi DailySummary - do chính người dùng nhập thủ công
+    @Operation(summary = "Tạo nhật ký thủ công",
+            description = "Cho phép người dùng chủ động tạo nhật ký hàng ngày")
     @PostMapping
     @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER')")
     public ResponseEntity<ApiResponse<DailySummaryResponse>> createManualDailySummary(
@@ -63,12 +66,14 @@ public class DailySummaryController {
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Có lỗi xảy ra khi tạo nhật ký hàng ngày: " + e.getMessage()));
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Có lỗi xảy ra khi tạo nhật ký hàng ngày: " + e.getMessage()));
         }
     }
 
     //Lấy bản ghi DailySummary bằng ID của nó và ID của thành viên sở hữu
     //Đảm bảo rằng bản ghi này thuộc về người dùng được xác thực
+    @Operation(summary = "Lấy nhật ký hàng ngày theo ID")
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER')")
     public ResponseEntity<ApiResponse<DailySummaryResponse>> getDailySummaryById(
@@ -102,11 +107,14 @@ public class DailySummaryController {
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Có lỗi xảy ra khi lấy nhật ký hàng ngày theo ID: " + e.getMessage()));
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Có lỗi xảy ra khi lấy nhật ký hàng ngày theo ID: " + e.getMessage()));
         }
     }
 
     //Lấy bản ghi DailySummary cho một ngày cụ thể của một thành viên
+    @Operation(summary = "Lấy nhật ký theo ngày",
+            description = "Cho phép người dùng lấy nhật ký hàng ngày của mình theo ngày cụ thể")
     @GetMapping("/by-date")
     @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER')")
     public ResponseEntity<ApiResponse<DailySummaryResponse>> getDailySummaryByDate(
@@ -134,15 +142,18 @@ public class DailySummaryController {
         }
     }
 
+    @Operation(summary = "Cập nhật nhật ký",
+            description = "Cho phép người dùng cập nhật nhật ký hàng ngày của chính mình thông qua ID nhật ký")
     @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER')")
     @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<DailySummaryResponse>> updateDailySummary(
+            @PathVariable Integer id,
             @Valid @RequestBody DailySummaryUpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         try {
             UUID memberId = getAuthenticatedMemberId(userDetails);
-            UUID memberIdFromDailySummary = dailySummaryService.getMemberIdByDailySummaryId(request.getDailySummaryId());
+            UUID memberIdFromDailySummary = dailySummaryService.getMemberIdByDailySummaryId(id);
 
             if (!memberId.equals(memberIdFromDailySummary)) {
                 return ResponseEntity
@@ -150,7 +161,7 @@ public class DailySummaryController {
                         .body(ApiResponse.error(HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập vào bản ghi này"));
             }
 
-            DailySummaryResponse response = dailySummaryService.updateDailySummary(request);
+            DailySummaryResponse response = dailySummaryService.updateDailySummary(id, request);
             return ResponseEntity
                     .status(HttpStatus.OK)
                     .body(ApiResponse.success(response, "Cập nhật nhật ký hằng ngày thành công"));
@@ -158,7 +169,8 @@ public class DailySummaryController {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, e.getMessage()));
-        } catch (ResourceNotFoundException e) { //lỗi này có thể trả về do dailysummary đã bị xóa do cập nhật giá trị về 0
+        } catch (ResourceNotFoundException e) {
+            //lỗi này có thể trả về do dailysummary đã bị xóa do cập nhật giá trị về 0
             return ResponseEntity
                     .status(HttpStatus.NO_CONTENT) // 204 No Content
                     .body(ApiResponse.success(null, e.getMessage()));
@@ -169,10 +181,13 @@ public class DailySummaryController {
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Có lỗi xảy ra khi cập nhật nhật ký hàng ngày: " + e.getMessage()));
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Có lỗi xảy ra khi cập nhật nhật ký hàng ngày: " + e.getMessage()));
         }
     }
 
+    @Operation(summary = "Xóa nhật ký hàng ngày",
+            description = "Cho phép người dùng xóa nhật ký hàng ngày của chính mình thông qua ID nhật ký")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER')")
     public ResponseEntity<ApiResponse<Void>> deleteDailySummary(

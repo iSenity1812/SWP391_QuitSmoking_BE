@@ -15,6 +15,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SecurityScheme(name = "quit_plan_api", scheme = "bearer", type = SecuritySchemeType.HTTP, in = SecuritySchemeIn.HEADER)
 @SecurityScheme(name = "booking_schedule_api", scheme = "bearer", type = SecuritySchemeType.HTTP, in = SecuritySchemeIn.HEADER)
 @SecurityScheme(name = "appointment", scheme = "bearer", type = SecuritySchemeType.HTTP, in = SecuritySchemeIn.HEADER)
+@SecurityScheme(name = "diary_api", scheme = "bearer", type = SecuritySchemeType.HTTP, in = SecuritySchemeIn.HEADER)
+@SecurityScheme(name = "checkin_api", scheme = "bearer", type = SecuritySchemeType.HTTP, in = SecuritySchemeIn.HEADER)
 public class Swp391QuitSmokingBeApplication {
 
 	public static void main(String[] args) {

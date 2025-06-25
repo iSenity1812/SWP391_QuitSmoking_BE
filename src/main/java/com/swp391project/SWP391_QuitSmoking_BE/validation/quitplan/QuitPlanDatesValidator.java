@@ -52,8 +52,7 @@ public class QuitPlanDatesValidator implements ConstraintValidator<ValidQuitPlan
 
         //StartDate không được sau GoalDate
         if (startDate != null && goalDate != null) {
-            LocalDateTime goalDateTime = goalDate.atStartOfDay();
-            if (startDate.isAfter(goalDateTime)) {
+            if (startDate.toLocalDate().isAfter(goalDate)) {
                 context.buildConstraintViolationWithTemplate("Ngày bắt đầu không được sau ngày mục tiêu")
                         .addPropertyNode("startDate")
                         .addConstraintViolation();

@@ -16,8 +16,8 @@ public class CravingTrackingUpdateRequest {
 //    @NotNull(message = "Member ID không được để trống")
 //    private UUID memberId;
 
-    @NotNull(message = "CravingTrackingID không được để trống")
-    private Integer cravingTrackingId;
+//    @NotNull(message = "CravingTrackingID không được để trống")
+//    private Integer cravingTrackingId;
 
     @Min(value = 0, message = "Số lượng thuốc đã hút không thể là số âm")
     private Integer smokedCount;

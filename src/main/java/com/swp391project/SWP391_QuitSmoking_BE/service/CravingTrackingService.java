@@ -10,6 +10,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.exception.DailySummaryEditForbidd
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.CravingTrackingRepository;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.validator.internal.util.stereotypes.Lazy;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,8 @@ public class CravingTrackingService {
     private final CravingTrackingRepository cravingTrackingRepository;
     private final DailySummaryService dailySummaryService;
     private final ModelMapper modelMapper;
+    @Lazy //to break circular dependency
+    private final QuitPlanService quitPlanService;
 
     //chuyển đổi entity thành response DTO
     public CravingTrackingResponse convertToResponseDto(CravingTracking cravingTracking) {
@@ -52,18 +55,36 @@ public class CravingTrackingService {
 
     @Transactional
     public CravingTrackingResponse createOrUpdateTracking(UUID memberId, CravingTrackingCreateRequest request) {
-        if (request == null || request.getTrackTime() == null) {
-            throw new IllegalArgumentException("Yêu cầu không hợp lệ: TrackTime không được để trống");
+        if (request == null) {
+            throw new IllegalArgumentException("Request trống, không thể tạo ghi nhận");
         }
+
+        if (request.getCravingsCount() == null && request.getSmokedCount() == null) {
+            throw new IllegalArgumentException
+                    ("Request phải chứa ít nhất một trong hai trường cravingsCount hoặc smokedCount");
+        }
+
+        LocalDateTime startOfHour;
+        LocalDate dateOfHour;
+
+        //Nếu không có trackTime trong request, sử dụng thời gian hiện tại
+        LocalDateTime trackTime = request.getTrackTime()!= null ? request.getTrackTime() : LocalDateTime.now();
+
+        // Chỉ cho phép ghi nhận cho ngày hiện tại
+        if (!trackTime.toLocalDate().isEqual(LocalDate.now())) {
+            throw new DailySummaryEditForbiddenException("Không thể ghi nhận cho ngày đã qua");
+        }
+
         // Chuẩn hóa trackTime về đầu giờ (ví dụ: 13:12:30 -> 13:00:00)
-        LocalDateTime startOfHour = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0);
-        LocalDate dateOfHour = startOfHour.toLocalDate();
+        startOfHour = trackTime.withMinute(0).withSecond(0).withNano(0);
+        dateOfHour = startOfHour.toLocalDate();
 
         // Tìm hoặc tạo DailySummary cho thành viên này và ngày này
         // Nếu không tìm thấy sẽ tạo mới
         DailySummary dailySummary = dailySummaryService.findOrCreateDailySummary(memberId, dateOfHour);
         if (dailySummary == null) {
-            throw new IllegalStateException("Không tìm thấy hoặc tạo được DailySummary cho thành viên " + memberId + " vào ngày " + dateOfHour);
+            throw new IllegalStateException
+                    ("Không tìm thấy hoặc tạo được DailySummary cho thành viên " + memberId + " vào ngày " + dateOfHour);
         }
 
         // Tìm bản ghi CravingTracking hiện có cho giờ đó trong DailySummary này
@@ -143,8 +164,8 @@ public class CravingTrackingService {
             throw new IllegalArgumentException("Bản ghi theo dõi không thuộc về DailySummary được cung cấp");
         }
         dailySummary.getCravingTrackings().remove(cravingTracking);
+        cravingTrackingRepository.delete(cravingTracking);
         dailySummaryService.recalculateDailyTotals(dailySummary); //cập nhật DailySummary
-        //cravingTrackingRepository.deleteById(id); // Không cần xóa trực tiếp vì orphanRemoval = true đã xử lý việc này
     }
 
     @Transactional
@@ -154,24 +175,34 @@ public class CravingTrackingService {
         if (cravingTracking.getDailySummary() == null) {
             throw new IllegalArgumentException("Bản ghi theo dõi không thuộc về DailySummary nào");
         }
-        cravingTracking.getDailySummary().getCravingTrackings().remove(cravingTracking);
-        dailySummaryService.recalculateDailyTotals(cravingTracking.getDailySummary()); //cập nhật DailySummary
-        //cravingTrackingRepository.deleteById(id); // Không cần xóa trực tiếp vì orphanRemoval = true đã xử lý việc này
+        DailySummary dailySummary = cravingTracking.getDailySummary();
+        dailySummary.getCravingTrackings().remove(cravingTracking);
+        cravingTrackingRepository.delete(cravingTracking);
+        dailySummaryService.recalculateDailyTotals(dailySummary); //cập nhật DailySummary
     }
 
-    @Transactional
-    public CravingTrackingResponse updateCravingTracking(CravingTrackingUpdateRequest request) {
-        Optional<CravingTracking> existingTrackingOptional = cravingTrackingRepository.findById(request.getCravingTrackingId());
+    @Transactional(noRollbackFor = CravingTrackingDeletedException.class)
+    public CravingTrackingResponse updateCravingTracking(Integer cravingTrackingId, CravingTrackingUpdateRequest request) {
+        Optional<CravingTracking> existingTrackingOptional = cravingTrackingRepository.findById(cravingTrackingId);
         if (existingTrackingOptional.isEmpty()) {
-            throw new ResourceNotFoundException("Không tìm thấy bản theo dõi với ID: " + request.getCravingTrackingId());
+            throw new IllegalArgumentException("Không tìm thấy bản theo dõi với ID: " + cravingTrackingId);
         }
+
         CravingTracking existingTracking = existingTrackingOptional.get();
+
+        //Kiểm tra xem bản ghi có thuộc về QuitPlan đang hoạt động không
+        if (existingTracking.getDailySummary() == null || existingTracking.getDailySummary().getQuitPlan() == null) {
+            throw new ResourceNotFoundException("Không tìm thấy DailySummary hoặc QuitPlan liên kết với bản ghi này");
+        }
+        if (!quitPlanService.isPlanInProgress(existingTracking.getDailySummary().getQuitPlan())) {
+            throw new IllegalArgumentException("Kế hoạch bỏ thuốc lá đã kết thúc, không thể chỉnh sửa bản theo dõi");
+        }
 
         LocalDate today = LocalDate.now();
 
-        // Nếu ngày hiện tại đã vượt qua tracktime -> không cho phép chỉnh sửa
-        if (existingTracking.getTrackTime().toLocalDate().isBefore(today)) {
-            throw new DailySummaryEditForbiddenException("Không thể chỉnh sửa bản theo dõi đã qua");
+        //Chỉ cho phép cập nhật bản ghi cho ngày hiện tại
+        if (!existingTracking.getTrackTime().toLocalDate().isEqual(today)) {
+            throw new DailySummaryEditForbiddenException("Chỉ có thể cập nhật bản theo dõi cho ngày hiện tại");
         }
         // Nếu TrackTime là cùng ngày với ngày hiện tại, cho phép chỉnh sửa
         if (request.getSmokedCount() != null) {
@@ -193,7 +224,8 @@ public class CravingTrackingService {
         //Tự động xóa bản ghi nếu cả smokedCount và cravingsCount đều bằng 0
         if (existingTracking.getSmokedCount() == 0 && existingTracking.getCravingsCount() == 0) {
             deleteCravingTracking(existingTracking.getDailySummary(), existingTracking.getCravingTrackingId());
-            throw new CravingTrackingDeletedException("Bản ghi đã được xóa vì số lượng thuốc hút và số lần thèm thuốc đều bằng 0");
+            throw new CravingTrackingDeletedException
+                    ("Bản ghi đã được xóa vì số lượng thuốc hút và số lần thèm thuốc đều bằng 0");
         }
 
         // Lưu bản ghi đã cập nhật
@@ -202,17 +234,16 @@ public class CravingTrackingService {
 
         //tái tính toán tổng của DailySummary liên quan
         dailySummaryService.recalculateDailyTotals(existingTracking.getDailySummary());
-
         return convertToResponseDto(updatedTracking);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public CravingTracking getCravingTrackingById(Integer id) {
         return cravingTrackingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bản ghi với ID: " + id));
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public UUID getMemberIdByCravingTrackingId(Integer cravingTrackingId) {
         CravingTracking cravingTracking = getCravingTrackingById(cravingTrackingId);
         if (cravingTracking.getDailySummary() == null ) {
@@ -233,14 +264,13 @@ public class CravingTrackingService {
     //Lấy danh sách các bản ghi CravingTracking theo ngày
     //Phương thức này sẽ trả về tất cả các bản ghi CravingTracking (tức là tổng hợp theo giờ)
     //cho một ngày cụ thể của một thành viên
-    @Transactional
+    @Transactional(readOnly = true)
     public List<CravingTrackingResponse> getCravingTrackingsByDate(UUID memberId, LocalDate date) {
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.atTime(LocalTime.MAX); // Cuối ngày (23:59:59.999...)
 
-        List<CravingTracking> cravingTrackingList = cravingTrackingRepository.findAllByDailySummary_QuitPlan_Member_MemberIdAndTrackTimeBetween(
-                memberId, startOfDay, endOfDay
-        );
+        List<CravingTracking> cravingTrackingList = cravingTrackingRepository.
+                findAllByDailySummary_QuitPlan_Member_MemberIdAndTrackTimeBetween(memberId, startOfDay, endOfDay);
 
         if(cravingTrackingList.isEmpty()) {
             // Thay vì ném ResourceNotFoundException nếu danh sách rỗng
@@ -253,9 +283,10 @@ public class CravingTrackingService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<CravingTrackingResponse> getCravingTrackingResponsesByDailySummaryId(Integer dailySummaryId) {
-        List<CravingTracking> cravingTrackingList = cravingTrackingRepository.findByDailySummary_DailySummaryId(dailySummaryId);
+        List<CravingTracking> cravingTrackingList = cravingTrackingRepository.
+                findByDailySummary_DailySummaryId(dailySummaryId);
         if (cravingTrackingList.isEmpty()) {
             throw new ResourceNotFoundException("Không tìm thấy bản ghi nào cho daily summary: " + dailySummaryId);
         }
