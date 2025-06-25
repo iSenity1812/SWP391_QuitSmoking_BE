@@ -6,6 +6,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.util.JwtUtil;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -95,7 +96,9 @@ public class SecurityConfig {
 //                            // -- Public endpoints - không cần xác thực
 //                        .requestMatchers("/api/auth/**").permitAll() // Cho phép truy cập không cần xác thực cho các endpoint auth
 //                        .requestMatchers("/", "/home", "/blogs", "/about", "/contact", "/programs").permitAll() // Cho phép truy cập không cần xác thực cho các trang chủ và blog
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger UI
+//                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                            .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger UI
 //
 //                            .requestMatchers(HttpMethod.POST, "/api/users").hasRole("SUPER_ADMIN")
 //                            .requestMatchers(HttpMethod.GET, "/api/users").hasRole("SUPER_ADMIN")
@@ -104,6 +107,7 @@ public class SecurityConfig {
 //                        .requestMatchers(HttpMethod.GET, "/api/admin/**").hasAnyRole("CONTENT_ADMIN", "SUPER_ADMIN") // Chỉ cho phép người dùng đã xác thực truy cập
                         .requestMatchers("/api/auth/logout").authenticated()
                         .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
+                            .requestMatchers("/api/coaches/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

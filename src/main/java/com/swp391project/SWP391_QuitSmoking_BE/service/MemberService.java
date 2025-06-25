@@ -1,6 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.normalMember.MemberResponse;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.normalMember.MemberSearchDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
@@ -47,13 +48,6 @@ public class MemberService {
     //được gọi sau khi một User vừa mới được đăng ký
     @Transactional
     public void createMemberForUser(User user) {
-//        Member member = new Member();
-//        member.setUser(user); // Member trỏ đến User
-//        user.setMember(member); // User trỏ đến Member
-//        member.setStreak(0);
-//        member.setMemberSubscriptions(new ArrayList<>());
-//        member.setQuitPlans(new ArrayList<>());
-//        Member savedMember = memberRepository.save(member);
         try {
             if (user == null) {
                 log.error("User is null");
@@ -137,5 +131,31 @@ public class MemberService {
             throw new ResourceNotFoundException("Member not found with ID: " + memberId);
         }
         memberRepository.deleteById(memberId);
+    }
+
+    // Search Member
+    @Transactional
+    public List<MemberSearchDTO> searchMembers(String query) {
+        log.debug("Searching members with query: {}", query);
+        if (query == null || query.trim().isEmpty()) {
+            log.warn("Search query is empty or null, returning empty list");
+            return List.of(); // Trả về danh sách rỗng nếu query trống
+
+        }
+
+        List<Member> members = memberRepository.searchByUsernameOrEmail(query);
+
+        // Chuyển đổi danh sách Member sang danh sách MemberSearchDTO
+        return members.stream().map(member -> {
+            MemberSearchDTO dto = new MemberSearchDTO();
+            dto.setMemberId(member.getMemberId());
+
+            if (member.getUser() != null) {
+                dto.setUsername(member.getUser().getUsername());
+                dto.setEmail(member.getUser().getEmail());
+            }
+            return dto;
+        })
+                .collect(Collectors.toList());
     }
 }
