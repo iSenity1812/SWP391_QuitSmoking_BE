@@ -1,19 +1,13 @@
 package com.swp391project.SWP391_QuitSmoking_BE.dto.request;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import java.util.UUID;
 
 @Data // Sử dụng Lombok để tự động tạo getter/setter/toString/equals/hashCode
 public class PaymentOrderRequest {
-    @NotNull
-    private UUID memberId;
-    @NotNull
+    private String memberId; // Thay đổi từ UUID thành String để frontend dễ gửi
     private Integer subscriptionId;
-    @NotNull
     private Integer transactionMethodId; // Phương thức giao dịch (ví dụ: VNPay, PayPal)
 
-    @NotNull
     private Double amount; // Số tiền cần thanh toán
     private String orderInfo; // Thông tin mô tả đơn hàng
     private String bankCode; // Mã ngân hàng (nếu có, ví dụ: VNPAYQR, NCB)

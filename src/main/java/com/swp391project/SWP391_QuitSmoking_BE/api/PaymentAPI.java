@@ -1,6 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.api;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.PaymentAuditLog;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.service.PaymentAuditLogService;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.PaymentOrderRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.response.PaymentOrderResponse;
@@ -8,8 +9,12 @@ import com.swp391project.SWP391_QuitSmoking_BE.dto.request.PaymentConfirmRequest
 import com.swp391project.SWP391_QuitSmoking_BE.dto.response.PaymentConfirmResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.service.PaymentService;
 import com.swp391project.SWP391_QuitSmoking_BE.service.VnPayService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +23,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payment")
+@SecurityRequirement(name = "payment_api")
 public class PaymentAPI {
     @Autowired
     private PaymentAuditLogService paymentAuditLogService;
@@ -68,15 +74,28 @@ public class PaymentAPI {
     }
 
     @PostMapping("/create-order")
-    public ResponseEntity<PaymentOrderResponse> createPaymentOrder(
+    @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER')")
+    public ResponseEntity<?> createPaymentOrder(
             @RequestBody PaymentOrderRequest request,
+            @AuthenticationPrincipal UserDetails userDetails,
             HttpServletRequest httpRequest) {
         try {
+            // Get authenticated user ID
+            User authenticatedUser = (User) userDetails;
+            String authenticatedMemberId = authenticatedUser.getUserId().toString();
+            
+            // Override memberId from request with authenticated user ID for security
+            request.setMemberId(authenticatedMemberId);
+            
             String clientIP = getClientIP(httpRequest);
             PaymentOrderResponse response = paymentService.createOrder(request, clientIP);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            // Trả về thông tin lỗi chi tiết
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Payment creation failed",
+                    "message", e.getMessage(),
+                    "timestamp", java.time.LocalDateTime.now().toString()));
         }
     }
 

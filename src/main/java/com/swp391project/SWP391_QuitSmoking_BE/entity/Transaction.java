@@ -18,95 +18,95 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "Transaction", indexes = {
-        @Index(name = "idx_transaction_user_id", columnList = "UserID"),
-        @Index(name = "idx_transaction_status", columnList = "Status"),
-        @Index(name = "idx_transaction_created_at", columnList = "CreatedAt"),
-        @Index(name = "idx_transaction_vnpay_ref", columnList = "VnpayTransactionRef")
+@Table(name = "transaction", indexes = {
+        @Index(name = "idx_transaction_user_id", columnList = "user_id"),
+        @Index(name = "idx_transaction_status", columnList = "status"),
+        @Index(name = "idx_transaction_created_at", columnList = "created_at"),
+        @Index(name = "idx_transaction_vnpay_ref", columnList = "vnpay_transaction_ref")
 })
 public class Transaction {
 
     @Id
     @GeneratedValue(generator = "UUID")
     @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
-    @Column(name = "TransactionID", updatable = false, nullable = false, columnDefinition = "uuid")
+    @Column(name = "transaction_id", updatable = false, nullable = false, columnDefinition = "uuid")
     private UUID transactionId;
 
-    @Column(name = "UserID", nullable = false, columnDefinition = "uuid")
+    @Column(name = "user_id", nullable = false, columnDefinition = "uuid")
     private UUID userId;
 
-    @Column(name = "Amount", nullable = false, precision = 15, scale = 2)
+    @Column(name = "amount", nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
-    @Column(name = "Currency", nullable = false, length = 3)
+    @Column(name = "currency", nullable = false, length = 3)
     private String currency = "VND";
 
-    @Column(name = "Status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 20)
     private String status = "PENDING";
 
-    @Column(name = "PaymentMethod", nullable = false, length = 50)
+    @Column(name = "payment_method", nullable = false, length = 50)
     private String paymentMethod = "VNPAY";
 
-    @Column(name = "Description", columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     // VnPay specific fields
-    @Column(name = "VnpayTransactionRef", length = 100, unique = true)
+    @Column(name = "vnpay_transaction_ref", length = 100, unique = true)
     private String vnpayTransactionRef;
 
-    @Column(name = "VnpayResponseCode", length = 10)
+    @Column(name = "vnpay_response_code", length = 10)
     private String vnpayResponseCode;
 
-    @Column(name = "VnpayBankCode", length = 20)
+    @Column(name = "vnpay_bank_code", length = 20)
     private String vnpayBankCode;
 
-    @Column(name = "VnpayBankTranNo", length = 255)
+    @Column(name = "vnpay_bank_tran_no", length = 255)
     private String vnpayBankTranNo;
 
-    @Column(name = "VnpayTransactionNo", length = 255)
+    @Column(name = "vnpay_transaction_no", length = 255)
     private String vnpayTransactionNo;
 
-    @Column(name = "VnpaySecureHash", length = 255)
+    @Column(name = "vnpay_secure_hash", length = 255)
     private String vnpaySecureHash;
 
     // Subscription information
-    @Column(name = "SubscriptionId", columnDefinition = "uuid")
+    @Column(name = "subscription_id", columnDefinition = "uuid")
     private UUID subscriptionId;
 
-    @Column(name = "SubscriptionType", length = 50)
+    @Column(name = "subscription_type", length = 50)
     private String subscriptionType;
 
-    @Column(name = "SubscriptionDuration", length = 20)
+    @Column(name = "subscription_duration", length = 20)
     private String subscriptionDuration;
 
     // Audit fields
-    @Column(name = "CreatedAt", nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "UpdatedAt")
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Column(name = "CompletedAt")
+    @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
-    @Column(name = "ExpiredAt")
+    @Column(name = "expired_at")
     private LocalDateTime expiredAt;
 
     // Client information
-    @Column(name = "ClientIP", length = 45)
+    @Column(name = "client_ip", length = 45)
     private String clientIP;
 
-    @Column(name = "UserAgent", length = 500)
+    @Column(name = "user_agent", length = 500)
     private String userAgent;
 
     // Refund information
-    @Column(name = "RefundAmount", precision = 15, scale = 2)
+    @Column(name = "refund_amount", precision = 15, scale = 2)
     private BigDecimal refundAmount;
 
-    @Column(name = "RefundReason", length = 500)
+    @Column(name = "refund_reason", length = 500)
     private String refundReason;
 
-    @Column(name = "RefundedAt")
+    @Column(name = "refunded_at")
     private LocalDateTime refundedAt;
 
     // Helper methods

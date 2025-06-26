@@ -51,9 +51,17 @@ public class PaymentService {
             validatePaymentOrderRequest(request);
 
             Transaction transaction = new Transaction();
-            UUID transactionId = UUID.randomUUID();
-            transaction.setTransactionId(transactionId);
-            transaction.setUserId(request.getMemberId());
+
+            // Convert String memberId to UUID
+            UUID memberUUID;
+            try {
+                memberUUID = UUID.fromString(request.getMemberId());
+            } catch (IllegalArgumentException e) {
+                logger.error("Invalid member ID format: {}", request.getMemberId());
+                throw new PaymentProcessingException("Invalid member ID format", "INVALID_MEMBER_ID");
+            }
+
+            transaction.setUserId(memberUUID);
             transaction.setAmount(java.math.BigDecimal.valueOf(request.getAmount()));
             transaction.setCurrency("VND");
             transaction.setStatus("PENDING");
@@ -61,21 +69,28 @@ public class PaymentService {
             transaction.setCreatedAt(LocalDateTime.now());
             transaction.setDescription(request.getOrderInfo());
 
-            transactionRepository.save(transaction);
-            logger.info("Created transaction with ID: {}", transactionId);
+            // Sử dụng persist thay vì save để tránh lỗi merge
+            try {
+                transaction = transactionRepository.saveAndFlush(transaction);
+                UUID transactionId = transaction.getTransactionId();
+                logger.info("Created transaction with ID: {}", transactionId);
+            } catch (Exception e) {
+                logger.error("Failed to save transaction: {}", e.getMessage());
+                throw new PaymentProcessingException("Failed to save transaction", "SAVE_FAILED");
+            }
 
             VnPayRequest vnPayRequest = new VnPayRequest();
             vnPayRequest.setAmount(Math.round(request.getAmount()));
             vnPayRequest
                     .setOrderInfo(request.getOrderInfo() != null ? request.getOrderInfo() : "Thanh toan goi premium");
-            vnPayRequest.setTransactionId(transactionId.toString());
+            vnPayRequest.setTransactionId(transaction.getTransactionId().toString());
             vnPayRequest.setOrderType("billpayment");
             vnPayRequest.setLanguage("vn");
 
             String paymentUrl = vnPayService.createPaymentUrl(vnPayRequest, clientIP);
 
             PaymentOrderResponse response = new PaymentOrderResponse();
-            response.setTransactionId(transactionId);
+            response.setTransactionId(transaction.getTransactionId());
             response.setAmount(java.math.BigDecimal.valueOf(request.getAmount()));
             response.setStatus("PENDING");
             response.setSubscriptionName("Premium Subscription");

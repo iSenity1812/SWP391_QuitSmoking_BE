@@ -72,6 +72,7 @@ public class VnPayConfig {
         logger.info("VNPay TMN Code: {}", this.tmnCode);
         logger.info("VNPay URL: {}", this.payUrl);
         logger.info("VNPay Return URL: {}", this.returnUrl);
+        logger.info("VNPay Static Return URL: {}", vnp_ReturnUrl);
         logger.info("VNPay Timeout: {} minutes", this.timeoutMinutes);
     }
 

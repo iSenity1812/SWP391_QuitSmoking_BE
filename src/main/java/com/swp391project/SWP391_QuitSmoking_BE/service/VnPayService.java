@@ -59,8 +59,9 @@ public class VnPayService {
             vnp_Params.put("vnp_ReturnUrl", vnPayConfig.getReturnUrl());
             vnp_Params.put("vnp_IpAddr", ipAddr);
 
-            Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
+            Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone("GMT+7"));
             SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+            formatter.setTimeZone(TimeZone.getTimeZone("GMT+7"));
             vnp_Params.put("vnp_CreateDate", formatter.format(calendar.getTime()));
 
             // Add timeout
@@ -167,10 +168,17 @@ public class VnPayService {
         if (orderInfo == null)
             return "";
 
-        // Remove special characters that might cause issues
-        return orderInfo.replaceAll("[^a-zA-Z0-9\\s\\-_.,]", "")
-                .trim()
-                .substring(0, Math.min(orderInfo.length(), 255));
+        // Keep Vietnamese characters and basic punctuation for VNPay
+        String cleaned = orderInfo.replaceAll("[^a-zA-Z0-9\\sàáâãèéêìíòóôõùúýđĐÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚÝ\\-_.,]", "")
+                .trim();
+
+        // Ensure it's not empty after cleaning
+        if (cleaned.isEmpty()) {
+            cleaned = "Thanh toan goi premium";
+        }
+
+        // Use the length of the cleaned string, not the original
+        return cleaned.substring(0, Math.min(cleaned.length(), 255));
     }
 
     private String hmacSHA512(String key, String data) throws Exception {
