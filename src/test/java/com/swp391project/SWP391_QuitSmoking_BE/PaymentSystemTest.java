@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.context.annotation.Import;
 
 import java.util.UUID;
 
@@ -16,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(TestConfig.class)
 public class PaymentSystemTest {
 
     @Autowired
@@ -37,6 +39,7 @@ public class PaymentSystemTest {
         System.out.println("VnPay Return URL: " + vnPayConfig.getReturnUrl());
 
         assertTrue(vnPayConfig.getPayUrl().contains("sandbox"), "Should use sandbox URL");
+        assertEquals("ZA6FG78P", vnPayConfig.getTmnCode(), "Should use your real TMN code");
     }
 
     @Test
@@ -100,5 +103,26 @@ public class PaymentSystemTest {
         assertTrue(paymentUrl.contains("vnp_SecureHash="));
 
         System.out.println("✅ Payment URL contains all required VnPay parameters");
+    }
+
+    @Test
+    public void testRealVnPaySignatureGeneration() {
+        // Test với thông tin thật của bạn
+        VnPayRequest request = new VnPayRequest();
+        request.setAmount(89000); // 89,000 VND như trong test card của bạn
+        request.setOrderInfo("Thanh toan goi Premium");
+        request.setTransactionId("QT" + System.currentTimeMillis());
+        request.setOrderType("billpayment");
+        request.setLanguage("vn");
+
+        String paymentUrl = vnPayService.createPaymentUrl(request, "127.0.0.1");
+
+        assertNotNull(paymentUrl);
+        assertTrue(paymentUrl.contains("vnp_TmnCode=ZA6FG78P"));
+        assertTrue(paymentUrl.contains("vnp_Amount=8900000")); // 89000 * 100
+
+        System.out.println("🌐 Real VNPay URL Generated:");
+        System.out.println(paymentUrl);
+        System.out.println("✅ Test completed with your real VNPay credentials!");
     }
 }

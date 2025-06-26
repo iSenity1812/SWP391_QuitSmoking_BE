@@ -21,7 +21,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -33,10 +32,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
-    ) throws ServletException, IOException {
-        // This method is called once per request
-        // You can add your custom logic here if needed
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
+        // Skip JWT processing for public endpoints
+        String requestPath = request.getRequestURI();
+        if (isPublicEndpoint(requestPath)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         // 1. Lấy token từ header Authorization
         final String jwt;
@@ -61,28 +63,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return; // Dừng chuỗi filter và trả về lỗi
             }
 
-            //Trích xuất thông tin người dùng từ token
+            // Trích xuất thông tin người dùng từ token
             userIdentifier = jwtUtil.extractUsername(jwt);
 
             // Chỉ tiếp tục xác thực nếu đã trích xuất được userIdentifier và
             // người dùng chưa được xác thực trong SecurityContext
             if (userIdentifier != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                //3. Lấy thông tin người dùng từ UserDetailsService
+                // 3. Lấy thông tin người dùng từ UserDetailsService
                 // lấy dữ liệu người dùng mới nhất từ database
                 User userDetails = (User) userDetailsService.loadUserByUsername(userIdentifier);
-                System.out.println(("Loaded user details for: {}, Role: {}" + userDetails.getUsername() + userDetails.getRole()));
-                //4. Xác thực JWT với UserDetails đã tải
+                System.out.println(
+                        ("Loaded user details for: {}, Role: {}" + userDetails.getUsername() + userDetails.getRole()));
+                // 4. Xác thực JWT với UserDetails đã tải
                 if (jwtUtil.validateToken(jwt, userDetails)) {
                     // Nếu token hợp lệ, thiết lập Authentication trong SecurityContext
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails,
+                            null, userDetails.getAuthorities());
 
-                    // Thiết lập thêm các chi tiết về yêu cầu web (như IP, session ID) cho Authentication object.
+                    // Thiết lập thêm các chi tiết về yêu cầu web (như IP, session ID) cho
+                    // Authentication object.
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                     // Đặt đối tượng Authentication vào SecurityContextHolder.
-                    // Điều này thông báo cho Spring Security rằng người dùng hiện tại đã được xác thực,
-                    // cho phép các cơ chế phân quyền (Authorization) hoạt động dựa trên thông tin này.
+                    // Điều này thông báo cho Spring Security rằng người dùng hiện tại đã được xác
+                    // thực,
+                    // cho phép các cơ chế phân quyền (Authorization) hoạt động dựa trên thông tin
+                    // này.
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
@@ -104,7 +110,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         } catch (Exception e) {
             // Xử lý các ngoại lệ chung khác có thể xảy ra trong quá trình xử lý JWT
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An error occurred during JWT processing.");
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "An error occurred during JWT processing.");
             return;
         }
 
@@ -112,9 +119,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-//    public String getToken(HttpServletRequest request) {
-//        String authHeader = request.getHeader("Authorization");
-//        if (authHeader != null && authHeader.startsWith("Bearer ")) return authHeader.substring(7); // Trả về token sau "Bearer "
-//        return null; // Trả về null nếu không có token
-//    }
+    private boolean isPublicEndpoint(String requestPath) {
+        // Define public endpoints that don't need JWT authentication
+        String[] publicPaths = {
+                "/api/auth/login",
+                "/api/auth/register",
+                "/api/payment/",
+                "/api/health",
+                "/api/status",
+                "/swagger-ui/",
+                "/v3/api-docs/",
+                "/swagger-resources/",
+                "/webjars/"
+        };
+
+        for (String path : publicPaths) {
+            if (requestPath.startsWith(path)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // public String getToken(HttpServletRequest request) {
+    // String authHeader = request.getHeader("Authorization");
+    // if (authHeader != null && authHeader.startsWith("Bearer ")) return
+    // authHeader.substring(7); // Trả về token sau "Bearer "
+    // return null; // Trả về null nếu không có token
+    // }
 }
