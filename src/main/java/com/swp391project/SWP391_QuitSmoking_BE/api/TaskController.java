@@ -1,12 +1,16 @@
 package com.swp391project.SWP391_QuitSmoking_BE.api;
 
+import com.swp391project.SWP391_QuitSmoking_BE.dto.quiz.QuizAttemptResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.quiz.QuizCreationRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.quiz.QuizResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.quiz.SubmitQuizAttemptRequestDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.task.TaskResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.tip.TipCreationRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.tip.TipResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.service.QuizService;
+import com.swp391project.SWP391_QuitSmoking_BE.service.TaskService;
 import com.swp391project.SWP391_QuitSmoking_BE.service.TipService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -28,6 +32,7 @@ public class TaskController {
 
     private final QuizService quizService;
     private final TipService tipService;
+    private final TaskService taskService;
 
     // --- API TẠO ---
     @PostMapping("/admin/quizzes")
@@ -142,5 +147,24 @@ public class TaskController {
             Authentication authentication) {
         tipService.deleteTip(tipId);
         return ResponseEntity.ok(ApiResponse.success(null, "Tip đã được xóa thành công."));
+    }
+
+    @PostMapping("/generate-random")
+    @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER') or hasRole('COACH')")
+    public ResponseEntity<ApiResponse<TaskResponseDTO>> generateRandomTask(Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        TaskResponseDTO randomTask = taskService.generateRandomCravingTask(currentUser.getUserId());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(randomTask, "Nhiệm vụ ngẫu nhiên đã được tạo thành công."));
+    }
+
+    @PostMapping("/submit-quiz")
+    @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER') or hasRole('COACH')")
+    public ResponseEntity<ApiResponse<QuizAttemptResponseDTO>> submitQuizAttempt(
+            @Valid @RequestBody SubmitQuizAttemptRequestDTO request,
+            Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        QuizAttemptResponseDTO result = taskService.submitQuizAttempt(currentUser.getUserId(), request);
+        return ResponseEntity.ok(ApiResponse.success(result, "Nộp bài quiz thành công."));
     }
 }
