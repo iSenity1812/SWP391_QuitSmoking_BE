@@ -93,6 +93,9 @@ public class SecurityConfig {
                                         "/api/comments",
                                         "/api/comments/{commentId}",
                                         "/api/comments/blog/**",
+                                        "/api/follows/{userId}/followers", // Cho phép xem followers công khai
+                                        "/api/follows/{userId}/following", // Cho phép xem following công khai
+                                        "/api/follows/{userId}/stats", // Cho phép xem stats công khai
                                         "/swagger-ui/**",
                                         "/v3/api-docs/**",
                                         "/swagger-resources/**",
