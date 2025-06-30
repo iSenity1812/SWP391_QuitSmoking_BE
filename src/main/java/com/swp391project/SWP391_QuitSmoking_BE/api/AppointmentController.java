@@ -183,7 +183,7 @@ public class AppointmentController {
 
     /**
      * API cho Coach/Admin: Cập nhật trạng thái lịch hẹn.
-     * Có thể dùng để đánh dấu COMPLETED, MISSED, RESCHEDULED.
+     * Có thể dùng để đánh dấu COMPLETED, MISSED
      */
     @PutMapping("/{appointmentId}/status")
     @PreAuthorize("hasAnyRole('COACH', 'CONTENT_ADMIN')")

@@ -15,10 +15,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Entity
 @Getter
@@ -87,6 +84,14 @@ public class User implements UserDetails {
     @Column(name = "NotificationSetting", columnDefinition = "jsonb")
     @NotNull(message = "Cài đặt thông báo không được để trống")
     private Map<String, Object> notificationSetting;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private Set<Subscription> subscriptions;
+
+    // Mối quan hệ One-to-Many với Transaction
+    // User sở hữu nhiều Transaction
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private Set<Transaction> transactions;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

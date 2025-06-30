@@ -99,13 +99,16 @@ public class AppointmentService {
         }
         // Tạo Appointment
         Appointment appointment = new Appointment();
-//        appointment.setMember(memberToBook);
+        appointment.setMember(memberToBook);
         appointment.setCoachSchedule(coachSchedule);
         appointment.setStatus(AppointmentStatus.CONFIRMED); // Mặc định là CONFIRMED khi đặt thành công
         appointment.setNote(request.getNote());
-        appointment.setBookingTime(LocalDateTime.now());
+        appointment.setBookingTime(appointmentTime);
         appointment.setCreatedAt(LocalDateTime.now());
         appointment.setUpdatedAt(LocalDateTime.now());
+
+        // Tao agora channel name cho appointment (format: appointment_ + UUID.randomUUID())
+        appointment.setAgoraChannelName("appointment_" + UUID.randomUUID().toString().replace("-", ""));
 //
         Appointment savedAppointment = appointmentRepository.save(appointment);
 

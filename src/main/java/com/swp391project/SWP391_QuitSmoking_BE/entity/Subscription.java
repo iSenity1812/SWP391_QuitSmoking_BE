@@ -12,7 +12,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -20,37 +23,60 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @ValidDurationTypeConstraint //custom annotation kiểm tra giá trị giữa durationType và duration
-public class Subscription implements IDurationAware {
+@Table(name = "subscription")
+public class Subscription {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY) //auto-increment
     @Column(name = "SubscriptionID", updatable = false, nullable = false)
-    private Integer subscriptionId;
+    private Long subscriptionId;
 
-    @NotBlank(message = "Tên gói đăng ký không được để trống")
-    @Size(max = 100, message = "Tên gói đăng ký không được vượt quá 100 ký tự")
-    @Column(name = "Name", length = 100, unique = true, nullable = false)
-    private String name;
+    // Mối quan hệ Many-to-One với User
+    // Subscription thuộc về một User
+    @NotNull(message = "Người dùng không được để trống")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "UserID", nullable = false, foreignKey = @ForeignKey(name = "FK_Subscription_User"))
+    private User user;
 
-    @NotNull(message = "Giá gói đăng ký không được để trống")
-    // Giá phải >= 0 (inclusive = true: cho phép = 0, false thì phải > 0)
-    @DecimalMin(value = "0.00", inclusive = true, message = "Giá gói đăng ký không thể là số âm")
-    @Digits(integer = 6, fraction = 2, message = "Giá gói đăng ký phải có tối đa 6 chữ số phần nguyên và 2 chữ số phần thập phân")
-    @Column(name = "Price", precision = 8, scale = 2, nullable = false)
-    private BigDecimal price;
+    // Mối quan hệ Many-to-One với Plan
+    // Subscription liên quan đến một Plan
+    @NotNull(message = "Gói không được để trống")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "PlanID", nullable = false, foreignKey = @ForeignKey(name = "FK_Subscription_Plan"))
+    private Plan plan;
 
-    @NotNull(message = "Thời lượng gói đăng ký không được để trống")
-    @Min(value = 1, message = "Thời lượng phải lớn hơn hoặc bằng 1")
-    @Column(name = "Duration", nullable = false)
-    private Integer duration; //Chỉ lưu giá trị thời gian
+    @NotNull(message = "Ngày bắt đầu không được để trống")
+    @Column(name = "StartDate", nullable = false)
+    private LocalDateTime startDate;
 
-    @NotNull(message = "Dạng thời lượng gói đăng ký không được để trống")
-    @Enumerated(EnumType.STRING)
-    @Column(name = "DurationType", nullable = false)
-    private DurationType durationType; //Lưu dạng thời lượng
+    @NotNull(message = "Ngày kết thúc không được để trống")
+    @FutureOrPresent(message = "Ngày kết thúc không thể ở quá khứ")
+    @Column(name = "EndDate", nullable = false)
+    private LocalDateTime endDate;
 
-    @Column(name = "Description", columnDefinition = "TEXT")
-    private String description;
+    @NotNull(message = "Trạng thái hoạt động không được để trống")
+    @Column(name = "IsActive", nullable = false)
+    private boolean isActive = true;
 
-    @OneToMany(fetch = FetchType.LAZY, mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<MemberSubscription> memberSubscriptions; // Danh sách các thành viên đã đăng ký gói này
+
+    @Column(name = "CreatedAt", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "UpdatedAt")
+    private LocalDateTime updatedAt;
+
+    @OneToOne(mappedBy = "subscription", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Transaction transaction;
+
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

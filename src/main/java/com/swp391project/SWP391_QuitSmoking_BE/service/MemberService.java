@@ -77,7 +77,7 @@ public class MemberService {
             log.debug("Set user reference to member");
 
             member.setStreak(0);
-            member.setMemberSubscriptions(new ArrayList<>());
+//            member.setMemberSubscriptions(new ArrayList<>());
             member.setQuitPlans(new ArrayList<>());
             log.debug("Set default member values");
 

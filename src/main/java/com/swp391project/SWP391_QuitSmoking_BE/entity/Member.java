@@ -1,7 +1,4 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
-
-import com.swp391project.SWP391_QuitSmoking_BE.validation.subscription.ValidSubscriptionDuration;
-import com.swp391project.SWP391_QuitSmoking_BE.validation.subscription.ValidSubscriptionState;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -37,8 +34,8 @@ public class Member {
     @Column(name = "Streak", nullable = false)
     private int streak = 0;
 
-    @OneToMany(fetch = FetchType.LAZY, mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<MemberSubscription> memberSubscriptions; // Danh sách các gói đăng ký của thành viên
+//    @OneToMany(fetch = FetchType.LAZY, mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+//    private List<MemberSubscription> memberSubscriptions; // Danh sách các gói đăng ký của thành viên
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<QuitPlan> quitPlans; // Danh sách các kế hoạch bỏ thuốc lá của thành viên

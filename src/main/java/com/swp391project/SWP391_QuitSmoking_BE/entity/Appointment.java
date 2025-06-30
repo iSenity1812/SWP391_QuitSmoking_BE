@@ -9,30 +9,6 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "appointment")
-//@NamedEntityGraph(
-//        name = "appointment.with.member.user.coachSchedule.coach.user.timeSlot",
-//        attributeNodes = {
-//                @NamedAttributeNode(value = "member", subgraph = "member-subgraph"),
-//                @NamedAttributeNode(value = "coachSchedule", subgraph = "coachSchedule-subgraph")
-//        },
-//        subgraphs = {
-//                @NamedSubgraph(
-//                        name = "member-subgraph",
-//                        attributeNodes = @NamedAttributeNode("user")
-//                ),
-//                @NamedSubgraph(
-//                        name = "coachSchedule-subgraph",
-//                        attributeNodes = {
-//                                @NamedAttributeNode("timeSlot"),
-//                                @NamedAttributeNode(value = "coach", subgraph = "coach-subgraph")
-//                        }
-//                ),
-//                @NamedSubgraph(
-//                        name = "coach-subgraph",
-//                        attributeNodes = @NamedAttributeNode("user")
-//                )
-//        }
-//)
 public class Appointment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -62,4 +38,7 @@ public class Appointment {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "agora_channel_name", unique = true)
+    private String agoraChannelName;
 }
