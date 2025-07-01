@@ -98,6 +98,8 @@ public class SecurityConfig {
 //                        .requestMatchers("/", "/home", "/blogs", "/about", "/contact", "/programs").permitAll() // Cho phép truy cập không cần xác thực cho các trang chủ và blog
 //                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                            .requestMatchers("/api/vnpay/payment-return**").permitAll() // Rất quan trọng!
+                            .requestMatchers("/api/vnpay/ipn**").permitAll()
                             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger UI
 //
 //                            .requestMatchers(HttpMethod.POST, "/api/users").hasRole("SUPER_ADMIN")

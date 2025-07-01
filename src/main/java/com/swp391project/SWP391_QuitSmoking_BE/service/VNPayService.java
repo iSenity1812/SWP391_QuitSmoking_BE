@@ -1,6 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.config.VNPayConfig;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.email.EmailDetail;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.payment.VNPayPaymentRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.payment.VNPayPaymentResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.payment.VNPayTransactionResultDTO;
@@ -18,6 +19,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.UnsupportedEncodingException;
@@ -45,11 +47,10 @@ public class VNPayService {
     }
 
     @Transactional
-    public VNPayPaymentResponseDTO createPaymentUrl(VNPayPaymentRequestDTO paymentRequestDTO, HttpServletRequest request) throws UnsupportedEncodingException {
+    public VNPayPaymentResponseDTO createPaymentUrl(VNPayPaymentRequestDTO paymentRequestDTO, UUID userId, HttpServletRequest request) throws UnsupportedEncodingException {
         // 1. Kiểm tra tồn tại User và Plan
-        User user = userRepository.findById(paymentRequestDTO.getUserId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + paymentRequestDTO.getUserId()));
-
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
         Plan plan = planRepository.findById(paymentRequestDTO.getPlanId())
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found with ID: " + paymentRequestDTO.getPlanId()));
 
@@ -71,7 +72,7 @@ public class VNPayService {
         String vnp_Command = "pay";
         String vnp_CurrCode = "VND";
         String vnp_Locale = "vn";
-        String vnp_OrderInfo = URLEncoder.encode(paymentRequestDTO.getOrderInfo() + " - OrderRef: " + vnp_TxnRef, StandardCharsets.UTF_8.toString());
+        String vnp_OrderInfo = URLEncoder.encode(paymentRequestDTO.getOrderInfo() + " - OrderRef: " + vnp_TxnRef, StandardCharsets.US_ASCII);
         String vnp_OrderType = paymentRequestDTO.getOrderType();
         String vnp_Version = "2.1.0";
 
@@ -86,7 +87,11 @@ public class VNPayService {
         vnp_Params.put("vnp_OrderType", vnp_OrderType);
         vnp_Params.put("vnp_Locale", vnp_Locale);
         vnp_Params.put("vnp_ReturnUrl", VNPayConfig.vnp_Returnurl); // URL để VNPay redirect về
+//        vnp_Params.put("vnp_IpnUrl", VNPayConfig.vnp_ipnUrl); // URL để VNPay gửi IPN (Server-to-server callback) - Mới thêm vào
         vnp_Params.put("vnp_IpAddr", vnp_IpAddr);
+
+        // Trong method createPaymentUrl(), thêm dòng này:
+
 
         if (paymentRequestDTO.getBankCode() != null && !paymentRequestDTO.getBankCode().isEmpty()) {
             vnp_Params.put("vnp_BankCode", paymentRequestDTO.getBankCode());
@@ -115,11 +120,11 @@ public class VNPayService {
                 // Build hash data
                 hashData.append(fieldName);
                 hashData.append("=");
-                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8.toString()));
+                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
                 // Build query
-                query.append(URLEncoder.encode(fieldName, StandardCharsets.UTF_8.toString()));
+                query.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII));
                 query.append("=");
-                query.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8.toString()));
+                query.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
                 if (itr.hasNext()) {
                     query.append("&");
                     hashData.append("&");
@@ -177,7 +182,7 @@ public class VNPayService {
             if ((fieldValue != null) && (!fieldValue.isEmpty())) {
                 hashData.append(fieldName);
                 hashData.append("=");
-                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));
+                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
                 if (itr.hasNext()) {
                     hashData.append("&");
                 }
@@ -218,14 +223,52 @@ public class VNPayService {
                         try {
                             transaction.setPaymentGatewayResponse(new HashMap<>(vnp_Params)); // Lưu response cuối cùng
                         } catch (Exception e) {
-                            log.error("Error converting Map to JSON for paymentGatewayResponse: " + e.getMessage());
+                            log.error("Error converting Map to JSON for paymentGatewayResponse: {}", e.getMessage());
                         }
                         transactionRepository.save(transaction);
 
                         // Cập nhật Subscription và User Role
                         updateSubscriptionAndUserRole(transaction);
+
+                        // GỬI MAIL THÔNG BÁO
+                        try {
+                            User user = transaction.getUser(); // Lấy user từ transaction đã được load
+                            Plan plan = transaction.getPlan(); // Lấy plan từ transaction đã được load
+                            Subscription subscription = transaction.getSubscription(); // Lấy subscription vừa được tạo/cập nhật
+
+                            if (user != null && plan != null && subscription != null) {
+                                Map<String, Object> templateVariables = new HashMap<>();
+                                templateVariables.put("name", user.getUsername());
+                                templateVariables.put("planName", plan.getPlanName());
+                                templateVariables.put("startDate", subscription.getStartDate());
+                                templateVariables.put("endDate", subscription.getEndDate());
+                                templateVariables.put("websiteUrl", "http://localhost:5173");
+                                templateVariables.put("supportUrl", "http://localhost:5173/support");
+                                templateVariables.put("buttonText", "Truy cập QuitTogether");
+                                templateVariables.put("link", "http://localhost:5173/plan");
+
+                                String subject = "Thanh toán thành công - Kích hoạt gói " + plan.getPlanName();
+                                String templateName = "paymentSuccessTemplate";
+
+                                EmailDetail emailDetail = new EmailDetail(
+                                        user.getEmail(),
+                                        subject,
+                                        null,
+                                        templateName,
+                                        templateVariables
+                                );
+                                emailService.sendEmail(emailDetail);
+                                log.info("Sent payment success email to {} from IPN.", user.getEmail());
+                            } else {
+                                log.warn("Could not send email for TxnRef {} due to missing user, plan or subscription.", TxnRef);
+                            }
+                        } catch (Exception e) {
+                            log.error("Failed to send payment success email for TxnRef {}: {}", TxnRef, e.getMessage());
+                        }
+
+
                     } else {
-                        log.info("Transaction already marked as SUCCESS: " + TxnRef);
+                        log.info("Transaction already marked as SUCCESS: {}", TxnRef);
                     }
                 } else  {
                     // Giao dịch thất bại hoặc lỗi
@@ -237,23 +280,23 @@ public class VNPayService {
                         try {
                             transaction.setPaymentGatewayResponse(new HashMap<>(vnp_Params));
                         } catch (Exception e) {
-                            log.error("Error converting Map to JSON for paymentGatewayResponse: " + e.getMessage());
+                            log.error("Error converting Map to JSON for paymentGatewayResponse: {}", e.getMessage());
                         }
                         transactionRepository.save(transaction);
                     }
-                    log.warn("VNPAY Return: Transaction failed for TxnRef: " + TxnRef + ", ResponseCode: " + RspCode);
+                    log.warn("VNPAY Return: Transaction failed for TxnRef: {}, ResponseCode: {}", TxnRef, RspCode);
                 }
             } else {
                 result.setVnp_ResponseCode("99");
                 result.setMessage("Không tìm thấy giao dịch với TxnRef: " + TxnRef);
                 result.setVnp_TransactionStatus("FAILED");
-                log.error("VNPAY Return: Transaction with TxnRef " + TxnRef + " not found.");
+                log.error("VNPAY Return: Transaction with TxnRef {} not found.", TxnRef);
             }
         } else {
             result.setVnp_ResponseCode("97");
             result.setMessage("Invalid signature");
             result.setVnp_TransactionStatus("FAILED");
-            log.error("VNPAY Return: Invalid signature for TxnRef: " + vnp_Params.get("vnp_TxnRef"));
+            log.error("VNPAY Return: Invalid signature for TxnRef: {}", vnp_Params.get("vnp_TxnRef"));
         }
         return result;
     }
@@ -262,6 +305,7 @@ public class VNPayService {
     // Endpoint xử lý IPN từ VNPay (Server-to-server callback)
     @Transactional
     public String processIPN(HttpServletRequest request) {
+        log.info("Processing VNPay IPN callback...");
         Map<String, String> vnp_Params = new HashMap<>();
         Enumeration<String> params = request.getParameterNames();
         while (params.hasMoreElements()) {
@@ -271,8 +315,9 @@ public class VNPayService {
                 vnp_Params.put(fieldName, fieldValue);
             }
         }
+        log.info("IPN received with parameters: {}", vnp_Params);
 
-        String vnp_SecureHash = vnp_Params.get("vnp_SecureHash");
+//        String vnp_SecureHash = vnp_Params.get("vnp_SecureHash");
         if (vnp_Params.containsKey("vnp_SecureHashType")) {
             vnp_Params.remove("vnp_SecureHashType");
         }
@@ -290,17 +335,23 @@ public class VNPayService {
             if ((fieldValue != null) && (!fieldValue.isEmpty())) {
                 hashData.append(fieldName);
                 hashData.append("=");
-                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));
+                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
                 if (itr.hasNext()) {
                     hashData.append("&");
                 }
             }
         }
+        log.info("IPN hash data: {}", hashData);
 
         String checkHash = VNPayConfig.hmacSHA512(VNPayConfig.vnp_HashSecret, hashData.toString());
-
+        String vnp_SecureHash = request.getParameter("vnp_SecureHash"); // Lấy trực tiếp từ request trước khi xóa
         String RspCode = vnp_Params.get("vnp_ResponseCode");
-        String TxnRef = vnp_Params.get("vnp_TxnRef"); // Mã giao dịch của bạn
+        String TxnRef = vnp_Params.get("vnp_TxnRef"); // Mã giao dịch
+
+        if (vnp_SecureHash == null || TxnRef == null || TxnRef.isEmpty()) {
+            log.error("IPN: Missing essential parameters (vnp_SecureHash or vnp_TxnRef).");
+            return "{\"RspCode\":\"99\",\"Message\":\"Invalid Request (Missing essential params)\"}";
+        }
 
         // Logic xử lý IPN
         if (checkHash != null && checkHash.equals(vnp_SecureHash)) {
@@ -336,6 +387,43 @@ public class VNPayService {
                     // Cập nhật Subscription và User Role
                     updateSubscriptionAndUserRole(transaction);
 
+                    // GỬI MAIL THÔNG BÁO
+                    try {
+                        User user = transaction.getUser(); // Lấy user từ transaction đã được load
+                        Plan plan = transaction.getPlan(); // Lấy plan từ transaction đã được load
+                        Subscription subscription = transaction.getSubscription(); // Lấy subscription vừa được tạo/cập nhật
+
+                        if (user != null && plan != null && subscription != null) {
+                            Map<String, Object> templateVariables = new HashMap<>();
+                            templateVariables.put("name", user.getUsername());
+                            templateVariables.put("planName", plan.getPlanName());
+                            templateVariables.put("startDate", subscription.getStartDate());
+                            templateVariables.put("endDate", subscription.getEndDate());
+                            templateVariables.put("websiteUrl", "http://localhost:5173");
+                            templateVariables.put("supportUrl", "http://localhost:5173/support");
+                            templateVariables.put("buttonText", "Truy cập QuitTogether");
+                            templateVariables.put("link", "http://localhost:5173/plan");
+
+                            String subject = "Thanh toán thành công - Kích hoạt gói " + plan.getPlanName();
+                            String templateName = "paymentSuccessTemplate";
+
+                            EmailDetail emailDetail = new EmailDetail(
+                                    user.getEmail(),
+                                    subject,
+                                    null,
+                                    templateName,
+                                    templateVariables
+                            );
+                            emailService.sendEmail(emailDetail);
+                            log.info("Sent payment success email to {} from IPN.", user.getEmail());
+                        } else {
+                            log.warn("IPN: Could not send email for TxnRef {} due to missing user, plan or subscription.", TxnRef);
+                        }
+                    } catch (Exception e) {
+                        log.error("IPN: Failed to send payment success email for TxnRef {}: {}", TxnRef, e.getMessage());
+                    }
+
+
                     log.info("IPN: Transaction {} processed successfully.", TxnRef);
                     return "{\"RspCode\":\"00\",\"Message\":\"Confirm Success\"}";
                 } else {
@@ -359,6 +447,9 @@ public class VNPayService {
             return "{\"RspCode\":\"97\",\"Message\":\"Invalid Checksum\"}"; // Chữ ký không hợp lệ
         }
     }
+
+    @Autowired
+    private EmailService emailService;
 
 
     // Logic cập nhật Subscription và User Role
@@ -498,40 +589,36 @@ public class VNPayService {
 //        String paymentUrl = VNPayConfig.vnp_PayUrl + "?" + queryUrl;
 //        return paymentUrl;
 //    }
-
-    public int orderReturn(HttpServletRequest request){
-        Map fields = new HashMap();
-        for (Enumeration params = request.getParameterNames(); params.hasMoreElements();) {
-            String fieldName = null;
-            String fieldValue = null;
-            try {
-                fieldName = URLEncoder.encode((String) params.nextElement(), StandardCharsets.US_ASCII.toString());
-                fieldValue = URLEncoder.encode(request.getParameter(fieldName), StandardCharsets.US_ASCII.toString());
-            } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
-            }
-            if ((fieldValue != null) && (!fieldValue.isEmpty())) {
-                fields.put(fieldName, fieldValue);
-            }
-        }
-
-        String vnp_SecureHash = request.getParameter("vnp_SecureHash");
-        if (fields.containsKey("vnp_SecureHashType")) {
-            fields.remove("vnp_SecureHashType");
-        }
-        if (fields.containsKey("vnp_SecureHash")) {
-            fields.remove("vnp_SecureHash");
-        }
-        String signValue = VNPayConfig.hashAllFields(fields);
-        if (signValue.equals(vnp_SecureHash)) {
-            if ("00".equals(request.getParameter("vnp_TransactionStatus"))) {
-                return 1;
-            } else {
-                return 0;
-            }
-        } else {
-            return -1;
-        }
-    }
+//
+//    public int orderReturn(HttpServletRequest request){
+//        Map fields = new HashMap();
+//        for (Enumeration params = request.getParameterNames(); params.hasMoreElements();) {
+//            String fieldName = null;
+//            String fieldValue = null;
+//            fieldName = URLEncoder.encode((String) params.nextElement(), StandardCharsets.US_ASCII);
+//            fieldValue = URLEncoder.encode(request.getParameter(fieldName), StandardCharsets.US_ASCII);
+//            if ((fieldValue != null) && (!fieldValue.isEmpty())) {
+//                fields.put(fieldName, fieldValue);
+//            }
+//        }
+//
+//        String vnp_SecureHash = request.getParameter("vnp_SecureHash");
+//        if (fields.containsKey("vnp_SecureHashType")) {
+//            fields.remove("vnp_SecureHashType");
+//        }
+//        if (fields.containsKey("vnp_SecureHash")) {
+//            fields.remove("vnp_SecureHash");
+//        }
+//        String signValue = VNPayConfig.hashAllFields(fields);
+//        if (signValue.equals(vnp_SecureHash)) {
+//            if ("00".equals(request.getParameter("vnp_TransactionStatus"))) {
+//                return 1;
+//            } else {
+//                return 0;
+//            }
+//        } else {
+//            return -1;
+//        }
+//    }
 
 }

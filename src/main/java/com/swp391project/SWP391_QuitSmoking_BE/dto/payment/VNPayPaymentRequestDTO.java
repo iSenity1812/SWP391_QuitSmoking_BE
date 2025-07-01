@@ -24,9 +24,11 @@ public class VNPayPaymentRequestDTO {
 
     private String orderType = "other"; // Loại đơn hàng, có thể để mặc định hoặc cho phép chọn
     private String bankCode; // Mã ngân hàng (optional)
+
+    @NotNull(message = "ID gói Plan không được để trống")
     private Integer planId; // ID của gói Plan mà người dùng muốn mua
 
-    @NotNull(message = "ID người dùng không được để trống")
-    private UUID userId;
+//    @NotNull(message = "ID người dùng không được để trống")
+//    private UUID userId;
 
 }

@@ -1,8 +1,10 @@
 package com.swp391project.SWP391_QuitSmoking_BE.config;
 
 
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
@@ -15,20 +17,20 @@ import java.util.*;
 
 @Component
 public class VNPayConfig {
-    @Value("${vnpay.payUrl}")
+
     public static String vnp_PayUrl;
 
-    @Value("${vnpay.returnUrl}")
     public static String vnp_Returnurl;
 
-    @Value("${vnpay.tmnCode}")
     public static String vnp_TmnCode;
 
-    @Value("${vnpay.hashSecret}")
     public static String vnp_HashSecret = "";
 
-    @Value("${vnpay.apiUrl}")
     public static String vnp_apiUrl;
+
+    public static String vnp_ipnUrl;
+
+    // Sử dụng @PostConstruct để gán các giá trị đã được inject vào các biến static của VNPayConfig
 
     public static String md5(String message) {
         String digest = null;

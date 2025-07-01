@@ -22,7 +22,7 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@ValidDurationTypeConstraint //custom annotation kiểm tra giá trị giữa durationType và duration
+//@ValidDurationTypeConstraint //custom annotation kiểm tra giá trị giữa durationType và duration
 @Table(name = "subscription")
 public class Subscription {
     @Id

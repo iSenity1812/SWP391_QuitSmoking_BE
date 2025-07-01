@@ -1,12 +1,10 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
 
+import com.swp391project.SWP391_QuitSmoking_BE.enums.PaidPlanType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -15,6 +13,7 @@ import java.util.Set;
 @Entity
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "Plan")
@@ -24,10 +23,10 @@ public class Plan {
     @Column(name = "PlanID", updatable = false, nullable = false)
     private Integer planId;
 
-    @NotBlank(message = "Tên gói không được để trống")
-    @Size(max = 255, message = "Tên gói không được vượt quá 255 ký tự")
-    @Column(name = "PlanName", length = 255, nullable = false, unique = true)
-    private String planName;
+    @NotNull(message = "Tên gói không được để trống")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "PlanName", length = 50, nullable = false, unique = true)
+    private PaidPlanType planName;
 
     @Column(name = "Description", columnDefinition = "TEXT")
     private String description;
