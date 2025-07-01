@@ -20,5 +20,8 @@ public class BlogRequestDTO {
     @NotBlank(message = "Content cannot be empty")
     private String content;
 
+    @Size(max = 500, message = "Image URL cannot exceed 500 characters")
+    private String imageUrl;
+
 
 }

@@ -20,6 +20,7 @@ public class BlogResponseDTO {
     private Integer blogId;
     private String title;
     private String content;
+    private String imageUrl;
 
     private UserResponseDTO author; // Thông tin tác giả (chỉ cần id, name, etc.)
     private String status;
