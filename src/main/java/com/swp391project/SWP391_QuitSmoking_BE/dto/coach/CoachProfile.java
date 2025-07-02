@@ -7,7 +7,7 @@ import java.util.UUID;
 
 @Data
 public class CoachProfile {
-    private UUID userId;
+    private UUID coachId;
     private String username;
     private String fullName;
     private String coachBio;

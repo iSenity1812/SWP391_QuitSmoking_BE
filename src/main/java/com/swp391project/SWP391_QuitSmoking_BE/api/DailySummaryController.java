@@ -27,7 +27,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/diary")
+@RequestMapping("/diary")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "diary_api")
 public class DailySummaryController {

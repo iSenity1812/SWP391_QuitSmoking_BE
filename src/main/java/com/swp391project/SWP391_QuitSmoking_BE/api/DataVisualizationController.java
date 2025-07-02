@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/charts")
+@RequestMapping("/charts")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "user_api")
 public class DataVisualizationController {

@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RequiredArgsConstructor
-@RequestMapping("/api/agora")
+@RequestMapping("/agora")
 @RestController
 @SecurityRequirement(name = "user_api")
 public class AgoraController {

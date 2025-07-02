@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/quit-plans")
+@RequestMapping("/quit-plans")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "quit_plan_api")
 public class QuitPlanController {

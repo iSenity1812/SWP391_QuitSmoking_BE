@@ -28,7 +28,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/appointments")
+@RequestMapping("/appointments")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "appointment")
 public class AppointmentController {

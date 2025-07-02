@@ -66,12 +66,10 @@ public class AuthenticationService implements UserDetailsService {
             log.debug("Attempting to authenticate user with email: {}", loginRequest.getEmail());
             authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            loginRequest.getEmail(), // Có thể là email hoặc username
+                            loginRequest.getEmail(),
                             loginRequest.getPassword()
                     )
             );
-            // Quan trọng: Set SecurityContextHolder chỉ khi xác thực thành công
-            // Nếu không, khi có lỗi sẽ không có authentication để set vào context.
             SecurityContextHolder.getContext().setAuthentication(authentication);
             log.info("User {} authenticated successfully.", loginRequest.getEmail());
         } catch (BadCredentialsException e) {
@@ -79,7 +77,7 @@ public class AuthenticationService implements UserDetailsService {
             throw new BadCredentialsException("Invalid email/username or password.");
         } catch (Exception e) {
             log.error("Authentication failed for user {}: {}", loginRequest.getEmail(), e.getMessage(), e);
-            throw new RuntimeException("Authentication failed: " + e.getMessage());
+            throw new RuntimeException("Authentication failed: " + e.getMessage(), e);
         }
 
         User user = authenticationRepository.findByEmail(loginRequest.getEmail())

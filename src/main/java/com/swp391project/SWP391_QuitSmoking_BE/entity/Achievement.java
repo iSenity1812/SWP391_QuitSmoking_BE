@@ -17,7 +17,7 @@ public class Achievement {
     @Column(name = "AchievementID")
     private Long achievementId;
 
-    @Column(name = "AchievementName", nullable = false, unique = true)
+    @Column(name = "achievement_name", nullable = false, unique = true)
     private String name;
 
     @Column(name = "IconUrl")
@@ -30,7 +30,7 @@ public class Achievement {
     @Column(name = "AchievementType", nullable = false)
     private AchievementType achievementType;
 
-    @Column(name = "MilestoneValue", nullable = false)
+    @Column(name = "milestone_value", nullable = false)
     private BigDecimal milestoneValue;
 
     @Column(name = "CreatedAt", nullable = false)

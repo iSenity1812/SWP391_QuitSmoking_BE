@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/coach")
+@RequestMapping("/coach")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "user_api")
 public class CoachController {

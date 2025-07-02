@@ -112,12 +112,42 @@ public class AchievementService {
 
         // Lấy tất cả achievements
         List<Achievement> allAchievements = achievementRepository.findAll();
+        List<MemberAchievement> userAchievements = memberAchievementRepository.findByMember_MemberId(memberId);
 
+        // Xóa các thành tựu đã unlock nhưng không còn đủ điều kiện (do bug/test cũ)
+        for (MemberAchievement ma : userAchievements) {
+            Achievement achievement = allAchievements.stream()
+                .filter(a -> a.getAchievementId().equals(ma.getAchievementId()))
+                .findFirst().orElse(null);
+            if (achievement != null) {
+                boolean shouldStillUnlock = false;
+                switch (achievement.getAchievementType()) {
+                    case DAYS_QUIT:
+                        shouldStillUnlock = currentDaysQuit.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case MONEY_SAVED:
+                        shouldStillUnlock = currentMoneySaved.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case CIGARETTES_NOT_SMOKED:
+                        shouldStillUnlock = currentCigarettesNotSmoked.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case DAILY:
+                        shouldStillUnlock = hasConsecutiveDailyAchievements(memberId, achievement.getMilestoneValue().intValue());
+                        break;
+                    default:
+                        shouldStillUnlock = false;
+                }
+                if (!shouldStillUnlock) {
+                    System.out.println("[AchievementService] XÓA thành tựu không hợp lệ: " + achievement.getName() + " (" + achievement.getMilestoneValue() + ") cho memberId: " + memberId + ". Số liệu hiện tại: daysQuit=" + currentDaysQuit + ", moneySaved=" + currentMoneySaved + ", cigarettesNotSmoked=" + currentCigarettesNotSmoked);
+                    memberAchievementRepository.delete(ma);
+                }
+            }
+        }
+
+        // Sau khi làm sạch, tiến hành unlock các thành tựu đủ điều kiện
         for (Achievement achievement : allAchievements) {
-            // Kiểm tra xem achievement đã được unlock chưa
             if (!isAchievementUnlocked(memberId, achievement.getAchievementId())) {
                 boolean shouldUnlock = false;
-
                 switch (achievement.getAchievementType()) {
                     case DAYS_QUIT:
                         shouldUnlock = currentDaysQuit.compareTo(achievement.getMilestoneValue()) >= 0;
@@ -129,22 +159,11 @@ public class AchievementService {
                         shouldUnlock = currentCigarettesNotSmoked.compareTo(achievement.getMilestoneValue()) >= 0;
                         break;
                     case DAILY:
-                        // TODO: Logic unlock daily achievement nếu có
+                        shouldUnlock = hasConsecutiveDailyAchievements(memberId, achievement.getMilestoneValue().intValue());
                         break;
-                    case RESILIENCE:
-                        // TODO: Logic unlock resilience achievement nếu có
-                        break;
-                    case HEALTH:
-                        // TODO: Logic unlock health achievement nếu có
-                        break;
-                    case SOCIAL:
-                        // TODO: Logic unlock social achievement nếu có
-                        break;
-                    case SPECIAL:
-                        // TODO: Logic unlock special achievement nếu có
-                        break;
+                    default:
+                        shouldUnlock = false;
                 }
-
                 if (shouldUnlock) {
                     unlockAchievement(memberId, achievement);
                 }
@@ -185,31 +204,27 @@ public class AchievementService {
     private BigDecimal calculateMoneySaved(UUID memberId) {
         // Lấy quit plan hiện tại
         Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
-        
         if (quitPlanOpt.isEmpty()) {
             return BigDecimal.ZERO;
         }
+        QuitPlan plan = quitPlanOpt.get();
+        LocalDate startDate = plan.getStartDate().toLocalDate();
+        int cigarettesPerDay = plan.getInitialSmokingAmount();
+        int pricePerPack = plan.getPricePerPack().intValue();
+        int cigarettesPerPack = plan.getCigarettesPerPack();
+        int pricePerCigarette = pricePerPack / cigarettesPerPack;
 
-        QuitPlan quitPlan = quitPlanOpt.get();
-        BigDecimal pricePerPack = quitPlan.getPricePerPack();
-        int cigarettesPerPack = quitPlan.getCigarettesPerPack();
-        int initialSmokingAmount = quitPlan.getInitialSmokingAmount();
+        long days = ChronoUnit.DAYS.between(startDate, LocalDate.now());
+        long totalShouldSmoke = days * cigarettesPerDay;
 
-        if (pricePerPack == null || cigarettesPerPack == 0) {
-            return BigDecimal.ZERO;
-        }
+        List<DailySummary> summaries = dailySummaryRepository.findByQuitPlan_QuitPlanId(plan.getQuitPlanId());
+        long totalActualSmoked = summaries.stream().mapToLong(DailySummary::getTotalSmokedCount).sum();
 
-        // Tính số tiền tiết kiệm từ daily summaries
-        List<DailySummary> dailySummaries = dailySummaryRepository.findByQuitPlan_QuitPlanId(quitPlan.getQuitPlanId());
-        
-        BigDecimal totalMoneySaved = BigDecimal.ZERO;
-        for (DailySummary summary : dailySummaries) {
-            if (summary.getMoneySaved() != null) {
-                totalMoneySaved = totalMoneySaved.add(summary.getMoneySaved());
-            }
-        }
+        long avoided = totalShouldSmoke - totalActualSmoked;
+        if (avoided < 0) avoided = 0;
 
-        return totalMoneySaved;
+        long moneySaved = avoided * pricePerCigarette;
+        return BigDecimal.valueOf(moneySaved);
     }
 
     private BigDecimal calculateCigarettesNotSmoked(UUID memberId) {
@@ -347,5 +362,125 @@ public class AchievementService {
             ));
         }
         return result;
+    }
+
+    // Thêm hàm kiểm tra số ngày liên tiếp hoàn thành daily
+    /**
+     * Kiểm tra user đã hoàn thành liên tiếp requiredDays ngày với isGoalAchievedToday=true chưa
+     */
+    private boolean hasConsecutiveDailyAchievements(UUID memberId, int requiredDays) {
+        // Lấy quit plan hiện tại
+        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
+        if (quitPlanOpt.isEmpty()) return false;
+        QuitPlan quitPlan = quitPlanOpt.get();
+        // Lấy toàn bộ daily summary của quit plan này, sắp xếp giảm dần theo ngày
+        List<DailySummary> summaries = dailySummaryRepository.findByQuitPlanOrderByTrackDateDesc(quitPlan);
+        if (summaries.isEmpty()) return false;
+        int count = 0;
+        LocalDate prevDate = null;
+        for (DailySummary summary : summaries) {
+            if (!summary.isGoalAchievedToday()) {
+                count = 0;
+                prevDate = null;
+                continue;
+            }
+            if (prevDate == null) {
+                count = 1;
+            } else {
+                // Kiểm tra ngày có liên tiếp không
+                if (summary.getTrackDate().plusDays(1).equals(prevDate)) {
+                    count++;
+                } else {
+                    count = 1;
+                }
+            }
+            prevDate = summary.getTrackDate();
+            if (count >= requiredDays) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Xóa tất cả các thành tựu không còn đủ điều kiện cho memberId (dùng cho admin hoặc tự động làm sạch dữ liệu)
+     */
+    @Transactional
+    public void cleanInvalidAchievements(UUID memberId) {
+        BigDecimal currentDaysQuit = calculateDaysQuit(memberId);
+        BigDecimal currentMoneySaved = calculateMoneySaved(memberId);
+        BigDecimal currentCigarettesNotSmoked = calculateCigarettesNotSmoked(memberId);
+        List<Achievement> allAchievements = achievementRepository.findAll();
+        List<MemberAchievement> userAchievements = memberAchievementRepository.findByMember_MemberId(memberId);
+        for (MemberAchievement ma : userAchievements) {
+            Achievement achievement = allAchievements.stream()
+                .filter(a -> a.getAchievementId().equals(ma.getAchievementId()))
+                .findFirst().orElse(null);
+            if (achievement != null) {
+                boolean shouldStillUnlock = false;
+                switch (achievement.getAchievementType()) {
+                    case DAYS_QUIT:
+                        shouldStillUnlock = currentDaysQuit.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case MONEY_SAVED:
+                        shouldStillUnlock = currentMoneySaved.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case CIGARETTES_NOT_SMOKED:
+                        shouldStillUnlock = currentCigarettesNotSmoked.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case DAILY:
+                        shouldStillUnlock = hasConsecutiveDailyAchievements(memberId, achievement.getMilestoneValue().intValue());
+                        break;
+                    default:
+                        shouldStillUnlock = false;
+                }
+                if (!shouldStillUnlock) {
+                    System.out.println("[AchievementService] XÓA thành tựu không hợp lệ (cleanInvalidAchievements): " + achievement.getName() + " (" + achievement.getMilestoneValue() + ") cho memberId: " + memberId + ". Số liệu hiện tại: daysQuit=" + currentDaysQuit + ", moneySaved=" + currentMoneySaved + ", cigarettesNotSmoked=" + currentCigarettesNotSmoked);
+                    memberAchievementRepository.delete(ma);
+                }
+            }
+        }
+    }
+
+    /**
+     * Trả về milestone/cột mốc tiếp theo cho user (ưu tiên DAYS_QUIT, MONEY_SAVED, CIGARETTES_NOT_SMOKED)
+     */
+    public NextMilestoneDTO getNextMilestone(UUID memberId) {
+        List<Achievement> allAchievements = achievementRepository.findAll();
+        List<MemberAchievement> userAchievements = memberAchievementRepository.findByMember_MemberId(memberId);
+        var unlockedIds = userAchievements.stream().map(MemberAchievement::getAchievementId).collect(Collectors.toSet());
+        // Ưu tiên DAYS_QUIT trước, sau đó MONEY_SAVED, rồi CIGARETTES_NOT_SMOKED
+        Achievement.AchievementType[] types = {Achievement.AchievementType.DAYS_QUIT, Achievement.AchievementType.MONEY_SAVED, Achievement.AchievementType.CIGARETTES_NOT_SMOKED};
+        for (Achievement.AchievementType type : types) {
+            var milestones = allAchievements.stream()
+                .filter(a -> a.getAchievementType() == type)
+                .sorted((a, b) -> a.getMilestoneValue().compareTo(b.getMilestoneValue()))
+                .collect(Collectors.toList());
+            BigDecimal current = getCurrentProgress(memberId, type);
+            for (Achievement milestone : milestones) {
+                if (!unlockedIds.contains(milestone.getAchievementId())) {
+                    BigDecimal left = milestone.getMilestoneValue().subtract(current);
+                    if (left.compareTo(BigDecimal.ZERO) < 0) left = BigDecimal.ZERO;
+                    return new NextMilestoneDTO(
+                        milestone.getName(),
+                        left,
+                        milestone.getDescription(),
+                        type.name(),
+                        milestone.getMilestoneValue()
+                    );
+                }
+            }
+        }
+        // Nếu đã đạt hết, trả về null hoặc milestone cuối cùng
+        return null;
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    public static class NextMilestoneDTO {
+        private String name;
+        private BigDecimal left;
+        private String reward;
+        private String type;
+        private BigDecimal milestoneValue;
     }
 } 

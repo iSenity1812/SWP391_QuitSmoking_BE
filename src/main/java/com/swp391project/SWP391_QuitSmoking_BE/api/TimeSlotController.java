@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/timeslots")
+@RequestMapping("/timeslots")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "booking_schedule_api")
 public class TimeSlotController {

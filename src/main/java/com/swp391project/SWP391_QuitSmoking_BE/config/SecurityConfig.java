@@ -23,6 +23,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
+import org.springframework.core.annotation.Order;
 
 @Configuration
 @EnableWebSecurity // Bật EnableWebSecurity để kích hoạt bảo mật web
@@ -73,6 +74,7 @@ public class SecurityConfig {
 
     // Cấu hình corsFilter gọi API từ frontend
     @Bean
+    @Order(0)
     public CorsFilter corsFilter() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
@@ -93,21 +95,12 @@ public class SecurityConfig {
                 // Nên bật CSRF protection nếu ứng dụng, Với JWT, Stateless session thì có thể tắt CSRF
                 .authorizeHttpRequests( // Cấu hình phân quyền truy cập
                     req -> req
-//                            // -- Public endpoints - không cần xác thực
-//                        .requestMatchers("/api/auth/**").permitAll() // Cho phép truy cập không cần xác thực cho các endpoint auth
-//                        .requestMatchers("/", "/home", "/blogs", "/about", "/contact", "/programs").permitAll() // Cho phép truy cập không cần xác thực cho các trang chủ và blog
-//                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                            .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger UI
-//
-//                            .requestMatchers(HttpMethod.POST, "/api/users").hasRole("SUPER_ADMIN")
-//                            .requestMatchers(HttpMethod.GET, "/api/users").hasRole("SUPER_ADMIN")
-//                            .requestMatchers(HttpMethod.DELETE, "/api/users/{userId}").hasRole("SUPER_ADMIN")
-                        .requestMatchers("/api/auth/login", "/api/auth/register").permitAll() // Cho phép truy cập không cần xác thực cho tất cả các endpoint
-//                        .requestMatchers(HttpMethod.GET, "/api/admin/**").hasAnyRole("CONTENT_ADMIN", "SUPER_ADMIN") // Chỉ cho phép người dùng đã xác thực truy cập
-                        .requestMatchers("/api/auth/logout").authenticated()
-                        .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
-                            .requestMatchers("/api/coaches/**").authenticated()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger UI
+                        .requestMatchers("/auth/login", "/auth/register").permitAll() // Cho phép truy cập không cần xác thực cho login/register
+                        .requestMatchers("/auth/logout").authenticated()
+                        .requestMatchers("/superadmin/**").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/coaches/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

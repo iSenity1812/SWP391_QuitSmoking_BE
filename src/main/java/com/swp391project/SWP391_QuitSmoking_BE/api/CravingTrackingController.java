@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/tracking")
+@RequestMapping("/tracking")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "checkin_api")
 public class CravingTrackingController {

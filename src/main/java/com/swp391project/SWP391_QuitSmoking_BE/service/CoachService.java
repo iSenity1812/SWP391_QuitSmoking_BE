@@ -10,6 +10,8 @@ import com.swp391project.SWP391_QuitSmoking_BE.repository.CoachRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +25,7 @@ public class CoachService {
     private final CoachRepository coachRepository;
     private final UserRepository userRepository;
     private final ModelMapper modelMapper;
+    private static final Logger log = LoggerFactory.getLogger(CoachService.class);
 
     @Autowired
     public CoachService(
@@ -36,19 +39,27 @@ public class CoachService {
 
     private CoachProfile convertToResponseDto(Coach coach) {
         CoachProfile response = new CoachProfile();
-        response.setCoachBio(coach.getCoachBio());
-        response.setFullName(coach.getFullName());
-        response.setRating(coach.getRating());
-        response.setUserId(coach.getCoachId());
-        response.setUsername(coach.getUser().getUsername());
-        response.setSpecialties(
+        try {
+            response.setCoachBio(coach.getCoachBio());
+            response.setFullName(coach.getFullName());
+            response.setRating(coach.getRating());
+            response.setCoachId(coach.getCoachId());
+            if (coach.getUser() != null) {
+                response.setUsername(coach.getUser().getUsername());
+            } else {
+                log.error("Coach {} does not have a linked user!", coach.getCoachId());
+                response.setUsername("(Không có user)");
+            }
+            response.setSpecialties(
                 coach.getSpecialties() != null
-                        ? String.join(", ", coach.getSpecialties().stream()
-                        .map(Enum::name)
-                        .toList())
-                        : "Chưa có chuyên môn"
-        );
-
+                    ? String.join(", ", coach.getSpecialties().stream().map(Enum::name).toList())
+                    : "Chưa có chuyên môn"
+            );
+            response.setActive(true);
+        } catch (Exception e) {
+            log.error("Error mapping CoachProfile for coach {}: {}", coach.getCoachId(), e.getMessage(), e);
+            throw new RuntimeException("Lỗi khi trả về thông tin huấn luyện viên: " + e.getMessage());
+        }
         return response;
     }
 

@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/coaches/schedules")
+@RequestMapping("/coaches/schedules")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "booking_schedule_api")
 public class CoachScheduleController {

@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/achievements")
+@RequestMapping("/achievements")
 public class AchievementController {
     @Autowired
     private AchievementService achievementService;
@@ -172,6 +172,29 @@ public class AchievementController {
             System.out.println("=== TEST ERROR: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.ok("ERROR: " + e.getMessage());
+        }
+    }
+
+    // API cho admin: Xóa tất cả thành tựu không còn đủ điều kiện cho user
+    @DeleteMapping("/member/{memberId}/clean-invalid")
+    public ResponseEntity<String> cleanInvalidAchievements(@PathVariable UUID memberId) {
+        try {
+            achievementService.cleanInvalidAchievements(memberId);
+            return ResponseEntity.ok("Đã xóa các thành tựu không còn đủ điều kiện cho user: " + memberId);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Lỗi khi xóa thành tựu không hợp lệ: " + e.getMessage());
+        }
+    }
+
+    // API trả về milestone/cột mốc tiếp theo cho user
+    @GetMapping("/member/{memberId}/next-milestone")
+    public ResponseEntity<?> getNextMilestone(@PathVariable UUID memberId) {
+        try {
+            var milestone = achievementService.getNextMilestone(memberId);
+            if (milestone == null) return ResponseEntity.ok().body(null);
+            return ResponseEntity.ok(milestone);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error: " + e.getMessage());
         }
     }
 } 

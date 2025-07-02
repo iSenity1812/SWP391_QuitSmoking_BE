@@ -2,6 +2,8 @@ package com.swp391project.SWP391_QuitSmoking_BE.api;
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.coach.CoachProfile;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.AdminUserCreateRequest;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.request.ChangePasswordRequest;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.response.UserQuitStatsResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserProfile;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserUpdateRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
@@ -20,7 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "user_api")
 public class UserController {
@@ -172,5 +174,26 @@ public class UserController {
                 .body(ApiResponse.success(updatedProfile, "Cập nhật tên người dùng thành công"));
     }
 
+    // Đổi mật khẩu cho user hiện tại
+    @PatchMapping("/profile/password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            Authentication authentication,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        User user = (User) authentication.getPrincipal();
+        userService.changePassword(user.getUserId(), request.getCurrentPassword(), request.getNewPassword());
+        return ResponseEntity.ok(ApiResponse.success(null, "Đổi mật khẩu thành công!"));
+    }
+
+    // Thống kê cai thuốc cho user hiện tại
+    @GetMapping("/profile/quit-stats")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserQuitStatsResponse>> getUserQuitStats(Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        // memberId = user.getMember().getMemberId()
+        UUID memberId = user.getMember().getMemberId();
+        UserQuitStatsResponse stats = userService.getUserQuitStats(memberId);
+        return ResponseEntity.ok(ApiResponse.success(stats, "Lấy thống kê cai thuốc thành công!"));
+    }
 
 }
