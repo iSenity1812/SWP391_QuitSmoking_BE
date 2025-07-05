@@ -1,0 +1,11 @@
+/* styles.css */
+.soft-edge {
+  -webkit-mask-image: 
+    linear-gradient(to top, transparent 0%, black 30%, black 70%, transparent 100%),
+    linear-gradient(to left, transparent 0%, black 30%, black 70%, transparent 100%);
+  -webkit-mask-composite: intersect;
+  mask-image: 
+    linear-gradient(to top, transparent 0%, black 30%, black 70%, transparent 100%),
+    linear-gradient(to left, transparent 0%, black 30%, black 70%, transparent 100%);
+  mask-composite: intersect;
+}
