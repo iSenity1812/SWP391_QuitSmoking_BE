@@ -91,6 +91,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Save to localStorage immediately
         localStorage.setItem(AUTH_TOKEN, token);
         localStorage.setItem(USER_INFO, JSON.stringify(userData));
+        // Lưu userId riêng biệt để các service khác sử dụng
+        if (userData.userId) {
+          localStorage.setItem("userId", userData.userId);
+        }
 
         // Update state
         setToken(token);
@@ -130,6 +134,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Save to localStorage immediately
         localStorage.setItem(AUTH_TOKEN, token);
         localStorage.setItem(USER_INFO, JSON.stringify(userData));
+        // Lưu userId riêng biệt để các service khác sử dụng
+        if (userData.userId) {
+          localStorage.setItem("userId", userData.userId);
+        }
 
         // Update state
         setToken(token);
