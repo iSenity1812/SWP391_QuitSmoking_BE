@@ -24,8 +24,12 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -77,25 +81,46 @@ public class VNPayController {
     @Operation(summary = "Xử lý Return URL từ VNPay",
             description = "Endpoint này được VNPay gọi sau khi khách hàng hoàn tất thanh toán. Đây là callback qua trình duyệt.")
     @GetMapping("/payment-return")
-    public ResponseEntity<ApiResponse<VNPayTransactionResultDTO>> paymentReturn(HttpServletRequest request) {
-        logger.info("Received VNPAY return callback.");
+    public RedirectView paymentReturn(HttpServletRequest request) {
+        logger.info("Received VNPAY return callback for browser redirect.");
+        // Đảm bảo URL này là URL của trang kết quả trên frontend của bạn
+        String frontendRedirectBaseUrl = "http://localhost:5173/payment-return";
+        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString(frontendRedirectBaseUrl);
+
         try {
             VNPayTransactionResultDTO resultData = vnpayService.processPaymentReturn(request);
-            // Dựa vào RspCode để trả về thông báo phù hợp
-            if ("00".equals(resultData.getVnp_ResponseCode())) {
-                return ResponseEntity.ok(ApiResponse.success(resultData, "Giao dịch VNPay thành công."));
-            } else if ("97".equals(resultData.getVnp_ResponseCode())) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Chữ ký VNPay không hợp lệ.", resultData.getMessage(), "VNPAY_INVALID_SIGNATURE"));
+
+            // Mã hóa từng tham số trước khi thêm vào URL frontend
+            uriBuilder.queryParam("vnp_ResponseCode", URLEncoder.encode(resultData.getVnp_ResponseCode() != null ? resultData.getVnp_ResponseCode() : "", StandardCharsets.UTF_8.toString()));
+            uriBuilder.queryParam("vnp_TxnRef", URLEncoder.encode(resultData.getVnp_TxnRef() != null ? resultData.getVnp_TxnRef() : "", StandardCharsets.UTF_8.toString()));
+            uriBuilder.queryParam("vnp_Amount", URLEncoder.encode(resultData.getVnp_Amount() != null ? resultData.getVnp_Amount().toPlainString() : "", StandardCharsets.UTF_8.toString()));
+            uriBuilder.queryParam("vnp_OrderInfo", URLEncoder.encode(resultData.getVnp_OrderInfo() != null ? resultData.getVnp_OrderInfo() : "", StandardCharsets.UTF_8.toString()));
+            uriBuilder.queryParam("vnp_PayDate", URLEncoder.encode(resultData.getVnp_PayDate() != null ? resultData.getVnp_PayDate() : "", StandardCharsets.UTF_8.toString()));
+            uriBuilder.queryParam("vnp_TransactionStatus", URLEncoder.encode(resultData.getVnp_TransactionStatus() != null ? resultData.getVnp_TransactionStatus() : "", StandardCharsets.UTF_8.toString()));
+            uriBuilder.queryParam("message", URLEncoder.encode(resultData.getMessage() != null ? resultData.getMessage() : "", StandardCharsets.UTF_8.toString()));
+
+            // Thêm một tham số tổng quan về trạng thái để frontend dễ xử lý
+            if ("00".equals(resultData.getVnp_ResponseCode()) && "SUCCESS".equals(resultData.getVnp_TransactionStatus())) {
+                uriBuilder.queryParam("status", "success");
             } else {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Giao dịch VNPay thất bại.", resultData.getMessage(), "VNPAY_TRANSACTION_FAILED"));
+                uriBuilder.queryParam("status", "failed");
             }
+
         } catch (Exception e) {
-            logger.error("An unexpected error occurred while processing VNPAY return: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Đã xảy ra lỗi không mong muốn khi xử lý kết quả thanh toán.", e.getMessage(), "UNEXPECTED_ERROR"));
+            logger.error("An unexpected error occurred while redirecting VNPAY return: {}", e.getMessage());
+            uriBuilder = UriComponentsBuilder.fromUriString(frontendRedirectBaseUrl);
+            uriBuilder.queryParam("status", "error");
+            try {
+                uriBuilder.queryParam("message", URLEncoder.encode("Đã xảy ra lỗi không mong muốn từ hệ thống: " + e.getMessage(), StandardCharsets.UTF_8.toString()));
+            } catch (Exception encodeError) {
+                logger.error("Error encoding error message for redirect: {}", encodeError.getMessage());
+                uriBuilder.queryParam("message", "Đã xảy ra lỗi không mong muốn.");
+            }
         }
+
+        String redirectUrl = uriBuilder.toUriString();
+        logger.info("Redirecting browser to frontend URL: {}", redirectUrl);
+        return new RedirectView(redirectUrl);
     }
 
     @Operation(summary = "Xử lý IPN từ VNPay (Instant Payment Notification)",

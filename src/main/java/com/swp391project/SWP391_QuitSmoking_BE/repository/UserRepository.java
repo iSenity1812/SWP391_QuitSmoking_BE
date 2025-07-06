@@ -17,4 +17,5 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByEmail(String email);
     List<User> findAllByIsActiveTrue(); // Lấy tất cả người dùng đang hoạt động
     List<User> findAllByIsActiveFalse(); // Lấy tất cả người dùng không hoạt động
+    List<User> findByEmailContainingIgnoreCaseOrUsernameContainingIgnoreCase(String email, String username);
 }

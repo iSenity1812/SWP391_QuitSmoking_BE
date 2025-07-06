@@ -4,9 +4,12 @@ import com.swp391project.SWP391_QuitSmoking_BE.entity.Subscription;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.SubscriptionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Repository
@@ -45,4 +48,36 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     Optional<Subscription> findByUser_UserIdAndIsActiveTrue(UUID userId);
     List<Subscription> findByUser(User user);
+
+    @Query("SELECT COUNT(s) FROM Subscription s WHERE s.isActive = true")
+    Long countActiveSubscriptions();
+
+    @Query("SELECT COUNT(s) FROM Subscription s " +
+            "WHERE s.isActive = true AND s.startDate BETWEEN :start AND :end")
+    Long countNewSubscriptions(@Param("start") LocalDateTime start,
+                               @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(s) FROM Subscription s " +
+            "WHERE s.isActive = false AND s.endDate BETWEEN :start AND :end")
+    Long countExpiredSubscriptions(@Param("start") LocalDateTime start,
+                                   @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(DISTINCT s.user.userId) FROM Subscription s WHERE s.isActive = true")
+    Long countUsersWithActiveSubscription();
+
+    // Lấy subscription active của user để hiển thị plan hiện tại
+    @Query("SELECT s FROM Subscription s " +
+            "JOIN FETCH s.plan p " +
+            "WHERE s.user.userId = :userId AND s.isActive = true")
+    Optional<Subscription> findActiveSubscriptionByUserId(@Param("userId") UUID userId);
+
+    // Lấy subscription count theo plan
+    @Query("SELECT " +
+            "p.planId as planId, " +
+            "COUNT(s) as activeSubscriptions " +
+            "FROM Subscription s " +
+            "JOIN s.plan p " +
+            "WHERE s.isActive = true " +
+            "GROUP BY p.planId")
+    List<Object[]> getActiveSubscriptionCountByPlan();
 }

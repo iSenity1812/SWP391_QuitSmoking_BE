@@ -72,7 +72,7 @@ public class VNPayService {
         String vnp_Command = "pay";
         String vnp_CurrCode = "VND";
         String vnp_Locale = "vn";
-        String vnp_OrderInfo = URLEncoder.encode(paymentRequestDTO.getOrderInfo() + " - OrderRef: " + vnp_TxnRef, StandardCharsets.US_ASCII);
+        String vnp_OrderInfo = URLEncoder.encode(paymentRequestDTO.getOrderInfo() + " - OrderRef: " + vnp_TxnRef, StandardCharsets.UTF_8);
         String vnp_OrderType = paymentRequestDTO.getOrderType();
         String vnp_Version = "2.1.0";
 
@@ -120,11 +120,11 @@ public class VNPayService {
                 // Build hash data
                 hashData.append(fieldName);
                 hashData.append("=");
-                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
+                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));
                 // Build query
-                query.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII));
+                query.append(URLEncoder.encode(fieldName, StandardCharsets.UTF_8));
                 query.append("=");
-                query.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
+                query.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));
                 if (itr.hasNext()) {
                     query.append("&");
                     hashData.append("&");
@@ -153,6 +153,8 @@ public class VNPayService {
     // Endpoint xử lý kết quả từ VNPay (Return URL)
     @Transactional
     public VNPayTransactionResultDTO processPaymentReturn(HttpServletRequest request) {
+        log.info("Processing VNPay payment return callback...");
+
         Map<String, String> vnp_Params = new HashMap<>();
         Enumeration<String> params = request.getParameterNames();
         while (params.hasMoreElements()) {
@@ -161,6 +163,20 @@ public class VNPayService {
             if (fieldValue != null && !fieldValue.isEmpty()) {
                 vnp_Params.put(fieldName, fieldValue);
             }
+        }
+
+        log.info("Return received with parameters: {}", vnp_Params);
+
+        // Kiểm tra các tham số quan trọng
+        String vnp_TxnRef = vnp_Params.get("vnp_TxnRef");
+        String vnp_ResponseCode = vnp_Params.get("vnp_ResponseCode");
+        if (vnp_TxnRef == null || vnp_TxnRef.isEmpty()) {
+            log.error("Missing vnp_TxnRef in return callback. All params: {}", vnp_Params);
+            VNPayTransactionResultDTO errorResult = new VNPayTransactionResultDTO();
+            errorResult.setVnp_ResponseCode("99");
+            errorResult.setMessage("Thiếu mã giao dịch (vnp_TxnRef)");
+            errorResult.setVnp_TransactionStatus("FAILED");
+            return errorResult;
         }
 
         String vnp_SecureHash = vnp_Params.get("vnp_SecureHash");
@@ -182,7 +198,7 @@ public class VNPayService {
             if ((fieldValue != null) && (!fieldValue.isEmpty())) {
                 hashData.append(fieldName);
                 hashData.append("=");
-                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
+                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));
                 if (itr.hasNext()) {
                     hashData.append("&");
                 }
@@ -190,6 +206,9 @@ public class VNPayService {
         }
 
         String checkHash = VNPayConfig.hmacSHA512(VNPayConfig.vnp_HashSecret, hashData.toString());
+
+        log.info("Return hash verification - Expected: {}, Actual: {}, Hash data: {}",
+                 vnp_SecureHash, checkHash, hashData.toString());
 
         VNPayTransactionResultDTO result = new VNPayTransactionResultDTO();
 
@@ -335,7 +354,7 @@ public class VNPayService {
             if ((fieldValue != null) && (!fieldValue.isEmpty())) {
                 hashData.append(fieldName);
                 hashData.append("=");
-                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
+                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));
                 if (itr.hasNext()) {
                     hashData.append("&");
                 }

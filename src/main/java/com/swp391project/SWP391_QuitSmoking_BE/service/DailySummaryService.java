@@ -51,7 +51,7 @@ public class DailySummaryService {
 
     //Phương thức để auto một bản ghi DailySummary khi một CravingTracking được tạo
     @Transactional
-    private DailySummary createDailySummary(QuitPlan quitPlan, LocalDate trackDate) {
+    public DailySummary createDailySummary(QuitPlan quitPlan, LocalDate trackDate) {
         // Kiểm tra xem đã có DailySummary cho ngày này và quit plan này chưa
         Optional<DailySummary> existingSummary = dailySummaryRepository.findByQuitPlanAndTrackDate(quitPlan, trackDate);
         if (existingSummary.isPresent()) {
