@@ -5,11 +5,17 @@ import com.swp391project.SWP391_QuitSmoking_BE.dto.normalMember.MemberResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.AdminUserCreateRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserProfile;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserUpdateRequest;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.response.UserQuitStatsResponse;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.DuplicateEmailException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.DuplicateUsernameException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -19,7 +25,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -33,6 +41,8 @@ public class UserService {
     private final CoachService coachService;
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
+    private final QuitPlanRepository quitPlanRepository;
+    private final DailySummaryRepository dailySummaryRepository;
 
     public List<UserProfile> getAllUsers() {
         List<User> users = userRepository.findAll();
@@ -270,5 +280,55 @@ public class UserService {
         User user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User with ID: " + userId + " is not exist."));
         userRepository.delete(user);
+    }
+
+    // Đổi mật khẩu cho user hiện tại
+    @Transactional
+    public void changePassword(UUID userId, String currentPassword, String newPassword) {
+        User user = getUserEntity(userId);
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new org.springframework.security.authentication.BadCredentialsException("Mật khẩu hiện tại không đúng");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    public UserQuitStatsResponse getUserQuitStats(UUID memberId) {
+        // 1. Lấy QuitPlan mới nhất (ưu tiên IN_PROGRESS, fallback gần nhất)
+        QuitPlan plan = quitPlanRepository.findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.IN_PROGRESS)
+                .orElseGet(() -> quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId).orElse(null));
+        if (plan == null) {
+            throw new ResourceNotFoundException("No quit plan found");
+        }
+        LocalDate startDate = plan.getStartDate().toLocalDate();
+        int cigarettesPerDay = plan.getInitialSmokingAmount();
+        int pricePerPack = plan.getPricePerPack().intValue();
+        int cigarettesPerPack = plan.getCigarettesPerPack();
+        int pricePerCigarette = pricePerPack / cigarettesPerPack;
+
+        // 2. Số ngày không hút
+        long days = ChronoUnit.DAYS.between(startDate, LocalDate.now());
+
+        // 3. Tổng số điếu lẽ ra hút
+        long totalShouldSmoke = days * cigarettesPerDay;
+
+        // 4. Tổng số điếu thực tế hút
+        List<DailySummary> summaries = dailySummaryRepository.findByQuitPlan_QuitPlanId(plan.getQuitPlanId());
+        long totalActualSmoked = summaries.stream().mapToLong(DailySummary::getTotalSmokedCount).sum();
+
+        // 5. Điếu đã tránh
+        long avoided = totalShouldSmoke - totalActualSmoked;
+        if (avoided < 0) avoided = 0;
+
+        // 6. Tiền tiết kiệm
+        long moneySaved = avoided * pricePerCigarette;
+
+        return new UserQuitStatsResponse(days, avoided, moneySaved);
+    }
+
+    public List<UserProfile> searchUserByEmailOrUsername(String query) {
+        List<User> users = userRepository.findByEmailContainingIgnoreCaseOrUsernameContainingIgnoreCase(query, query);
+        return users.stream().map(user -> modelMapper.map(user, UserProfile.class)).toList();
     }
 }
