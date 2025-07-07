@@ -22,7 +22,7 @@ public class BlogUpdateRequestDTO {
     private String content;
 
     // MultipartFile cho image upload (optional)
-    private MultipartFile image;
+    private MultipartFile imageUrl;
 
     // Flag để xóa image hiện tại}
 }

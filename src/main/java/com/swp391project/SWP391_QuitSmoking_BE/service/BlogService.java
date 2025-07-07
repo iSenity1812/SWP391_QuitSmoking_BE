@@ -97,8 +97,8 @@ public class BlogService {
         newBlog.setDeleted(false);
 
         // Upload image nếu có
-        if (blogRequest.getImage() != null && !blogRequest.getImage().isEmpty()) {
-            String imageUrl = fileUploadService.uploadImage(blogRequest.getImage());
+        if (blogRequest.getImageUrl() != null && !blogRequest.getImageUrl().isEmpty()) {
+            String imageUrl = fileUploadService.uploadImage(blogRequest.getImageUrl());
             newBlog.setImageUrl(imageUrl);
         }
 
@@ -142,9 +142,9 @@ public class BlogService {
         existingBlog.setLastUpdated(LocalDateTime.now());
 
         // Xử lý image - tự động cập nhật nếu có image mới
-        if (blogRequest.getImage() != null && !blogRequest.getImage().isEmpty()) {
+        if (blogRequest.getImageUrl() != null && !blogRequest.getImageUrl().isEmpty()) {
             // Upload image mới
-            String newImageUrl = fileUploadService.uploadImage(blogRequest.getImage());
+            String newImageUrl = fileUploadService.uploadImage(blogRequest.getImageUrl());
             existingBlog.setImageUrl(newImageUrl);
 
             // Xóa image cũ nếu có

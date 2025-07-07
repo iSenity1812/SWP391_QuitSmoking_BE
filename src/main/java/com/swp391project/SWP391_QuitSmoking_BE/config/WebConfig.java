@@ -1,6 +1,5 @@
 package com.swp391project.SWP391_QuitSmoking_BE.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
@@ -11,11 +10,14 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${app.upload.dir:uploads}")
+    @Value("${file.upload.dir:uploads}")
     private String uploadDir;
 
-    @Autowired
-    private StringToMultipartFileConverter stringToMultipartFileConverter;
+    private final StringToMultipartFileConverter stringToMultipartFileConverter;
+
+    public WebConfig(StringToMultipartFileConverter stringToMultipartFileConverter) {
+        this.stringToMultipartFileConverter = stringToMultipartFileConverter;
+    }
 
     @Override
     public void addFormatters(FormatterRegistry registry) {
@@ -24,18 +26,18 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/api/**") // Áp dụng cho tất cả các endpoint dưới /api
-                .allowedOrigins("http://localhost:5173") // <-- ĐẶT ĐÚNG CỔNG FRONTEND CỦA BẠN VÀO ĐÂY
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Cho phép các phương thức này
-                .allowedHeaders("*") // Cho phép tất cả các header
-                .allowCredentials(true) // Cho phép gửi cookies, authorization headers, v.v.
-                .maxAge(3600); // Thời gian cache pre-flight request (giây)
+        registry.addMapping("/**")
+                .allowedOriginPatterns("*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true);
     }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Serve uploaded files statically
+        // Serve uploaded files from uploads directory
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:" + uploadDir + "/");
+                .addResourceLocations("file:" + uploadDir + "/")
+                .setCachePeriod(3600); // Cache for 1 hour
     }
 }

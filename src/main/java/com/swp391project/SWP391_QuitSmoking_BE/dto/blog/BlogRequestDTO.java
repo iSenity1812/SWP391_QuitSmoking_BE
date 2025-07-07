@@ -22,5 +22,5 @@ public class BlogRequestDTO {
     private String content;
 
     // MultipartFile cho image upload (optional)
-    private MultipartFile image;
+    private MultipartFile imageUrl;
 }

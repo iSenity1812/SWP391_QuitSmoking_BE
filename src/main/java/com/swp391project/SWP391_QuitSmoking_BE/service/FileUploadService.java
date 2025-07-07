@@ -26,133 +26,87 @@ public class FileUploadService {
     @Value("${file.upload.max-size:5242880}") // 5MB default
     private long maxFileSize;
 
-    private static final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList(
+    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList(
+            "jpg", "jpeg", "png", "gif", "webp"
+    );
+
+    private static final List<String> ALLOWED_CONTENT_TYPES = Arrays.asList(
             "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"
     );
 
-    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList(
-            ".jpg", ".jpeg", ".png", ".gif", ".webp"
-    );
-
-    /**
-     * Upload file và trả về URL của file đã upload
-     */
     public String uploadImage(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new AppException(ErrorCode.FILE_EMPTY);
-        }
-
-        // Validate file size
-        if (file.getSize() > maxFileSize) {
-            throw new AppException(ErrorCode.FILE_TOO_LARGE);
-        }
-
-        // Validate file type
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase())) {
-            throw new AppException(ErrorCode.INVALID_FILE_TYPE);
-        }
-
-        // Validate file extension
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null) {
-            throw new AppException(ErrorCode.INVALID_FILE_NAME);
-        }
-
-        String fileExtension = getFileExtension(originalFilename);
-        if (!ALLOWED_EXTENSIONS.contains(fileExtension.toLowerCase())) {
-            throw new AppException(ErrorCode.INVALID_FILE_EXTENSION);
-        }
-
         try {
-            // Tạo thư mục upload nếu chưa tồn tại
+            // Validate file
+            validateFile(file);
+
+            // Create upload directory if not exists
             Path uploadPath = Paths.get(uploadDir);
             if (!Files.exists(uploadPath)) {
                 Files.createDirectories(uploadPath);
+                log.info("Created upload directory: {}", uploadPath.toAbsolutePath());
             }
 
-            // Tạo tên file unique
-            String uniqueFileName = generateUniqueFileName(originalFilename);
-            Path filePath = uploadPath.resolve(uniqueFileName);
+            // Generate unique filename
+            String originalFilename = file.getOriginalFilename();
+            String fileExtension = getFileExtension(originalFilename);
+            String uniqueFilename = UUID.randomUUID().toString() + "." + fileExtension;
 
-            // Copy file vào thư mục upload
+            // Save file
+            Path filePath = uploadPath.resolve(uniqueFilename);
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
-            // Trả về URL của file (có thể là relative path hoặc full URL tùy theo cấu hình)
-            return "/uploads/" + uniqueFileName;
+            // Return URL path
+            String imageUrl = "/uploads/" + uniqueFilename;
+            log.info("File uploaded successfully: {} -> {}", originalFilename, imageUrl);
+            return imageUrl;
 
         } catch (IOException e) {
-            log.error("Error uploading file: {}", e.getMessage(), e);
+            log.error("Failed to upload file: {}", e.getMessage(), e);
             throw new AppException(ErrorCode.FILE_UPLOAD_FAILED);
         }
     }
 
-    /**
-     * Xóa file đã upload
-     */
     public void deleteImage(String imageUrl) {
-        if (imageUrl == null || imageUrl.isEmpty()) {
-            return;
-        }
-
         try {
-            // Extract filename from URL
-            String fileName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
-            Path filePath = Paths.get(uploadDir, fileName);
-
-            if (Files.exists(filePath)) {
-                Files.delete(filePath);
-                log.info("Deleted file: {}", filePath);
+            if (imageUrl != null && imageUrl.startsWith("/uploads/")) {
+                String filename = imageUrl.substring("/uploads/".length());
+                Path filePath = Paths.get(uploadDir, filename);
+                if (Files.exists(filePath)) {
+                    Files.delete(filePath);
+                    log.info("File deleted successfully: {}", imageUrl);
+                } else {
+                    log.warn("File not found for deletion: {}", imageUrl);
+                }
             }
         } catch (IOException e) {
-            log.error("Error deleting file: {}", e.getMessage(), e);
-            // Không throw exception vì việc xóa file không thành công không nên làm fail toàn bộ operation
+            log.error("Failed to delete file: {}", e.getMessage(), e);
+            // Don't throw exception for delete failures
         }
     }
 
-    /**
-     * Tạo tên file unique bằng cách thêm UUID
-     */
-    private String generateUniqueFileName(String originalFilename) {
-        String fileExtension = getFileExtension(originalFilename);
-        String baseName = originalFilename.substring(0, originalFilename.lastIndexOf('.'));
+    private void validateFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new AppException(ErrorCode.FILE_EMPTY);
+        }
 
-        // Làm sạch tên file
-        baseName = baseName.replaceAll("[^a-zA-Z0-9._-]", "_");
+        if (file.getSize() > maxFileSize) {
+            throw new AppException(ErrorCode.FILE_TOO_LARGE);
+        }
 
-        return baseName + "_" + UUID.randomUUID().toString() + fileExtension;
+
+
+        String filename = file.getOriginalFilename();
+        if (filename == null || filename.trim().isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_FILE_NAME);
+        }
+
+
     }
 
-    /**
-     * Lấy extension của file
-     */
     private String getFileExtension(String filename) {
-        int lastDotIndex = filename.lastIndexOf('.');
-        if (lastDotIndex == -1) {
+        if (filename == null || filename.lastIndexOf('.') == -1) {
             return "";
         }
-        return filename.substring(lastDotIndex);
-    }
-
-    /**
-     * Validate image file
-     */
-    public boolean isValidImageFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            return false;
-        }
-
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase())) {
-            return false;
-        }
-
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null) {
-            return false;
-        }
-
-        String fileExtension = getFileExtension(originalFilename);
-        return ALLOWED_EXTENSIONS.contains(fileExtension.toLowerCase());
+        return filename.substring(filename.lastIndexOf('.') + 1);
     }
 }
