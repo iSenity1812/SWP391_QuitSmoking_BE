@@ -12,7 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BlogRequestDTO {
+public class BlogUpdateRequestDTO {
 
     @NotBlank(message = "Title cannot be empty")
     @Size(max = 255, message = "Title cannot exceed 255 characters")
@@ -23,4 +23,6 @@ public class BlogRequestDTO {
 
     // MultipartFile cho image upload (optional)
     private MultipartFile image;
+
+    // Flag để xóa image hiện tại}
 }

@@ -28,10 +28,20 @@ public enum ErrorCode {
     // --- Comment Errors (Lỗi liên quan đến Comment) ---
     COMMENT_NOT_FOUND(4001, "Comment not found", HttpStatus.NOT_FOUND),
     COMMENT_ALREADY_DELETED(4002, "This comment has already been deleted", HttpStatus.BAD_REQUEST), // Thêm cho Soft Delete
+    FILE_EMPTY(4001, "File is empty", HttpStatus.NOT_FOUND),
+    FILE_TOO_LARGE(400, "File size exceeds maximum limit", HttpStatus.BAD_REQUEST),
+    INVALID_FILE(400, "Invalid file", HttpStatus.BAD_REQUEST),
+    INVALID_FILE_TYPE(400, "Invalid file type. Only JPG, JPEG, PNG, GIF, WEBP are allowed",HttpStatus.BAD_REQUEST),
+    FILE_UPLOAD_FAILED(500, "Failed to upload file", HttpStatus.BAD_REQUEST),
+    INVALID_REQUEST(400, "Invalid request parameters", HttpStatus.BAD_REQUEST),
+    INVALID_FILE_NAME(3005, "Invalid file name", HttpStatus.BAD_REQUEST),
+    INVALID_FILE_EXTENSION(3006, "Invalid file extension. Only jpg, jpeg, png, gif, webp are allowed", HttpStatus.BAD_REQUEST);
 
     // --- Other Domain-Specific Errors (Các lỗi khác tùy thuộc vào nghiệp vụ của bạn) ---
     // ...
     ; // Dấu chấm phẩy này là bắt buộc nếu có các trường hoặc phương thức khác sau các hằng số enum
+
+
 
     private final int code;
     private final String message;

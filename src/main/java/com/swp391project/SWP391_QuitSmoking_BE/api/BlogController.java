@@ -1,9 +1,9 @@
-// src/main/java/com/swp391project.SWP391_QuitSmoking_BE/api/BlogController.java
-
 package com.swp391project.SWP391_QuitSmoking_BE.api;
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogRequestDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogUpdateRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.BlogStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
@@ -20,6 +20,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.ModelAttribute;
 
 import java.util.UUID;
 
@@ -61,11 +63,11 @@ public class BlogController {
 
     // --- ENDPOINT CHO THÀNH VIÊN (TẠO, SỬA, XÓA BLOG CỦA HỌ) --
 
-    // Tạo Blog: Yêu cầu quyền là thành viên (NORMAL_MEMBER, PREMIUM_MEMBER, COACH, CONTENT_ADMIN)
-    @PostMapping
+    // Tạo Blog: Hỗ trợ cả có và không có image
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyRole('NORMAL_MEMBER', 'PREMIUM_MEMBER', 'COACH', 'CONTENT_ADMIN')")
     public ResponseEntity<ApiResponse<BlogResponseDTO>> createBlog(
-            @Valid @RequestBody BlogRequestDTO blogRequest,
+            @Valid @ModelAttribute BlogRequestDTO blogRequest,
             @AuthenticationPrincipal User currentUser) {
         BlogResponseDTO createdBlog = blogService.createBlog(blogRequest, currentUser);
         return ResponseEntity
@@ -73,12 +75,12 @@ public class BlogController {
                 .body(ApiResponse.success(createdBlog, "Tạo blog mới thành công."));
     }
 
-    // Sửa Blog: Yêu cầu quyền là thành viên (NORMAL_MEMBER, PREMIUM_MEMBER, COACH, CONTENT_ADMIN)
-    @PutMapping("/{id}")
+    // Sửa Blog: Hỗ trợ cả có và không có image
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyRole('NORMAL_MEMBER', 'PREMIUM_MEMBER', 'COACH', 'CONTENT_ADMIN')")
     public ResponseEntity<ApiResponse<BlogResponseDTO>> updateBlog(
             @PathVariable Integer id,
-            @Valid @RequestBody BlogRequestDTO blogRequest,
+            @Valid @ModelAttribute BlogUpdateRequestDTO blogRequest,
             @AuthenticationPrincipal User currentUser) {
         BlogResponseDTO updatedBlog = blogService.updateBlog(id, blogRequest, currentUser);
         return ResponseEntity
