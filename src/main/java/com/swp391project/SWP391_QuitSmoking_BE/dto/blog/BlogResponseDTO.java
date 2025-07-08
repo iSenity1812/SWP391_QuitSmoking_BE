@@ -21,6 +21,7 @@ public class BlogResponseDTO {
     private String title;
     private String content;
     private String imageUrl;
+    private Boolean removeImage;
 
     private UserResponseDTO author; // Thông tin tác giả (chỉ cần id, name, etc.)
     private String status;

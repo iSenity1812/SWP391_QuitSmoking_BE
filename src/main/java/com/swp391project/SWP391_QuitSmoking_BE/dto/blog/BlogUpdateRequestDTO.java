@@ -2,27 +2,22 @@ package com.swp391project.SWP391_QuitSmoking_BE.dto.blog;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.springframework.web.multipart.MultipartFile;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class BlogUpdateRequestDTO {
 
-    @NotBlank(message = "Title cannot be empty")
-    @Size(max = 255, message = "Title cannot exceed 255 characters")
+    @NotBlank(message = "Tiêu đề không được để trống")
+    @Size(max = 255, message = "Tiêu đề không được vượt quá 255 ký tự")
     private String title;
 
-    @NotBlank(message = "Content cannot be empty")
+    @NotBlank(message = "Nội dung không được để trống")
     private String content;
 
-    // MultipartFile cho image upload (optional)
+    // Image file để upload (có thể null nếu không muốn thay đổi image)
     private MultipartFile imageUrl;
 
-    // Flag để xóa image hiện tại}
+    // Flag để xóa image hiện tại (true = xóa image, false = giữ nguyên)
+    private Boolean removeImage = false;
 }

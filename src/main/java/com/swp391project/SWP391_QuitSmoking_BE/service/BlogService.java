@@ -117,6 +117,11 @@ public class BlogService {
         return convertToBlogResponseDTO(newBlog);
     }
 
+    // Helper method để kiểm tra MultipartFile có hợp lệ không
+    private boolean isValidImageFile(org.springframework.web.multipart.MultipartFile file) {
+        return file != null && !file.isEmpty() && file.getSize() > 0;
+    }
+
     // --- Phương thức cập nhật blog gộp chung (có thể có hoặc không có image) ---
     @Transactional
     public BlogResponseDTO updateBlog(Integer id, BlogUpdateRequestDTO blogRequest, User currentUser) {
@@ -141,9 +146,18 @@ public class BlogService {
         existingBlog.setContent(blogRequest.getContent());
         existingBlog.setLastUpdated(LocalDateTime.now());
 
-        // Xử lý image - tự động cập nhật nếu có image mới
-        if (blogRequest.getImageUrl() != null && !blogRequest.getImageUrl().isEmpty()) {
-            // Upload image mới
+        // Xử lý image với logic rõ ràng hơn
+        boolean shouldRemoveImage = blogRequest.getRemoveImage() != null && blogRequest.getRemoveImage();
+        boolean hasNewImage = isValidImageFile(blogRequest.getImageUrl());
+
+        if (shouldRemoveImage) {
+            // Trường hợp 1: Người dùng muốn xóa image hiện tại
+            if (oldImageUrl != null) {
+                fileUploadService.deleteImage(oldImageUrl);
+            }
+            existingBlog.setImageUrl(null);
+        } else if (hasNewImage) {
+            // Trường hợp 2: Người dùng muốn upload image mới
             String newImageUrl = fileUploadService.uploadImage(blogRequest.getImageUrl());
             existingBlog.setImageUrl(newImageUrl);
 
@@ -152,6 +166,8 @@ public class BlogService {
                 fileUploadService.deleteImage(oldImageUrl);
             }
         }
+        // Trường hợp 3: Không có removeImage flag và không có image mới
+        // → Giữ nguyên image cũ (không làm gì cả)
 
         // Cập nhật trạng thái nếu cần
         if (existingBlog.getStatus() == BlogStatus.PUBLISHED || existingBlog.getStatus() == BlogStatus.REJECTED) {
@@ -161,7 +177,6 @@ public class BlogService {
         existingBlog = blogRepository.save(existingBlog);
         return convertToBlogResponseDTO(existingBlog);
     }
-
 
     // Xóa Blog (Soft Delete)
     @Transactional
