@@ -14,6 +14,8 @@ import com.swp391project.SWP391_QuitSmoking_BE.repository.CoachScheduleRepositor
 import com.swp391project.SWP391_QuitSmoking_BE.repository.TimeSlotRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +35,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class CoachScheduleService {
+    private static final Logger log = LoggerFactory.getLogger(CoachScheduleService.class);
     private final CoachScheduleRepository coachScheduleRepository;
     private final CoachRepository coachRepository; // Cần để tìm Coach entity
     private final TimeSlotRepository timeSlotRepository;
@@ -98,6 +101,104 @@ public class CoachScheduleService {
                 .map(schedule -> modelMapper.map(schedule, CoachScheduleResponseDTO.class)) // Sử dụng ModelMapper
                 .collect(Collectors.toList());
     }
+
+    /**
+     * Tạo lịch trình cho coach trong một khoảng thời gian với các khung giờ cụ thể.
+     * Đối với mỗi ngày trong khoảng từ startDate đến endDate (bao gồm cả hai ngày),
+     * phương thức sẽ tạo các CoachSchedule cho các TimeSlot đã chỉ định.
+     *
+     * @param coachId ID của Coach
+     * @param request CoachScheduleRangeRequestDTO chứa startDate, endDate và timeSlotIds
+     * @return Danh sách CoachScheduleResponseDTO của các lịch trình đã được tạo/cập nhật
+     * @throws ResourceNotFoundException nếu Coach hoặc TimeSlot không tìm thấy
+     * @throws IllegalArgumentException nếu ngày bắt đầu lớn hơn ngày kết thúc, hoặc cố gắng tạo lịch trong quá khứ,
+     * hoặc lịch trình đã tồn tại và đang hoạt động.
+     */
+    @Transactional
+    public List<CoachScheduleResponseDTO> createCoachSchedulesInRange(UUID coachId, CoachScheduleRangeRequestDTO request) {
+        // 1. Kiểm tra Coach tồn tại
+        Coach coach = coachRepository.findById(coachId)
+                .orElseThrow(() -> new ResourceNotFoundException("Coach not found with ID: " + coachId));
+
+        // 2. Lấy danh sách các TimeSlot từ IDs
+        List<TimeSlot> timeSlots = timeSlotRepository.findAllById(request.getTimeSlotIds());
+        if (timeSlots.size() != request.getTimeSlotIds().size()) {
+            // Kiểm tra xem tất cả TimeSlot IDs có hợp lệ không
+            throw new ResourceNotFoundException("Một hoặc nhiều TimeSlot không tìm thấy.");
+        }
+
+        // 3. Kiểm tra tính hợp lệ của khoảng thời gian
+        LocalDate today = LocalDate.now( );
+        if (request.getStartDate().isAfter(request.getEndDate())) {
+            throw new IllegalArgumentException("Ngày bắt đầu không thể sau ngày kết thúc.");
+        }
+        if (request.getStartDate().isBefore(today)) {
+            throw new IllegalArgumentException("Không thể tạo lịch trình bắt đầu trong quá khứ: " + request.getStartDate());
+        }
+
+        List<CoachSchedule> schedulesToSave = new ArrayList<>();
+        List<String> conflictMessages = new ArrayList<>(); // Để thu thập các thông báo lỗi xung đột
+
+        // 4. Lặp qua từng ngày trong khoảng thời gian
+        for (LocalDate date = request.getStartDate(); !date.isAfter(request.getEndDate()); date = date.plusDays(1)) {
+            LocalDate currentDate = date;
+
+            // 5. Kiểm tra nếu ngày hiện tại là quá khứ (phòng trường hợp endDate xa hơn trong quá khứ so với startDate)
+            if (currentDate.isBefore(today)) {
+                conflictMessages.add("Bỏ qua ngày trong quá khứ: " + currentDate);
+                continue;
+            }
+
+            // 6. Với mỗi ngày, lặp qua các TimeSlot đã chọn
+            for (TimeSlot timeSlot : timeSlots) {
+                Optional<CoachSchedule> existingScheduleOptional = coachScheduleRepository.findByCoachAndScheduleDateAndTimeSlot(
+                        coach, currentDate, timeSlot);
+
+                if (existingScheduleOptional.isPresent()) {
+                    CoachSchedule existingSchedule = existingScheduleOptional.get();
+
+                    if (existingSchedule.isDeleted()) {
+                        // Cập nhật bản ghi đã soft-delete (kích hoạt lại)
+                        existingSchedule.setDeleted(false);
+                        existingSchedule.setBooked(false); // Đặt lại trạng thái chưa booked
+                        existingSchedule.setUpdatedAt(LocalDateTime.now());
+                        schedulesToSave.add(existingSchedule);
+                    } else {
+                        conflictMessages.add(
+                                "Lịch trình cho khung giờ " + timeSlot.getStartTime() + " - " + timeSlot.getEndTime() +
+                                        " vào ngày " + currentDate + " đã tồn tại và đang hoạt động. Bỏ qua.");
+                    }
+                } else {
+                    // Nếu chưa tồn tại, tạo mới hoàn toàn
+                    CoachSchedule newSchedule = new CoachSchedule();
+                    newSchedule.setCoach(coach);
+                    newSchedule.setTimeSlot(timeSlot);
+                    newSchedule.setScheduleDate(currentDate);
+                    newSchedule.setBooked(false);
+                    newSchedule.setDeleted(false);
+                    newSchedule.setCreatedAt(LocalDateTime.now());
+                    schedulesToSave.add(newSchedule); // Thêm bản ghi mới vào list
+                }
+            }
+        }
+
+        // 7. Lưu tất cả các lịch trình đã chuẩn bị
+        List<CoachSchedule> savedSchedules = coachScheduleRepository.saveAll(schedulesToSave);
+
+        // 8. Log hoặc xử lý các xung đột nếu có
+        if (!conflictMessages.isEmpty()) {
+            String conflictMessage = String.join("\n", conflictMessages);
+            log.error("Các xung đột khi tạo lịch trình:\n{}", conflictMessage);
+            // Bạn có thể ném ngoại lệ hoặc xử lý theo cách khác nếu cần
+        }
+
+        // 9. Chuyển đổi và trả về DTO
+        return savedSchedules.stream()
+                .map(schedule -> modelMapper.map(schedule, CoachScheduleResponseDTO.class))
+                .collect(Collectors.toList());
+    }
+
+
 
     /**
      * Lấy tất cả lịch trình (bao gồm cả đã đặt và chưa đặt) của một Coach

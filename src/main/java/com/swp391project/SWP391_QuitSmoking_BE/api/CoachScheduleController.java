@@ -56,6 +56,28 @@ public class CoachScheduleController {
     }
 
     /**
+     * API cho Coach tạo lịch trong một khoảng thời gian.
+     * Yêu cầu: Ngày bắt đầu, ngày kết thúc và danh sách ID khung giờ.
+     */
+    @PostMapping("/range")
+    @PreAuthorize("hasRole('COACH')")
+    public ResponseEntity<ApiResponse<List<CoachScheduleResponseDTO>>> createCoachSchedulesInRange(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody CoachScheduleRangeRequestDTO request) {
+        UUID coachId = userService.getUserIdFromUserDetails(userDetails);
+        List<CoachScheduleResponseDTO> createdSchedules = coachScheduleService.createCoachSchedulesInRange(coachId, request);
+        if (createdSchedules.isEmpty()) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.success(createdSchedules, "Không có lịch trình mới được tạo hoặc tất cả lịch trình đã tồn tại."));
+        }
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success(createdSchedules, "Tạo lịch trình huấn luyện viên trong khoảng thời gian thành công"));
+    }
+
+
+    /**
      * API cho Coach: Lấy tất cả lịch trình của chính mình (bao gồm cả đã đặt và chưa đặt).
      */
     @GetMapping("/my")

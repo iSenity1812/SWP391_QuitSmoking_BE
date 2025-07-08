@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thông báo hủy lịch hẹn - QuitSmoking</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #f8fafc">
+    <table
+      class="body-wrap"
+      style="
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        box-sizing: border-box;
+        font-size: 14px;
+        width: 100%;
+        background-color: #f8fafc;
+        margin: 0;
+      "
+      bgcolor="#f8fafc"
+    >
+      <tbody>
+        <tr
+          style="
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            box-sizing: border-box;
+            font-size: 14px;
+            margin: 0;
+          "
+        >
+          <td
+            style="
+              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+              box-sizing: border-box;
+              font-size: 14px;
+              vertical-align: top;
+              margin: 0;
+            "
+            valign="top"
+          ></td>
+          <td
+            class="container"
+            width="600"
+            style="
+              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+              box-sizing: border-box;
+              font-size: 14px;
+              vertical-align: top;
+              display: block !important;
+              max-width: 600px !important;
+              clear: both !important;
+              margin: 0 auto;
+            "
+            valign="top"
+          >
+            <div
+              class="content"
+              style="
+                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                box-sizing: border-box;
+                font-size: 14px;
+                max-width: 600px;
+                display: block;
+                margin: 0 auto;
+                padding: 20px;
+              "
+            >
+              <!-- Header với màu đỏ cho cancellation -->
+              <table
+                class="main"
+                width="100%"
+                cellpadding="0"
+                cellspacing="0"
+                style="
+                  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                  box-sizing: border-box;
+                  font-size: 14px;
+                  border-radius: 12px;
+                  background-color: #ffffff;
+                  margin: 0;
+                  border: 1px solid #e2e8f0;
+                "
+                bgcolor="#ffffff"
+              >
+                <tbody>
+                  <tr
+                    style="
+                      font-family: 'Helvetica Neue', Helvetica, Arial,
+                        sans-serif;
+                      box-sizing: border-box;
+                      font-size: 14px;
+                      margin: 0;
+                    "
+                  >
+                    <td
+                      class="alert alert-danger"
+                      style="
+                        font-family: 'Helvetica Neue', Helvetica, Arial,
+                          sans-serif;
+                        box-sizing: border-box;
+                        font-size: 18px;
+                        vertical-align: top;
+                        color: #ffffff;
+                        font-weight: 500;
+                        text-align: center;
+                        border-radius: 12px 12px 0 0;
+                        background-color: #dc2626;
+                        background-image: linear-gradient(
+                          135deg,
+                          #ef4444,
+                          #b91c1c
+                        );
+                        margin: 0;
+                        padding: 25px;
+                      "
+                      align="center"
+                      valign="top"
+                    >
+                      <strong
+                        style="
+                          font-size: 32px;
+                          color: #fff;
+                          display: block;
+                          margin-bottom: 5px;
+                        "
+                        >QuitSmoking</strong
+                      >
+                      <span
+                        style="font-size: 16px; color: #fef2f2; display: block"
+                        >Thông báo hủy lịch hẹn</span
+                      >
+                    </td>
+                  </tr>
+
+                  <!-- Nội dung chính -->
+                  <tr
+                    style="
+                      font-family: 'Helvetica Neue', Helvetica, Arial,
+                        sans-serif;
+                      box-sizing: border-box;
+                      font-size: 14px;
+                      margin: 0;
+                    "
+                  >
+                    <td
+                      class="content-wrap"
+                      style="
+                        font-family: 'Helvetica Neue', Helvetica, Arial,
+                          sans-serif;
+                        box-sizing: border-box;
+                        font-size: 14px;
+                        vertical-align: top;
+                        margin: 0;
+                        padding: 30px;
+                      "
+                      valign="top"
+                    >
+                      <table
+                        width="100%"
+                        cellpadding="0"
+                        cellspacing="0"
+                        style="
+                          font-family: 'Helvetica Neue', Helvetica, Arial,
+                            sans-serif;
+                          box-sizing: border-box;
+                          font-size: 14px;
+                          margin: 0;
+                        "
+                      >
+                        <tbody>
+                          <!-- Lời chào và thông báo chính -->
+                          <tr
+                            style="
+                              font-family: 'Helvetica Neue', Helvetica, Arial,
+                                sans-serif;
+                              box-sizing: border-box;
+                              font-size: 14px;
+                              margin: 0;
+                            "
+                          >
+                            <td
+                              class="content-block"
+                              style="
+                                font-family: 'Helvetica Neue', Helvetica, Arial,
+                                  sans-serif;
+                                box-sizing: border-box;
+                                font-size: 18px;
+                                font-weight: bold;
+                                color: #1e293b;
+                                vertical-align: top;
+                                margin: 0;
+                                padding: 0 0 20px;
+                              "
+                              valign="top"
+                            >
+                              Xin chào <span th:text="${memberName}"></span>!
+                            </td>
+                          </tr>
+
+                          <!-- Thông báo hủy lịch -->
+                          <tr
+                            style="
+                              font-family: 'Helvetica Neue', Helvetica, Arial,
+                                sans-serif;
+                              box-sizing: border-box;
+                              font-size: 14px;
+                              margin: 0;
+                            "
+                          >
+                            <td
+                              class="content-block"
+                              style="
+                                font-family: 'Helvetica Neue', Helvetica, Arial,
+                                  sans-serif;
+                                box-sizing: border-box;
+                                font-size: 15px;
+                                line-height: 1.6;
+                                color: #334152;
+                                vertical-align: top;
+                                margin: 0;
+                                padding: 0 0 20px;
+                              "
+                              valign="top"
+                            >
+                              <div
+                                style="
+                                  background-color: #fef2f2;
+                                  border-left: 4px solid #ef4444;
+                                  padding: 15px;
+                                  border-radius: 4px;
+                                  margin: 10px 0;
+                                "
+                              >
+                                Chúng tôi rất tiếc phải thông báo rằng lịch hẹn
+                                của bạn đã bị hủy bởi huấn luyện viên
+                                <strong th:text="${coachName}"></strong> do lý
+                                do đột xuất.
+                              </div>
+                            </td>
+                          </tr>
+
+                          <!-- Thông tin lịch hẹn -->
+                          <tr
+                            style="
+                              font-family: 'Helvetica Neue', Helvetica, Arial,
+                                sans-serif;
+                              box-sizing: border-box;
+                              font-size: 14px;
+                              margin: 0;
+                            "
+                          >
+                            <td
+                              class="content-block"
+                              style="
+                                font-family: 'Helvetica Neue', Helvetica, Arial,
+                                  sans-serif;
+                                box-sizing: border-box;
+                                font-size: 16px;
+                                font-weight: bold;
+                                color: #1e293b;
+                                vertical-align: top;
+                                margin: 0;
+                                padding: 0 0 15px;
+                              "
+                              valign="top"
+                            >
+                              Thông tin lịch hẹn đã hủy:
+                            </td>
+                          </tr>
+
+                          <tr
+                            style="
+                              font-family: 'Helvetica Neue', Helvetica, Arial,
+                                sans-serif;
+                              box-sizing: border-box;
+                              font-size: 14px;
+                              margin: 0;
+                            "
+                          >
+                            <td
+                              class="content-block"
+                              style="
+                                font-family: 'Helvetica Neue', Helvetica, Arial,
+                                  sans-serif;
+                                box-sizing: border-box;
+                                font-size: 15px;
+                                line-height: 1.6;
+                                color: #334152;
+                                vertical-align: top;
+                                margin: 0;
+                                padding: 0 0 20px;
+                              "
+                              valign="top"
+                            >
+                              <div
+                                style="
+                                  background-color: #f8fafc;
+                                  padding: 20px;
+                                  border-radius: 8px;
+                                  border: 1px solid #e2e8f0;
+                                "
+                              >
+                                <table
+                                  width="100%"
+                                  style="
+                                    font-family: 'Helvetica Neue', Helvetica,
+                                      Arial, sans-serif;
+                                    font-size: 14px;
+                                  "
+                                >
+                                  <tr>
+                                    <td
+                                      style="
+                                        padding: 8px 0;
+                                        border-bottom: 1px solid #e2e8f0;
+                                      "
+                                    >
+                                      <strong>Huấn luyện viên:</strong>
+                                    </td>
+                                    <td
+                                      style="
+                                        padding: 8px 0;
+                                        border-bottom: 1px solid #e2e8f0;
+                                        text-align: right;
+                                      "
+                                      th:text="${coachName}"
+                                    ></td>
+                                  </tr>
+                                  <tr>
+                                    <td
+                                      style="
+                                        padding: 8px 0;
+                                        border-bottom: 1px solid #e2e8f0;
+                                      "
+                                    >
+                                      <strong>Ngày:</strong>
+                                    </td>
+                                    <td
+                                      style="
+                                        padding: 8px 0;
+                                        border-bottom: 1px solid #e2e8f0;
+                                        text-align: right;
+                                      "
+                                      th:text="${appointmentDate}"
+                                    ></td>
+                                  </tr>
+                                  <tr>
+                                    <td
+                                      style="
+                                        padding: 8px 0;
+                                        border-bottom: 1px solid #e2e8f0;
+                                      "
+                                    >
+                                      <strong>Thời gian:</strong>
+                                    </td>
+                                    <td
+                                      style="
+                                        padding: 8px 0;
+                                        border-bottom: 1px solid #e2e8f0;
+                                        text-align: right;
+                                      "
+                                      th:text="${appointmentTime}"
+                                    ></td>
+                                  </tr>
+                                  <tr>
+                                    <td style="padding: 8px 0">
+                                      <strong>ID cuộc hẹn:</strong>
+                                    </td>
+                                    <td
+                                      style="padding: 8px 0; text-align: right"
+                                    >
+                                      #<span th:text="${appointmentId}"></span>
+                                    </td>
+                                  </tr>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+
+                          <!-- Hướng dẫn tiếp theo -->
+                          <tr
+                            style="
+                              font-family: 'Helvetica Neue', Helvetica, Arial,
+                                sans-serif;
+                              box-sizing: border-box;
+                              font-size: 14px;
+                              margin: 0;
+                            "
+                          >
+                            <td
+                              class="content-block"
+                              style="
+                                font-family: 'Helvetica Neue', Helvetica, Arial,
+                                  sans-serif;
+                                box-sizing: border-box;
+                                font-size: 15px;
+                                line-height: 1.6;
+                                color: #334152;
+                                vertical-align: top;
+                                margin: 0;
+                                padding: 0 0 20px;
+                              "
+                              valign="top"
+                            >
+                              <div
+                                style="
+                                  background-color: #f0f9ff;
+                                  border-left: 4px solid #0ea5e9;
+                                  padding: 15px;
+                                  border-radius: 4px;
+                                "
+                              >
+                                <strong style="color: #0c4a6e"
+                                  >Bước tiếp theo:</strong
+                                ><br />
+                                Vui lòng đăng nhập vào hệ thống để chọn lại ngày
+                                khác phù hợp với lịch trình của bạn.
+                              </div>
+                            </td>
+                          </tr>
+
+                          <!-- Button đặt lịch mới -->
+                          <tr
+                            style="
+                              font-family: 'Helvetica Neue', Helvetica, Arial,
+                                sans-serif;
+                              box-sizing: border-box;
+                              font-size: 14px;
+                              margin: 0;
+                            "
+                          >
+                            <td
+                              class="content-block"
+                              style="
+                                font-family: 'Helvetica Neue', Helvetica, Arial,
+                                  sans-serif;
+                                box-sizing: border-box;
+                                font-size: 14px;
+                                vertical-align: top;
+                                margin: 0;
+                                padding: 0 0 25px;
+                                text-align: center;
+                              "
+                              valign="top"
+                              align="center"
+                            >
+                              <a
+                                th:href="${rescheduleLink}"
+                                class="btn-primary"
+                                style="
+                                  font-family: 'Helvetica Neue', Helvetica,
+                                    Arial, sans-serif;
+                                  box-sizing: border-box;
+                                  font-size: 15px;
+                                  color: #fff;
+                                  text-decoration: none;
+                                  line-height: 2em;
+                                  font-weight: bold;
+                                  text-align: center;
+                                  cursor: pointer;
+                                  display: inline-block;
+                                  border-radius: 8px;
+                                  text-transform: capitalize;
+                                  background-color: #2563eb;
+                                  background-image: linear-gradient(
+                                    to right,
+                                    #2563eb,
+                                    #1d4ed8
+                                  );
+                                  margin: 0;
+                                  border: none;
+                                  padding: 12px 28px;
+                                "
+                                >Đặt lịch mới</a
+                              >
+                            </td>
+                          </tr>
+
+                          <!-- Lời cảm ơn -->
+                          <tr
+                            style="
+                              font-family: 'Helvetica Neue', Helvetica, Arial,
+                                sans-serif;
+                              box-sizing: border-box;
+                              font-size: 14px;
+                              margin: 0;
+                            "
+                          >
+                            <td
+                              class="content-block"
+                              style="
+                                font-family: 'Helvetica Neue', Helvetica, Arial,
+                                  sans-serif;
+                                box-sizing: border-box;
+                                font-size: 15px;
+                                line-height: 1.6;
+                                color: #334152;
+                                vertical-align: top;
+                                margin: 0;
+                                padding: 0 0 10px;
+                              "
+                              valign="top"
+                            >
+                              Chúng tôi xin lỗi vì sự bất tiện này và hy vọng
+                              bạn sẽ sớm tìm được thời gian phù hợp khác.
+                            </td>
+                          </tr>
+
+                          <tr
+                            style="
+                              font-family: 'Helvetica Neue', Helvetica, Arial,
+                                sans-serif;
+                              box-sizing: border-box;
+                              font-size: 14px;
+                              margin: 0;
+                            "
+                          >
+                            <td
+                              class="content-block"
+                              style="
+                                font-family: 'Helvetica Neue', Helvetica, Arial,
+                                  sans-serif;
+                                box-sizing: border-box;
+                                font-size: 15px;
+                                line-height: 1.6;
+                                color: #334152;
+                                vertical-align: top;
+                                margin: 0;
+                                padding: 0 0 20px;
+                              "
+                              valign="top"
+                            >
+                              Trân trọng,<br />Đội ngũ QuitSmoking
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <!-- Footer -->
+              <div
+                class="footer"
+                style="
+                  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                  box-sizing: border-box;
+                  font-size: 12px;
+                  width: 100%;
+                  clear: both;
+                  color: #64748b;
+                  margin: 0;
+                  padding: 20px;
+                "
+              >
+                <table
+                  width="100%"
+                  style="
+                    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                    box-sizing: border-box;
+                    font-size: 12px;
+                    margin: 0;
+                  "
+                >
+                  <tbody>
+                    <tr
+                      style="
+                        font-family: 'Helvetica Neue', Helvetica, Arial,
+                          sans-serif;
+                        box-sizing: border-box;
+                        font-size: 12px;
+                        margin: 0;
+                      "
+                    >
+                      <td
+                        class="aligncenter content-block"
+                        style="
+                          font-family: 'Helvetica Neue', Helvetica, Arial,
+                            sans-serif;
+                          box-sizing: border-box;
+                          font-size: 12px;
+                          vertical-align: top;
+                          color: #64748b;
+                          text-align: center;
+                          margin: 0;
+                          padding: 0 0 10px;
+                        "
+                        align="center"
+                        valign="top"
+                      >
+                        Bạn nhận được email này vì có thay đổi trong lịch hẹn
+                        tại QuitSmoking.
+                      </td>
+                    </tr>
+                    <tr
+                      style="
+                        font-family: 'Helvetica Neue', Helvetica, Arial,
+                          sans-serif;
+                        box-sizing: border-box;
+                        font-size: 12px;
+                        margin: 0;
+                      "
+                    >
+                      <td
+                        class="aligncenter content-block"
+                        style="
+                          font-family: 'Helvetica Neue', Helvetica, Arial,
+                            sans-serif;
+                          box-sizing: border-box;
+                          font-size: 12px;
+                          vertical-align: top;
+                          color: #64748b;
+                          text-align: center;
+                          margin: 0;
+                          padding: 0 0 10px;
+                        "
+                        align="center"
+                        valign="top"
+                      >
+                        <a
+                          href="#"
+                          style="
+                            font-family: 'Helvetica Neue', Helvetica, Arial,
+                              sans-serif;
+                            box-sizing: border-box;
+                            font-size: 12px;
+                            color: #059669;
+                            text-decoration: underline;
+                            margin: 0 5px;
+                          "
+                          >Website</a
+                        >
+                        |
+                        <a
+                          href="#"
+                          style="
+                            font-family: 'Helvetica Neue', Helvetica, Arial,
+                              sans-serif;
+                            box-sizing: border-box;
+                            font-size: 12px;
+                            color: #059669;
+                            text-decoration: underline;
+                            margin: 0 5px;
+                          "
+                          >Hỗ trợ</a
+                        >
+                        |
+                        <a
+                          href="#"
+                          style="
+                            font-family: 'Helvetica Neue', Helvetica, Arial,
+                              sans-serif;
+                            box-sizing: border-box;
+                            font-size: 12px;
+                            color: #059669;
+                            text-decoration: underline;
+                            margin: 0 5px;
+                          "
+                          >Liên hệ</a
+                        >
+                      </td>
+                    </tr>
+                    <tr
+                      style="
+                        font-family: 'Helvetica Neue', Helvetica, Arial,
+                          sans-serif;
+                        box-sizing: border-box;
+                        font-size: 12px;
+                        margin: 0;
+                      "
+                    >
+                      <td
+                        class="aligncenter content-block"
+                        style="
+                          font-family: 'Helvetica Neue', Helvetica, Arial,
+                            sans-serif;
+                          box-sizing: border-box;
+                          font-size: 12px;
+                          vertical-align: top;
+                          color: #64748b;
+                          text-align: center;
+                          margin: 0;
+                          padding: 0 0 10px;
+                        "
+                        align="center"
+                        valign="top"
+                      >
+                        © 2025 QuitSmoking. Bảo lưu mọi quyền.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </td>
+          <td
+            style="
+              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+              box-sizing: border-box;
+              font-size: 14px;
+              vertical-align: top;
+              margin: 0;
+            "
+            valign="top"
+          ></td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

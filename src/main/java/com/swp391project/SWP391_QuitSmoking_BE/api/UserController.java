@@ -19,6 +19,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -57,6 +58,30 @@ public class UserController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success(coaches, "Lấy danh sách huấn luyện viên thành công"));
+    }
+
+    //tìm kiếm và lọc members với phân trang cho admin
+    @GetMapping("/superadmin/users/members/search")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> searchMembersForAdmin(
+            @RequestParam(required = false) String searchTerm,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String subscriptionStatus,
+            @RequestParam(required = false) String quitPlanStatus,
+            @RequestParam(required = false) String sortField,
+            @RequestParam(required = false) String sortDirection,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        Map<String, Object> result = userService.searchMembersForAdmin(
+                searchTerm, role, status, subscriptionStatus, quitPlanStatus,
+                sortField, sortDirection, page, size
+        );
+        
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(result, "Tìm kiếm thành viên thành công"));
     }
 
     // Lấy thông tin một người dùng cụ thể bằng ID

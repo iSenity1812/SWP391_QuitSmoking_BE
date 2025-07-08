@@ -3,6 +3,7 @@ package com.swp391project.SWP391_QuitSmoking_BE.service;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.appointment.AppointmentRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.appointment.AppointmentResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.appointment.AppointmentUserResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.email.EmailDetail;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.user.UserSimpleResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.*;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.AppointmentStatus;
@@ -13,7 +14,10 @@ import com.swp391project.SWP391_QuitSmoking_BE.repository.CoachRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.CoachScheduleRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberRepository;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,24 +25,32 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
 
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
 public class AppointmentService {
+    private static final Logger log = LoggerFactory.getLogger(AppointmentService.class);
     private final AppointmentRepository appointmentRepository;
     private final MemberRepository memberRepository;
     private final CoachRepository coachRepository;
+    private final TemplateEngine templateEngine;
     private ModelMapper modelMapper;
     private final CoachScheduleRepository coachScheduleRepository; // Cần để cập nhật trạng thái CoachSchedule
+    private final EmailService emailService; // Thêm EmailService để gửi email notification
 
     @Transactional
     public AppointmentResponseDTO createAppointment(UUID callerId, List<Role> callerRoles, AppointmentRequestDTO request) {
@@ -143,26 +155,24 @@ public class AppointmentService {
 
 
         UUID memberId = appointment.getMember().getMemberId();
-        boolean isMemberCancelling = memberId.equals(currentUserId);
-        // Kiểm tra quyền truy cập (Chỉ có member mới được hủy)
-        if (!isMemberCancelling) {
-            throw new AccessDeniedException("Bạn không có quyền hủy lịch hẹn này.");
+//        boolean isMemberCancelling = memberId.equals(currentUserId);
+
+        boolean isMemberWhoBooked = appointment.getMember().getUser().getUserId().equals(currentUserId);
+        boolean isCoachWhoOwnsSchedule = appointment.getCoachSchedule().getCoach().getUser().getUserId().equals(currentUserId);
+
+        if (!isMemberWhoBooked && !isCoachWhoOwnsSchedule) {
+            throw new AccessDeniedException("Bạn không có quyền hủy lịch hẹn này");
         }
 
         // Lấy thời gian hiện tại và thời gian hẹn
         LocalDate scheduleDate = appointment.getCoachSchedule().getScheduleDate();
         LocalTime startTime = appointment.getCoachSchedule().getTimeSlot().getStartTime();
-        LocalDateTime appointmentTime = LocalDateTime.of(scheduleDate, startTime);
+        LocalTime endTime = appointment.getCoachSchedule().getTimeSlot().getEndTime();
+        LocalDateTime appointmentStartTime = LocalDateTime.of(scheduleDate, startTime);
+        LocalDateTime appointmentEndTime = LocalDateTime.of(scheduleDate, endTime);
 
         // Thời gian hiện tại
         LocalDateTime now = LocalDateTime.now();
-
-        // Nếu member -> ktra quy tắc 2h
-        long hourUntilAppointment = Duration.between(now, appointmentTime).toHours();
-        if (hourUntilAppointment < 2) {
-            throw new IllegalStateException("Bạn chỉ có thể hủy lịch hẹn ít nhất 2 tiếng trước thời gian hẹn.");
-        }
-
 
         // Kiểm tra trạng thái hiện tại của lịch hẹn
         if (appointment.getStatus() == AppointmentStatus.CANCELLED ||
@@ -170,6 +180,20 @@ public class AppointmentService {
                 appointment.getStatus() == AppointmentStatus.MISSED) {
             throw new IllegalStateException("Không thể hủy lịch hẹn ở trạng thái hiện tại (" + appointment.getStatus() + ").");
         }
+
+
+        // Nếu member -> ktra quy tắc 2h
+        if (isMemberWhoBooked) {
+            long hourUntilAppointment = Duration.between(now, appointmentStartTime).toHours();
+            if (hourUntilAppointment < 2) {
+                throw new IllegalStateException("Bạn chỉ có thể hủy lịch hẹn ít nhất 2 tiếng trước thời gian hẹn.");
+            }
+        } else {
+            if (now.isAfter(appointmentStartTime) && now.isBefore(appointmentEndTime)) {
+                throw new IllegalStateException("Coach không thể hủy lịch hẹn khi cuộc hẹn đang diễn ra.");
+            }
+        }
+
         appointment.setStatus(AppointmentStatus.CANCELLED);
         appointment.setUpdatedAt(LocalDateTime.now());
         Appointment updatedAppointment = appointmentRepository.save(appointment);
@@ -179,7 +203,10 @@ public class AppointmentService {
         coachSchedule.setBooked(false);
         coachScheduleRepository.save(coachSchedule);
 
-//        return modelMapper.map(, AppointmentResponseDTO.class);
+        // Gửi email notification nếu coach hủy appointment của premium member
+        if (isCoachWhoOwnsSchedule) {
+            sendCancellationEmailToMember(updatedAppointment);
+        }
 
         AppointmentResponseDTO dto = modelMapper.map(updatedAppointment, AppointmentResponseDTO.class);
         if (appointment.getCoachSchedule() != null &&
@@ -251,6 +278,11 @@ public class AppointmentService {
             CoachSchedule coachSchedule = appointment.getCoachSchedule();
             coachSchedule.setBooked(false);
             coachScheduleRepository.save(coachSchedule);
+            
+            // Gửi email notification nếu coach hủy appointment của premium member
+            if (isCoach) {
+                sendCancellationEmailToMember(appointment);
+            }
         }
 
         appointment.setStatus(newStatus);
@@ -427,5 +459,66 @@ public class AppointmentService {
                     return dto;
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Gửi email thông báo hủy lịch hẹn đến thành viên premium khi coach hủy appointment
+     *
+     * @param appointment Appointment đã bị hủy bởi coach
+     */
+    private void sendCancellationEmailToMember(Appointment appointment) {
+        try {
+            // Lấy thông tin member và coach
+            Member member = appointment.getMember();
+            Coach coach = appointment.getCoachSchedule().getCoach();
+            User memberUser = member.getUser();
+            User coachUser = coach.getUser();
+
+            // Kiểm tra xem member có phải là premium không
+            if (!member.getUser().getRole().equals(Role.PREMIUM_MEMBER)) {
+                // Chỉ gửi email cho premium members
+                return;
+            }
+
+            // Format thời gian appointment
+            LocalDate scheduleDate = appointment.getCoachSchedule().getScheduleDate();
+            LocalTime startTime = appointment.getCoachSchedule().getTimeSlot().getStartTime();
+            LocalTime endTime = appointment.getCoachSchedule().getTimeSlot().getEndTime();
+
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+
+            String formattedDate = scheduleDate.format(dateFormatter);
+            String formattedTime = startTime.format(timeFormatter) + " - " + endTime.format(timeFormatter);
+
+
+            // Chuẩn bị các biến cho template
+            Map<String, Object> templateVariables = new HashMap<>();
+            templateVariables.put("memberName", memberUser.getUsername());
+            templateVariables.put("coachName", coachUser.getCoach().getFullName() != null ? coachUser.getCoach().getFullName() : coachUser.getUsername());
+            templateVariables.put("appointmentDate", formattedDate);
+            templateVariables.put("appointmentTime", formattedTime);
+            templateVariables.put("appointmentId", appointment.getAppointmentId());
+            templateVariables.put("rescheduleLink", "https://localhost:5173/booking"); // Thay thế bằng URL đặt lịch lại thực tế
+
+            // Tạo EmailDetail với tên template và biến template
+            String subject = "Thông báo hủy lịch hẹn - QuitSmoking";
+            EmailDetail emailDetail = new EmailDetail(
+                    memberUser.getEmail(),
+                    subject,
+                    null, // Body để null, vì nội dung sẽ được tạo từ template
+                    "cancellationEmail.html", // Tên template
+                    templateVariables // Các biến cho template
+            );
+
+            // Gửi email
+            emailService.sendEmail(emailDetail);
+
+            log.info("✅ Đã gửi email thông báo hủy lịch hẹn tới: {}", memberUser.getEmail());
+
+        } catch (Exception e) {
+            // Log lỗi nhưng không throw exception để không ảnh hưởng đến flow chính
+            log.error("❌ Lỗi khi gửi email thông báo hủy lịch hẹn: {}", e.getMessage());
+        }
     }
 }

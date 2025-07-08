@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/public/profile")
+@RequestMapping("/api/public/profile")
 @RequiredArgsConstructor
 public class PublicProfileController {
     private final UserRepository userRepository;

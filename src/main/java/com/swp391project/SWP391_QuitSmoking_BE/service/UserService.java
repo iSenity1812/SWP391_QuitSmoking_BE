@@ -2,12 +2,15 @@ package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.coach.CoachProfile;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.normalMember.MemberResponse;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan.QuitPlanAdminResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.AdminUserCreateRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserProfile;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserUpdateRequest;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.response.SubscriptionAdminResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.response.UserQuitStatsResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.Subscription;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
@@ -16,6 +19,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.exception.DuplicateUsernameExcept
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.SubscriptionRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -24,13 +28,13 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -43,6 +47,8 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final QuitPlanRepository quitPlanRepository;
     private final DailySummaryRepository dailySummaryRepository;
+    private final SubscriptionRepository subscriptionRepository;
+    private final QuitPlanService quitPlanService;
 
     public List<UserProfile> getAllUsers() {
         List<User> users = userRepository.findAll();
@@ -54,11 +60,93 @@ public class UserService {
     }
 
     //Lấy danh sách Member cho Admin
+    @Transactional(readOnly = true)
     public List<UserProfile> getAllMembers() {
-        List<UserProfile> users = getAllUsers();
+        List<User> users = userRepository.findAll();
+
         return users.stream()
                 .filter(user -> (user.getRole() == Role.NORMAL_MEMBER || user.getRole() == Role.PREMIUM_MEMBER))
+                .map(user -> {
+                    UserProfile profile = modelMapper.map(user, UserProfile.class);
+                    profile.setUserId(user.getUserId());
+
+                    // Lấy subscriptions của user
+                    List<Subscription> userSubscriptions = subscriptionRepository.findByUser(user);
+                    List<SubscriptionAdminResponseDTO> subscriptionDtos = userSubscriptions.stream()
+                            .map(this::convertSubscriptionToAdminDto)
+                            .collect(Collectors.toList());
+                    profile.setSubscriptions(subscriptionDtos);
+
+                    // Lấy quit plans của user từ QuitPlanService
+                    try {
+                        List<QuitPlanAdminResponseDTO> quitPlanDtos = quitPlanService.getQuitPlansByMemberIdForAdmin(user.getUserId());
+                        profile.setQuitPlans(quitPlanDtos);
+                    } catch (Exception e) {
+                        // Nếu user không phải member hoặc không có quit plan, set empty list
+                        profile.setQuitPlans(new ArrayList<>());
+                    }
+
+                    return profile;
+                })
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfile getUserDetailsForAdmin(UUID userId) {
+        User user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
+
+        UserProfile profile = modelMapper.map(user, UserProfile.class);
+        profile.setUserId(user.getUserId());
+
+        // Lấy subscriptions
+        List<Subscription> userSubscriptions = subscriptionRepository.findByUser(user);
+        List<SubscriptionAdminResponseDTO> subscriptionDtos = userSubscriptions.stream()
+                .map(this::convertSubscriptionToAdminDto)
+                .collect(Collectors.toList());
+        profile.setSubscriptions(subscriptionDtos);
+
+        // Lấy quit plans (chỉ cho member)
+        if (user.getRole() == Role.NORMAL_MEMBER || user.getRole() == Role.PREMIUM_MEMBER) {
+            try {
+                List<QuitPlanAdminResponseDTO> quitPlanDtos = quitPlanService.getQuitPlansByMemberIdForAdmin(user.getUserId());
+                profile.setQuitPlans(quitPlanDtos);
+            } catch (Exception e) {
+                profile.setQuitPlans(new ArrayList<>());
+            }
+        } else {
+            profile.setQuitPlans(new ArrayList<>());
+        }
+
+        return profile;
+    }
+
+    private SubscriptionAdminResponseDTO convertSubscriptionToAdminDto(Subscription subscription) {
+        SubscriptionAdminResponseDTO dto = new SubscriptionAdminResponseDTO();
+        dto.setSubscriptionId(subscription.getSubscriptionId());
+
+        // Lấy tên gói từ Plan entity (giả sử Plan có field name)
+        if (subscription.getPlan() != null) {
+            dto.setPackageName(String.valueOf(subscription.getPlan().getPlanName())); // PlanPaidType là enum, có thể cần chuyển đổi sang String nếu cần
+            dto.setPrice(subscription.getPlan().getPrice());
+        } else {
+            dto.setPackageName("Unknown Plan");
+            dto.setPrice(BigDecimal.ZERO);
+        }
+
+        dto.setStartDate(subscription.getStartDate());
+        dto.setEndDate(subscription.getEndDate());
+
+        // Xác định status dựa trên isActive và thời gian
+        if (subscription.isActive() && subscription.getEndDate().isAfter(LocalDateTime.now())) {
+            dto.setStatus("ACTIVE");
+        } else if (subscription.getEndDate().isBefore(LocalDateTime.now())) {
+            dto.setStatus("EXPIRED");
+        } else {
+            dto.setStatus("CANCELLED");
+        }
+
+        return dto;
     }
 
     //Lấy danh sách Coach cho Admin
@@ -210,14 +298,22 @@ public class UserService {
             throw new DuplicateEmailException("Email already exists: " + request.getEmail());
         }
 
-        // Mã hóa mật khẩu
+        if (request.getRole() == Role.COACH) {
+            if (!StringUtils.hasText(request.getFullName())) throw new IllegalArgumentException("Full name is required for Coach role.");
+
+            // Kiểm tra lenghth của fullName
+            if (request.getFullName().length() < 3 || request.getFullName().length() > 50) {
+                throw new IllegalArgumentException("Full name must be between 3 and 50 characters.");
+            }
+        }
+
+
         User newUser = new User();
         newUser.setUsername(request.getUsername());
         newUser.setEmail(request.getEmail());
         newUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         newUser.setRole(request.getRole());
         newUser.setActive(true); // Mặc định là active
-//        newUser.setProfilePicture(request.getAvatarUrl());
         newUser.setProfilePicture(null); // Mặc định không có ảnh đại diện
         newUser.setCreatedAt(LocalDateTime.now());
         newUser.setUpdatedAt(LocalDateTime.now());
@@ -327,8 +423,129 @@ public class UserService {
         return new UserQuitStatsResponse(days, avoided, moneySaved);
     }
 
+    // Tìm kiếm người dùng theo email hoặc username kết quả search ra ko bao gồm Admin
     public List<UserProfile> searchUserByEmailOrUsername(String query) {
         List<User> users = userRepository.findByEmailContainingIgnoreCaseOrUsernameContainingIgnoreCase(query, query);
-        return users.stream().map(user -> modelMapper.map(user, UserProfile.class)).toList();
+        return users.stream()
+                .filter(user -> user.getRole() == Role.NORMAL_MEMBER || user.getRole() == Role.PREMIUM_MEMBER || user.getRole() == Role.COACH)
+                .map(user -> modelMapper.map(user, UserProfile.class)).toList();
+    }
+
+    // Tìm kiếm và lọc members với phân trang cho admin
+    @Transactional(readOnly = true)
+    public Map<String, Object> searchMembersForAdmin(
+            String searchTerm, String role, String status, String subscriptionStatus, 
+            String quitPlanStatus, String sortField, String sortDirection,
+            int page, int size) {
+        
+        // Lấy tất cả members
+        List<User> allUsers = userRepository.findAll();
+        
+        // Lọc chỉ lấy members
+        List<User> members = allUsers.stream()
+                .filter(user -> user.getRole() == Role.NORMAL_MEMBER || user.getRole() == Role.PREMIUM_MEMBER)
+                .collect(Collectors.toList());
+        
+        // Áp dụng các bộ lọc
+        List<User> filteredMembers = members.stream()
+                .filter(user -> {
+                    // Tìm kiếm theo searchTerm
+                    if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+                        String search = searchTerm.toLowerCase();
+                        if (!user.getUsername().toLowerCase().contains(search) &&
+                            !user.getEmail().toLowerCase().contains(search)) {
+                            return false;
+                        }
+                    }
+                    
+                    // Lọc theo role
+                    if (role != null && !role.equals("ALL")) {
+                        if (role.equals("MEMBER") && user.getRole() != Role.NORMAL_MEMBER) {
+                            return false;
+                        }
+                        if (role.equals("PREMIUM_MEMBER") && user.getRole() != Role.PREMIUM_MEMBER) {
+                            return false;
+                        }
+                    }
+                    
+                    // Lọc theo status
+                    if (status != null && !status.equals("ALL")) {
+                        boolean isActive = status.equals("ACTIVE");
+                        if (user.isActive() != isActive) {
+                            return false;
+                        }
+                    }
+                    
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        // Sắp xếp
+        if (sortField != null && !sortField.isEmpty()) {
+            filteredMembers.sort((a, b) -> {
+                int comparison = 0;
+                switch (sortField) {
+                    case "username":
+                        comparison = a.getUsername().compareToIgnoreCase(b.getUsername());
+                        break;
+                    case "email":
+                        comparison = a.getEmail().compareToIgnoreCase(b.getEmail());
+                        break;
+                    case "createdAt":
+                        comparison = a.getCreatedAt().compareTo(b.getCreatedAt());
+                        break;
+                    default:
+                        comparison = 0;
+                }
+                
+                return "DESC".equals(sortDirection) ? -comparison : comparison;
+            });
+        }
+        
+        // Tính toán phân trang
+        int totalElements = filteredMembers.size();
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        int startIndex = (page - 1) * size;
+        int endIndex = Math.min(startIndex + size, totalElements);
+        
+        // Lấy dữ liệu cho trang hiện tại
+        List<User> paginatedMembers = filteredMembers.subList(startIndex, endIndex);
+        
+        // Chuyển đổi thành UserProfile với đầy đủ thông tin
+        List<UserProfile> memberProfiles = paginatedMembers.stream()
+                .map(user -> {
+                    UserProfile profile = modelMapper.map(user, UserProfile.class);
+                    profile.setUserId(user.getUserId());
+                    
+                    // Lấy subscriptions của user
+                    List<Subscription> userSubscriptions = subscriptionRepository.findByUser(user);
+                    List<SubscriptionAdminResponseDTO> subscriptionDtos = userSubscriptions.stream()
+                            .map(this::convertSubscriptionToAdminDto)
+                            .collect(Collectors.toList());
+                    profile.setSubscriptions(subscriptionDtos);
+                    
+                    // Lấy quit plans của user
+                    try {
+                        List<QuitPlanAdminResponseDTO> quitPlanDtos = quitPlanService.getQuitPlansByMemberIdForAdmin(user.getUserId());
+                        profile.setQuitPlans(quitPlanDtos);
+                    } catch (Exception e) {
+                        profile.setQuitPlans(new ArrayList<>());
+                    }
+                    
+                    return profile;
+                })
+                .collect(Collectors.toList());
+        
+        // Tạo response
+        Map<String, Object> response = new HashMap<>();
+        response.put("members", memberProfiles);
+        response.put("totalElements", totalElements);
+        response.put("totalPages", totalPages);
+        response.put("currentPage", page);
+        response.put("size", size);
+        response.put("hasNext", page < totalPages);
+        response.put("hasPrevious", page > 1);
+        
+        return response;
     }
 }

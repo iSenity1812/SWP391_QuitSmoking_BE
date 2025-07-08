@@ -25,7 +25,7 @@ public class AdminUserCreateRequest {
     @NotNull(message = "Role cannot be null") // Vai trò không được null
     private Role role; // Sử dụng enum Role của bạn
 
-    @Size(min = 3, max = 50, message = "Full name must be between 3 and 50 characters")
+//    @Size(min = 3, max = 50, message = "Full name must be between 3 and 50 characters")
     private String fullName;
 
     private String coachBio; // Chỉ dành cho Coach, có thể để trống nếu không phải Coach

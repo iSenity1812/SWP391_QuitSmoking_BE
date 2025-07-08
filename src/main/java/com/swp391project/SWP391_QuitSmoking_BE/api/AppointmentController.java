@@ -167,7 +167,7 @@ public class AppointmentController {
      * API cho Member/Coach Hủy lịch hẹn, có thể cân nhắc thêm admin
      */
     @PutMapping("/{appointmentId}/cancel")
-    @PreAuthorize("hasRole('PREMIUM_MEMBER')")
+    @PreAuthorize("hasAnyRole('PREMIUM_MEMBER', 'COACH')")
     public ResponseEntity<ApiResponse<AppointmentResponseDTO>> cancelAppointment(
             @PathVariable Long appointmentId,
             @AuthenticationPrincipal UserDetails userDetails) {
