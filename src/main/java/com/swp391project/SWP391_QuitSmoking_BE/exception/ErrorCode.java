@@ -24,6 +24,7 @@ public enum ErrorCode {
     // --- Blog Errors (Lỗi liên quan đến Blog) ---
     BLOG_NOT_FOUND(3001, "Blog not found", HttpStatus.NOT_FOUND),
     BLOG_ALREADY_DELETED(3002, "This blog has already been deleted", HttpStatus.BAD_REQUEST), // Thêm cho Soft Delete
+    PROGRAM_NOT_FOUND(5001, "Program not found", HttpStatus.NOT_FOUND),
 
     // --- Comment Errors (Lỗi liên quan đến Comment) ---
     COMMENT_NOT_FOUND(4001, "Comment not found", HttpStatus.NOT_FOUND),

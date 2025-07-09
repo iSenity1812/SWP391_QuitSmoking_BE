@@ -108,7 +108,6 @@ public class SecurityConfig {
                                 .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
                                 .requestMatchers("/api/coaches/**").hasRole("COACH")
 
-                                // Tất cả các request khác yêu cầu xác thực
                                 .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
