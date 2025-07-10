@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.ProgramType;
 
 import java.time.LocalDateTime;
 
@@ -18,13 +19,16 @@ public class ProgramResponseDTO {
     private Integer programId;
     private String programTitle;
     private String programName;
-    private String programType;
+    private ProgramType programType;
     private String programImage;
     private String contentUrl;
     private String description;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime lastUpdate;
 
     private UserResponseDTO createdBy; // Thông tin người tạo
 }

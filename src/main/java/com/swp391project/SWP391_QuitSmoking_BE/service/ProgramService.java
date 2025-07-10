@@ -5,6 +5,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.dto.program.ProgramResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.program.ProgramUpdateRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Program;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.ProgramType;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.AppException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ErrorCode;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.ProgramRepository;
@@ -18,7 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -61,11 +65,44 @@ public class ProgramService {
         return convertToProgramResponseDTO(program);
     }
 
-    // Tìm kiếm programs theo type
+    // Tìm kiếm programs theo type - hỗ trợ cả enum và string để backward compatibility
     @Transactional(readOnly = true)
-    public Page<ProgramResponseDTO> getProgramsByType(String programType, Pageable pageable) {
-        Page<Program> programsPage = programRepository.findByProgramTypeContainingIgnoreCase(programType, pageable);
+    public Page<ProgramResponseDTO> getProgramsByType(String programTypeStr, Pageable pageable) {
+        // Thử chuyển đổi string thành enum trước
+        ProgramType programType = ProgramType.fromString(programTypeStr);
+
+        Page<Program> programsPage;
+        if (programType != null) {
+            // Nếu chuyển đổi thành công, sử dụng enum search
+            programsPage = programRepository.findByProgramType(programType, pageable);
+        } else {
+            // Nếu không thể chuyển đổi, sử dụng string search để backward compatibility
+            programsPage = programRepository.findByProgramTypeContainingIgnoreCase(programTypeStr, pageable);
+        }
+
         return programsPage.map(this::convertToProgramResponseDTO);
+    }
+
+    // Tìm kiếm programs theo nhiều types
+    @Transactional(readOnly = true)
+    public Page<ProgramResponseDTO> getProgramsByTypes(List<String> programTypeStrs, Pageable pageable) {
+        List<ProgramType> programTypes = programTypeStrs.stream()
+                .map(ProgramType::fromString)
+                .filter(type -> type != null)
+                .collect(Collectors.toList());
+
+        if (programTypes.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        Page<Program> programsPage = programRepository.findByProgramTypeIn(programTypes, pageable);
+        return programsPage.map(this::convertToProgramResponseDTO);
+    }
+
+    // Lấy tất cả program types
+    @Transactional(readOnly = true)
+    public List<ProgramType> getAllProgramTypes() {
+        return Arrays.asList(ProgramType.values());
     }
 
     // --- Phương thức cho CONTENT_ADMIN (tạo, sửa, xóa programs) ---
@@ -77,7 +114,11 @@ public class ProgramService {
         Program newProgram = new Program();
         newProgram.setProgramTitle(programRequest.getProgramTitle());
         newProgram.setProgramName(programRequest.getProgramName());
-        newProgram.setProgramType(programRequest.getProgramType());
+
+        // Chuyển đổi string thành enum
+        ProgramType programType = ProgramType.fromString(programRequest.getProgramType());
+        newProgram.setProgramType(programType);
+
         newProgram.setContentUrl(programRequest.getContentUrl());
         newProgram.setDescription(programRequest.getDescription());
         newProgram.setCreatedBy(currentUser);
@@ -110,7 +151,11 @@ public class ProgramService {
         // Cập nhật thông tin program
         existingProgram.setProgramTitle(programRequest.getProgramTitle());
         existingProgram.setProgramName(programRequest.getProgramName());
-        existingProgram.setProgramType(programRequest.getProgramType());
+
+        // Chuyển đổi string thành enum
+        ProgramType programType = ProgramType.fromString(programRequest.getProgramType());
+        existingProgram.setProgramType(programType);
+
         existingProgram.setContentUrl(programRequest.getContentUrl());
         existingProgram.setDescription(programRequest.getDescription());
 

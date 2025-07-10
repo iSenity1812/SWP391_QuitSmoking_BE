@@ -4,6 +4,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.dto.program.ProgramRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.program.ProgramResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.program.ProgramUpdateRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.ProgramType;
 import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.service.ProgramService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -20,6 +21,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -60,7 +62,7 @@ public class ProgramController {
                 .body(ApiResponse.success(program, "Lấy thông tin program thành công."));
     }
 
-    // Lấy programs theo type
+    // Lấy programs theo type - hỗ trợ cả enum và string
     @GetMapping("/type/{programType}")
     @PreAuthorize("hasAnyRole('PREMIUM_MEMBER', 'CONTENT_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Page<ProgramResponseDTO>>> getProgramsByType(
@@ -75,6 +77,33 @@ public class ProgramController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success(programs, "Lấy danh sách programs theo type thành công."));
+    }
+
+    // Lấy programs theo nhiều types
+    @GetMapping("/types/multiple")
+    @PreAuthorize("hasAnyRole('PREMIUM_MEMBER', 'CONTENT_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<Page<ProgramResponseDTO>>> getProgramsByMultipleTypes(
+            @RequestParam List<String> types,
+            @PageableDefault(
+                    page = 0,
+                    size = 20,
+                    sort = "createdAt",
+                    direction = Sort.Direction.DESC
+            ) Pageable pageable) {
+        Page<ProgramResponseDTO> programs = programService.getProgramsByTypes(types, pageable);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(programs, "Lấy danh sách programs theo types thành công."));
+    }
+
+    // Lấy tất cả program types
+    @GetMapping("/types")
+    @PreAuthorize("hasAnyRole('PREMIUM_MEMBER', 'CONTENT_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<List<ProgramType>>> getAllProgramTypes() {
+        List<ProgramType> programTypes = programService.getAllProgramTypes();
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(programTypes, "Lấy danh sách program types thành công."));
     }
 
     // --- ENDPOINT CHO CONTENT_ADMIN (TẠO, SỬA, XÓA PROGRAMS) ---
