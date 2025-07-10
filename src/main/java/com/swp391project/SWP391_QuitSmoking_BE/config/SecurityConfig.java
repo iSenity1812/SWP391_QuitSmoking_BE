@@ -77,7 +77,8 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true); // Cho phép gửi cookies, authorization headers
-        config.addAllowedOrigin("http://localhost:5173"); // Hoặc "*" cho mọi origin (ít an toàn hơn trong production)
+        config.addAllowedOrigin("http://localhost:5173");
+        config.addAllowedOrigin("http://localhost:5174");
         config.addAllowedOrigin("http://localhost:3000");
         // Nếu deploy lên VPS, bạn cần thay đổi "http://localhost:3000" thành URL của frontend
         config.addAllowedHeader("*"); // Cho phép tất cả các header
@@ -93,23 +94,28 @@ public class SecurityConfig {
                 // Nên bật CSRF protection nếu ứng dụng, Với JWT, Stateless session thì có thể tắt CSRF
                 .authorizeHttpRequests( // Cấu hình phân quyền truy cập
                     req -> req
-//                            // -- Public endpoints - không cần xác thực
-//                        .requestMatchers("/api/auth/**").permitAll() // Cho phép truy cập không cần xác thực cho các endpoint auth
-//                        .requestMatchers("/", "/home", "/blogs", "/about", "/contact", "/programs").permitAll() // Cho phép truy cập không cần xác thực cho các trang chủ và blog
-//                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                             .requestMatchers("/api/vnpay/payment-return**").permitAll() // Rất quan trọng!
                             .requestMatchers("/api/vnpay/ipn**").permitAll()
+                            .requestMatchers(
+                                            "/api/blogs",
+                                            "/api/blogs/**",
+                                            "/api/comments",
+                                            "/api/comments/blog/**",
+                                            "/api/comments/{commentId}",
+                                            "/uploads/**",
+                                            "/api/follows/{userId}/followers", // Cho phép xem danh sách người theo dõi
+                                            "/api/follows/{userId}/following", // Cho phép xem danh sách người theo dõi và người đang theo dõi
+                                            "/api/follows/{userId}/stats" // Cho phép xem stats công khai
+                            ).permitAll()
+
                             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger UI
-//
-//                            .requestMatchers(HttpMethod.POST, "/api/users").hasRole("SUPER_ADMIN")
-//                            .requestMatchers(HttpMethod.GET, "/api/users").hasRole("SUPER_ADMIN")
-//                            .requestMatchers(HttpMethod.DELETE, "/api/users/{userId}").hasRole("SUPER_ADMIN")
-                        .requestMatchers("/api/auth/login", "/api/auth/register").permitAll() // Cho phép truy cập không cần xác thực cho tất cả các endpoint
-//                        .requestMatchers(HttpMethod.GET, "/api/admin/**").hasAnyRole("CONTENT_ADMIN", "SUPER_ADMIN") // Chỉ cho phép người dùng đã xác thực truy cập
-                        .requestMatchers("/api/auth/logout").authenticated()
-                        .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
+                            .requestMatchers("/api/auth/login", "/api/auth/register").permitAll() // Cho phép truy cập không cần xác thực cho tất cả các endpoint
+//                            .requestMatchers("/", "/error").permitAll()
+                            .requestMatchers("/api/auth/logout").authenticated()
+                            .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
                             .requestMatchers("/api/coaches/**").authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

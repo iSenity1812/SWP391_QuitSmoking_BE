@@ -25,4 +25,6 @@ public interface MemberRepository extends JpaRepository<Member, UUID> {
             "WHERE LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%')) " +
             "OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%'))")
     List<Member> searchByUsernameOrEmail(@Param("query") String query);
+
+    Optional<Member> findByUser_UserId(UUID id);
 }

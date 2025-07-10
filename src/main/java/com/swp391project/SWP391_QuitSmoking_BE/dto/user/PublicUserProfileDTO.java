@@ -1,8 +1,15 @@
 package com.swp391project.SWP391_QuitSmoking_BE.dto.user;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.UUID;
 
+@Data
+@Getter
+@Setter
 public class PublicUserProfileDTO {
     private UUID userId;
     private String username;

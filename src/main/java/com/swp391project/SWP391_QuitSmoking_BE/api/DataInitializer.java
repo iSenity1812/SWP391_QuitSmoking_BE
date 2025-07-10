@@ -29,7 +29,7 @@ public class DataInitializer {
                 User adminUser = new User();
                 adminUser.setUsername("superadmin");
                 adminUser.setEmail("superadmin@example.com");
-                    adminUser.setPasswordHash(passwordEncoder.encode("StrongAdmin@123")); // Mật khẩu mạnh cho admin
+                adminUser.setPasswordHash(passwordEncoder.encode("StrongAdmin@123")); // Mật khẩu mạnh cho admin
                 adminUser.setCreatedAt(LocalDateTime.now());
                 adminUser.setUpdatedAt(LocalDateTime.now());
                 adminUser.setActive(true);
@@ -39,6 +39,22 @@ public class DataInitializer {
                 userRepository.save(adminUser);
                 System.out.println("Default SUPER_ADMIN user created: superadmin");
             }
+
+            if (userRepository.findByUsername("contentadmin").isEmpty()) {
+                User contentAdminUser = new User();
+                contentAdminUser.setUsername("contentadmin");
+                contentAdminUser.setEmail("contentadmin@example.com");
+                contentAdminUser.setPasswordHash(passwordEncoder.encode("ContentAdmin@123")); // Mật khẩu mạnh cho content admin
+                contentAdminUser.setCreatedAt(LocalDateTime.now());
+                contentAdminUser.setUpdatedAt(LocalDateTime.now());
+                contentAdminUser.setActive(true);
+                contentAdminUser.setRole(Role.CONTENT_ADMIN); // Gán vai trò CONTENT_ADMIN trực tiếp
+                contentAdminUser.setNotificationSetting(Map.of("emailNotifications", true, "pushNotifications", true)); // Khởi tạo
+                userRepository.save(contentAdminUser);
+                System.out.println("Default CONTENT_ADMIN user created: contentadmin");
+            }
+
+
         };
     }
 }
