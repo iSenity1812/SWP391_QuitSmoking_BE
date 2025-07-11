@@ -29,6 +29,8 @@ import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import com.swp391project.SWP391_QuitSmoking_BE.service.EmailService;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.email.EmailDetail;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.Notification;
+import com.swp391project.SWP391_QuitSmoking_BE.service.NotificationService;
 
 @Service
 public class AchievementService {
@@ -44,6 +46,8 @@ public class AchievementService {
     private DailySummaryRepository dailySummaryRepository;
     @Autowired
     private EmailService emailService;
+    @Autowired
+    private NotificationService notificationService;
 
     // Getter methods for testing
     public MemberRepository getMemberRepository() {
@@ -197,6 +201,16 @@ public class AchievementService {
             templateVars.put("achievementDescription", achievement.getDescription());
             EmailDetail emailDetail = new EmailDetail(email, subject, null, "achievementTemplate.html", templateVars);
             emailService.sendEmail(emailDetail);
+        }
+        // Tạo notification achievement
+        if (member != null && member.getUser() != null) {
+            Notification notification = new Notification();
+            notification.setUserId(member.getUser().getUserId());
+            notification.setTitle("Chúc mừng!");
+            notification.setContent("Bạn vừa đạt được thành tựu: " + achievement.getName());
+            notification.setNotificationType("ACHIEVEMENT");
+            notification.setFromUserId(null); // Hệ thống
+            notificationService.createNotification(notification);
         }
     }
 

@@ -3,6 +3,7 @@ package com.swp391project.SWP391_QuitSmoking_BE.service;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Notification;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ import java.util.UUID;
 public class NotificationService {
     private final NotificationRepository notificationRepository;
 
+    @Async
     @Transactional
     public Notification createNotification(Notification notification) {
         notification.setCreatedAt(LocalDateTime.now());
@@ -27,6 +29,10 @@ public class NotificationService {
 
     public List<Notification> getUnreadNotificationsByUser(UUID userId) {
         return notificationRepository.findByIsReadFalseAndUserId(userId);
+    }
+
+    public long countUnreadNotificationsByUser(UUID userId) {
+        return notificationRepository.countByIsReadFalseAndUserId(userId);
     }
 
     @Transactional

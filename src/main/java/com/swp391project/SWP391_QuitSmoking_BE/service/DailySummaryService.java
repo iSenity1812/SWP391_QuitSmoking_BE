@@ -6,6 +6,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.dto.dailysummary.DailySummaryUpda
 import com.swp391project.SWP391_QuitSmoking_BE.entity.CravingTracking;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.Notification;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.DailySummaryDeletedException;
@@ -29,6 +30,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.time.temporal.ChronoUnit;
+import com.swp391project.SWP391_QuitSmoking_BE.service.NotificationService;
+import com.swp391project.SWP391_QuitSmoking_BE.service.AchievementService;
 
 @AllArgsConstructor
 @Service
@@ -39,6 +42,8 @@ public class DailySummaryService {
     private final ModelMapper modelMapper;
     private final QuitPlanCalculator quitPlanCalculator;
     private final QuitPlanService quitPlanService;
+    private final NotificationService notificationService;
+    private final AchievementService achievementService;
 
     private static final int RELAPSE_CONSECUTIVE_DAYS_THRESHOLD = 3;
     private static final double RELAPSE_PERCENTAGE_OVER_TARGET_THRESHOLD = 0.20; // 20%
@@ -778,6 +783,18 @@ public class DailySummaryService {
                 } else {
                     log.info("isGoalAchievedToday cho DailySummary ID {} (Ngày: {}) không thay đổi",
                             dailySummary.getDailySummaryId(), dailySummary.getTrackDate());
+                }
+
+                // Sau khi cập nhật trạng thái, gửi notification daily reminder cho user
+                if (quitPlan != null && quitPlan.getMember() != null && quitPlan.getMember().getUser() != null) {
+                    UUID memberId = quitPlan.getMember().getMemberId();
+                    Notification notification = new Notification();
+                    notification.setUserId(quitPlan.getMember().getUser().getUserId());
+                    notification.setTitle("QuitTogether - Nhắc nhở mỗi ngày");
+                    notification.setContent("Bạn đã cai được " + achievementService.calculateDaysQuit(memberId) + " ngày, tránh được " + achievementService.calculateCigarettesNotSmoked(memberId) + " điều trước và tiết kiệm " + achievementService.calculateMoneySaved(memberId) + " đồng! Hãy tiếp tục cố gắng!");
+                    notification.setNotificationType("DAILY_REMINDER");
+                    notification.setFromUserId(null); // Hệ thống
+                    notificationService.createNotification(notification);
                 }
 
             } catch (Exception e) {
