@@ -32,6 +32,9 @@ import java.util.stream.Collectors;
 import java.time.temporal.ChronoUnit;
 import com.swp391project.SWP391_QuitSmoking_BE.service.NotificationService;
 import com.swp391project.SWP391_QuitSmoking_BE.service.AchievementService;
+import com.swp391project.SWP391_QuitSmoking_BE.service.EmailService;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.email.EmailDetail;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 
 @AllArgsConstructor
 @Service
@@ -44,6 +47,7 @@ public class DailySummaryService {
     private final QuitPlanService quitPlanService;
     private final NotificationService notificationService;
     private final AchievementService achievementService;
+    private final EmailService emailService;
 
     private static final int RELAPSE_CONSECUTIVE_DAYS_THRESHOLD = 3;
     private static final double RELAPSE_PERCENTAGE_OVER_TARGET_THRESHOLD = 0.20; // 20%
@@ -701,7 +705,7 @@ public class DailySummaryService {
 
     //chạy định kỳ để cập nhật trạng thái hoàn thành mục tiêu (isGoalAchievedToday)
     //cho các bản ghi DailySummary của ngày hôm trước
-    @Scheduled(cron = "0 0 0 * * ?") // Chạy mỗi ngày lúc 00:00
+    @Scheduled(cron = "0 0 9 * * ?") // Chạy mỗi ngày lúc 09:00 (GMT+7)
     @Transactional
     public void updateGoalAchievementStatusForPreviousDay() {
         //lấy dữ liệu của ngày đã qua
@@ -715,8 +719,59 @@ public class DailySummaryService {
                 .toList();
 
         if (dailySummaries.isEmpty()) {
-            log.info("Không tìm thấy bản ghi DailySummary nào cho ngày {}. " +
-                    "Bỏ qua cập nhật trạng thái mục tiêu", previousDay);
+            log.info("Không tìm thấy bản ghi DailySummary nào cho ngày {}. Gửi motivation cho các user có kế hoạch IN_PROGRESS", previousDay);
+            // Lấy tất cả QuitPlan IN_PROGRESS
+            List<QuitPlan> inProgressPlans = quitPlanService.getAllInProgressPlans();
+            if (inProgressPlans.isEmpty()) {
+                // Nếu không có IN_PROGRESS, lấy COMPLETED để test
+                inProgressPlans = quitPlanService.getAllCompletedPlans();
+                log.info("Không có QuitPlan IN_PROGRESS, lấy {} QuitPlan COMPLETED để test", inProgressPlans.size());
+            }
+            log.info("Tìm thấy {} QuitPlan IN_PROGRESS", inProgressPlans.size());
+            
+            for (QuitPlan quitPlan : inProgressPlans) {
+                if (quitPlan.getMember() != null && quitPlan.getMember().getUser() != null) {
+                    UUID memberId = quitPlan.getMember().getMemberId();
+                    User user = quitPlan.getMember().getUser();
+                    log.info("Xử lý user: {} (email: {})", user.getUsername(), user.getEmail());
+                    
+                    // Gửi notification daily reminder
+                    Notification notification = new Notification();
+                    notification.setUserId(user.getUserId());
+                    notification.setTitle("QuitTogether - Nhắc nhở mỗi ngày");
+                    notification.setContent("Bạn đã cai được " + achievementService.calculateDaysQuit(memberId) + " ngày, tránh được " + achievementService.calculateCigarettesNotSmoked(memberId) + " điều trước và tiết kiệm " + achievementService.calculateMoneySaved(memberId) + " đồng! Hãy tiếp tục cố gắng!");
+                    notification.setNotificationType("DAILY_REMINDER");
+                    notification.setFromUserId(null); // Hệ thống
+                    notificationService.createNotification(notification);
+                    log.info("Đã gửi notification cho user: {}", user.getUsername());
+                    
+                    // Gửi email motivation
+                    if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+                        try {
+                            String subject = "QuitTogether - Động lực hàng ngày của bạn";
+                            Map<String, Object> templateVars = new HashMap<>();
+                            templateVars.put("username", user.getUsername());
+                            templateVars.put("daysQuit", achievementService.calculateDaysQuit(memberId));
+                            templateVars.put("cigarettesNotSmoked", achievementService.calculateCigarettesNotSmoked(memberId));
+                            templateVars.put("moneySaved", achievementService.calculateMoneySaved(memberId));
+                            templateVars.put("motivationalMessage", getMotivationalMessage(achievementService.calculateDaysQuit(memberId)));
+                            
+                            log.info("Chuẩn bị gửi email với templateVars: {}", templateVars);
+                            
+                            EmailDetail emailDetail = new EmailDetail(user.getEmail(), subject, null, "dailyMotivationTemplate.html", templateVars);
+                            emailService.sendEmail(emailDetail);
+                            log.info("Đã gửi email motivation cho user: {} (email: {})", user.getUsername(), user.getEmail());
+                        } catch (Exception e) {
+                            log.error("Lỗi khi gửi email motivation cho user {} (email: {}): {}", user.getUsername(), user.getEmail(), e.getMessage(), e);
+                        }
+                    } else {
+                        log.warn("User {} không có email hoặc email rỗng", user.getUsername());
+                    }
+                } else {
+                    log.warn("QuitPlan {} không có member hoặc user", quitPlan.getQuitPlanId());
+                }
+            }
+            log.info("Hoàn tất gửi motivation cho các user có kế hoạch IN_PROGRESS cho ngày {}", previousDay);
             return;
         }
 
@@ -785,16 +840,38 @@ public class DailySummaryService {
                             dailySummary.getDailySummaryId(), dailySummary.getTrackDate());
                 }
 
-                // Sau khi cập nhật trạng thái, gửi notification daily reminder cho user
+                // Sau khi cập nhật trạng thái, gửi notification và email motivation cho user
                 if (quitPlan != null && quitPlan.getMember() != null && quitPlan.getMember().getUser() != null) {
                     UUID memberId = quitPlan.getMember().getMemberId();
+                    User user = quitPlan.getMember().getUser();
+                    
+                    // Gửi notification daily reminder
                     Notification notification = new Notification();
-                    notification.setUserId(quitPlan.getMember().getUser().getUserId());
+                    notification.setUserId(user.getUserId());
                     notification.setTitle("QuitTogether - Nhắc nhở mỗi ngày");
                     notification.setContent("Bạn đã cai được " + achievementService.calculateDaysQuit(memberId) + " ngày, tránh được " + achievementService.calculateCigarettesNotSmoked(memberId) + " điều trước và tiết kiệm " + achievementService.calculateMoneySaved(memberId) + " đồng! Hãy tiếp tục cố gắng!");
                     notification.setNotificationType("DAILY_REMINDER");
                     notification.setFromUserId(null); // Hệ thống
                     notificationService.createNotification(notification);
+                    
+                    // Gửi email motivation
+                    if (user.getEmail() != null) {
+                        try {
+                            String subject = "QuitTogether - Động lực hàng ngày của bạn";
+                            Map<String, Object> templateVars = new HashMap<>();
+                            templateVars.put("username", user.getUsername());
+                            templateVars.put("daysQuit", achievementService.calculateDaysQuit(memberId));
+                            templateVars.put("cigarettesNotSmoked", achievementService.calculateCigarettesNotSmoked(memberId));
+                            templateVars.put("moneySaved", achievementService.calculateMoneySaved(memberId));
+                            templateVars.put("motivationalMessage", getMotivationalMessage(achievementService.calculateDaysQuit(memberId)));
+                            
+                            EmailDetail emailDetail = new EmailDetail(user.getEmail(), subject, null, "dailyMotivationTemplate.html", templateVars);
+                            emailService.sendEmail(emailDetail);
+                            log.info("Đã gửi email motivation cho user: {}", user.getEmail());
+                        } catch (Exception e) {
+                            log.error("Lỗi khi gửi email motivation cho user {}: {}", user.getEmail(), e.getMessage());
+                        }
+                    }
                 }
 
             } catch (Exception e) {
@@ -803,5 +880,28 @@ public class DailySummaryService {
             }
         }
         log.info("Hoàn tất cập nhật trạng thái hoàn thành mục tiêu cho ngày: {}", previousDay);
+    }
+    
+    // Method để tạo thông điệp motivation dựa trên số ngày cai thuốc
+    private String getMotivationalMessage(BigDecimal daysQuit) {
+        int days = daysQuit.intValue();
+        
+        if (days == 0) {
+            return "Hôm nay là ngày đầu tiên! Bạn có thể làm được!";
+        } else if (days == 1) {
+            return "Ngày đầu tiên đã hoàn thành! Bạn đã bắt đầu tuyệt vời!";
+        } else if (days < 3) {
+            return "Những ngày đầu rất quan trọng. Bạn đang làm rất tốt!";
+        } else if (days < 7) {
+            return "Tuyệt vời! Bạn đang tiến gần đến cột mốc 1 tuần!";
+        } else if (days < 14) {
+            return "Một tuần đã qua! Cơ thể bạn đang dần hồi phục!";
+        } else if (days < 30) {
+            return "Hai tuần! Bạn đang trên đường tạo thói quen mới!";
+        } else if (days < 90) {
+            return "Một tháng không hút thuốc! Bạn thật phi thường!";
+        } else {
+            return "Ba tháng! Bạn đã thay đổi lối sống của mình!";
+        }
     }
 }

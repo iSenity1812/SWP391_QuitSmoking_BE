@@ -1,6 +1,9 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
-import com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan.*;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan.QuitPlanResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan.QuitPlanAdminResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan.QuitPlanCreateRequestDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.quitplan.QuitPlanUpdateRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.*;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
@@ -565,5 +568,15 @@ public class QuitPlanService {
                 quitPlanId, memberId);
 
         return modelMapper.map(currentPlan, QuitPlanResponseDTO.class);
+    }
+
+    @Transactional(readOnly = true)
+    public List<QuitPlan> getAllInProgressPlans() {
+        return quitPlanRepository.findByStatus(QuitPlanStatus.IN_PROGRESS);
+    }
+
+    @Transactional(readOnly = true)
+    public List<QuitPlan> getAllCompletedPlans() {
+        return quitPlanRepository.findByStatus(QuitPlanStatus.COMPLETED);
     }
 }

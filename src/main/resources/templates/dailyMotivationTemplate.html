@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Động lực hàng ngày - QuitTogether</title>
+</head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; margin: 0;">
+    <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 40px 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: bold;">💪 Động Lực Hàng Ngày</h1>
+            <p style="color: #ecfdf5; margin: 10px 0 0 0; font-size: 16px;">Chào mừng bạn trở lại, <span th:text="${username}"></span>!</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 40px 30px;">
+            <!-- Stats Cards -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                <div style="background: #f0f9ff; border-radius: 12px; padding: 20px; text-align: center; border: 2px solid #0ea5e9;">
+                    <div style="font-size: 24px; font-weight: bold; color: #0ea5e9;"><span th:text="${daysQuit}"></span></div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 5px;">NGÀY CAI THUỐC</div>
+                </div>
+                <div style="background: #fef3c7; border-radius: 12px; padding: 20px; text-align: center; border: 2px solid #f59e0b;">
+                    <div style="font-size: 24px; font-weight: bold; color: #f59e0b;"><span th:text="${cigarettesNotSmoked}"></span></div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 5px;">ĐIẾU TRÁNH ĐƯỢC</div>
+                </div>
+                <div style="background: #dcfce7; border-radius: 12px; padding: 20px; text-align: center; border: 2px solid #16a34a;">
+                    <div style="font-size: 24px; font-weight: bold; color: #16a34a;"><span th:text="${moneySaved}"></span></div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 5px;">ĐỒNG TIẾT KIỆM</div>
+                </div>
+            </div>
+            
+            <!-- Motivation Message -->
+            <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; padding: 30px; text-align: center; border: 2px solid #f59e0b;">
+                <div style="font-size: 48px; margin-bottom: 15px;">💪</div>
+                <h2 style="color: #92400e; margin: 0 0 15px 0; font-size: 20px;">Thông Điệp Động Lực</h2>
+                <p style="color: #78350f; font-size: 16px; line-height: 1.6; margin: 0; font-style: italic;">
+                    "<span th:text="${motivationalMessage}"></span>"
+                </p>
+            </div>
+            
+            <!-- Call to Action -->
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="https://yourapp.com/dashboard" style="display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                    🚀 Cập Nhật Tiến Trình Ngay
+                </a>
+            </div>
+            
+            <!-- Tips Section -->
+            <div style="background: #f8fafc; border-radius: 12px; padding: 25px; margin-top: 30px; border-left: 4px solid #10b981;">
+                <h3 style="color: #1e293b; margin: 0 0 15px 0; font-size: 18px;">💡 Mẹo Hôm Nay</h3>
+                <p style="color: #64748b; margin: 0; font-size: 14px; line-height: 1.6;">
+                    Khi cảm thấy thèm thuốc, hãy thử hít thở sâu 10 lần hoặc uống một ly nước. Mỗi cơn thèm chỉ kéo dài 3-5 phút, bạn có thể vượt qua!
+                </p>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="color: #64748b; margin: 0; font-size: 14px;">
+                Cảm ơn bạn đã đồng hành cùng QuitTogether! 🌟
+            </p>
+            <p style="color: #94a3b8; margin: 5px 0 0 0; font-size: 12px;">
+                Email này được gửi tự động. Bạn có thể tắt thông báo trong cài đặt.
+            </p>
+        </div>
+    </div>
+</body>
+</html> 
