@@ -1,9 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.api;
 
+import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.*;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogRequestDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogResponseDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogRequestDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogUpdateRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.BlogStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
@@ -15,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,6 +22,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -222,5 +223,86 @@ public class BlogController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success(blogs, "Lấy danh sách blog của tôi thành công."));
+    }
+
+    @GetMapping("/admin/statistics")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'CONTENT_ADMIN')")
+    public ResponseEntity<ApiResponse<Page<BlogStatisticsDTO>>> getAllBlogsForStatistics(
+            @PageableDefault(
+                    page = 0,
+                    size = 100,
+                    sort = "createdAt",
+                    direction = Sort.Direction.DESC
+            ) Pageable pageable) {
+        Page<BlogStatisticsDTO> blogs = blogService.getAllBlogsForStatistics(pageable);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(blogs, "Lấy dữ liệu thống kê blog thành công."));
+    }
+
+    // Lấy tất cả blog cho statistics (không pagination - cẩn thận với data lớn)
+    @GetMapping("/admin/statistics/all")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'CONTENT_ADMIN')")
+    public ResponseEntity<ApiResponse<List<BlogStatisticsDTO>>> getAllBlogsForStatisticsNoPage() {
+        List<BlogStatisticsDTO> blogs = blogService.getAllBlogsForStatistics();
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(blogs, "Lấy toàn bộ dữ liệu thống kê blog thành công."));
+    }
+
+    // Lấy blog statistics theo khoảng thời gian
+    @GetMapping("/admin/statistics/date-range")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'CONTENT_ADMIN')")
+    public ResponseEntity<ApiResponse<List<BlogStatisticsDTO>>> getBlogsByDateRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+        List<BlogStatisticsDTO> blogs = blogService.getBlogsForStatisticsByDateRange(startDate, endDate);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(blogs, "Lấy dữ liệu thống kê blog theo khoảng thời gian thành công."));
+    }
+
+    // Lấy blog statistics theo status
+    @GetMapping("/admin/statistics/status/{status}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'CONTENT_ADMIN')")
+    public ResponseEntity<ApiResponse<List<BlogStatisticsDTO>>> getBlogsByStatus(
+            @PathVariable BlogStatus status) {
+        List<BlogStatisticsDTO> blogs = blogService.getBlogsForStatisticsByStatus(status);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(blogs, "Lấy dữ liệu thống kê blog theo trạng thái thành công."));
+    }
+
+    // Lấy blog statistics theo author
+    @GetMapping("/admin/statistics/author/{authorId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'CONTENT_ADMIN')")
+    public ResponseEntity<ApiResponse<List<BlogStatisticsDTO>>> getBlogsByAuthor(
+            @PathVariable UUID authorId) {
+        List<BlogStatisticsDTO> blogs = blogService.getBlogsForStatisticsByAuthor(authorId);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(blogs, "Lấy dữ liệu thống kê blog theo tác giả thành công."));
+    }
+
+    // Lấy tóm tắt thống kê blog
+    @GetMapping("/admin/statistics/summary")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'CONTENT_ADMIN')")
+    public ResponseEntity<ApiResponse<BlogStatisticsSummaryDTO>> getBlogStatisticsSummary() {
+        BlogStatisticsSummaryDTO summary = blogService.getBlogStatisticsSummary();
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(summary, "Lấy tóm tắt thống kê blog thành công."));
+    }
+
+    // Lấy tóm tắt thống kê blog theo khoảng thời gian
+    @GetMapping("/admin/statistics/summary/date-range")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'CONTENT_ADMIN')")
+    public ResponseEntity<ApiResponse<BlogStatisticsSummaryDTO>> getBlogStatisticsSummaryByDateRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+        BlogStatisticsSummaryDTO summary = blogService.getBlogStatisticsSummaryByDateRange(startDate, endDate);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(summary, "Lấy tóm tắt thống kê blog theo khoảng thời gian thành công."));
     }
 }

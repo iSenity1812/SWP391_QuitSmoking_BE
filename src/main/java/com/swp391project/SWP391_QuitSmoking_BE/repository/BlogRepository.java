@@ -3,6 +3,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.repository; // Kiểm tra lại package này là 'repository' hay 'repositories'
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogStatisticsDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Blog;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.BlogStatus; // <-- Đảm bảo import enum này
 import org.springframework.data.domain.Page;
@@ -12,6 +13,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,4 +44,63 @@ public interface BlogRepository extends JpaRepository<Blog, Integer> { // Intege
     void softDeleteById(@Param("id") Integer id);
 
     Page<BlogResponseDTO> getBlogsByAuthor(UUID authorId, Pageable pageable);
+
+// Lấy tất cả blog cho statistics (bao gồm cả deleted)
+    @Query("SELECT new com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogStatisticsDTO(" +
+            "b.blogId, b.createdAt, b.status, b.author.userId, b.author.username, b.author.email, " +
+            "b.isDeleted) " +
+            "FROM Blog b " +
+            "ORDER BY b.createdAt DESC")
+    List<BlogStatisticsDTO> findAllBlogsForStatistics();
+
+    // Lấy blog statistics theo khoảng thời gian
+    @Query("SELECT new com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogStatisticsDTO(" +
+            "b.blogId, b.createdAt, b.status, b.author.userId, b.author.username, b.author.email, " +
+            "b.isDeleted) " +
+            "FROM Blog b " +
+            "WHERE b.createdAt BETWEEN :startDate AND :endDate " +
+            "ORDER BY b.createdAt DESC")
+    List<BlogStatisticsDTO> findBlogsForStatisticsByDateRange(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    // Lấy blog statistics theo status
+    @Query("SELECT new com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogStatisticsDTO(" +
+            "b.blogId, b.createdAt, b.status, b.author.userId, b.author.username, b.author.email, " +
+            "b.isDeleted) " +
+            "FROM Blog b " +
+            "WHERE b.status = :status " +
+            "ORDER BY b.createdAt DESC")
+    List<BlogStatisticsDTO> findBlogsForStatisticsByStatus(@Param("status") BlogStatus status);
+
+    // Lấy blog statistics theo author
+    @Query("SELECT new com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogStatisticsDTO(" +
+            "b.blogId, b.createdAt, b.status, b.author.userId, b.author.username, b.author.email, " +
+            "b.isDeleted) " +
+            "FROM Blog b " +
+            "WHERE b.author.userId = :authorId " +
+            "ORDER BY b.createdAt DESC")
+    List<BlogStatisticsDTO> findBlogsForStatisticsByAuthor(@Param("authorId") UUID authorId);
+
+    // Lấy blog statistics với pagination
+    @Query("SELECT new com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogStatisticsDTO(" +
+            "b.blogId, b.createdAt, b.status, b.author.userId, b.author.username, b.author.email, " +
+            "b.isDeleted) " +
+            "FROM Blog b " +
+            "ORDER BY b.createdAt DESC")
+    Page<BlogStatisticsDTO> findAllBlogsForStatistics(Pageable pageable);
+
+    // Count methods cho statistics summary
+    @Query("SELECT COUNT(b) FROM Blog b WHERE b.status = :status")
+    Long countBlogsByStatus(@Param("status") BlogStatus status);
+
+    @Query("SELECT COUNT(b) FROM Blog b WHERE b.createdAt BETWEEN :startDate AND :endDate")
+    Long countBlogsByDateRange(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    @Query("SELECT COUNT(b) FROM Blog b WHERE b.author.userId = :authorId")
+    Long countBlogsByAuthor(@Param("authorId") UUID authorId);
 }

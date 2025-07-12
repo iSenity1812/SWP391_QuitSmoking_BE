@@ -47,9 +47,9 @@ public class QuizService {
                 .orElseThrow(() -> new ResourceNotFoundException("User creating Quiz not found with ID: " + createdByUserId));
 
         // TẠM THỜI COMMENT ĐỂ TEST VỚI NORMAL_MEMBER - NHỚ BỎ COMMENT KHI TRIỂN KHAI THỰC TẾ
-         if (creator.getRole() != Role.SUPER_ADMIN && creator.getRole() != Role.CONTENT_ADMIN) {
-             throw new IllegalArgumentException("Chỉ quản trị viên (SUPER_ADMIN hoặc CONTENT_ADMIN) mới có quyền tạo Quiz.");
-         }
+        if (creator.getRole() != Role.SUPER_ADMIN && creator.getRole() != Role.CONTENT_ADMIN) {
+            throw new IllegalArgumentException("Chỉ quản trị viên (SUPER_ADMIN hoặc CONTENT_ADMIN) mới có quyền tạo Quiz.");
+        }
 
         long correctOptionCount = request.getOptions().stream()
                 .filter(QuizCreationRequestDTO.OptionRequest::getIsCorrect)
@@ -85,14 +85,22 @@ public class QuizService {
                 })
                 .collect(Collectors.toSet());
 
-        // Gán options vào Quiz. Do CascadeType.ALL trên Set<Option> trong Quiz,
-        // các options này sẽ được lưu khi Quiz được lưu (hoặc update sau).
-        // Không cần optionRepository.saveAll(options) ở đây nếu bạn gán vào quiz và save quiz cuối cùng.
         savedQuiz.setOptions(options);
 
-        // Nếu savedQuiz.setOptions() đã gán và bạn save quiz ở cuối, thì có thể bỏ qua saveAll options này
-        // nhưng để an toàn và rõ ràng, ta cứ để đây.
-        // optionRepository.saveAll(options); // Có thể bỏ nếu logic gán và save quiz xử lý cascade
+        // TỰ ĐỘNG TẠO TASK CHO QUIZ
+        Task quizTask = new Task();
+        quizTask.setTypeId(1); // 1 cho Quiz Task
+        quizTask.setCreatedAt(LocalDateTime.now());
+        quizTask.setUpdatedAt(LocalDateTime.now());
+        quizTask.setCreatedByUser(creator);
+
+        // Liên kết Quiz với Task
+        Set<Quiz> quizzes = new HashSet<>();
+        quizzes.add(savedQuiz);
+        quizTask.setQuizzes(quizzes);
+
+        // Lưu Task - điều này sẽ tạo ra bảng trung gian TaskQuiz
+        taskRepository.save(quizTask);
 
         // Lấy lại options từ savedQuiz để đảm bảo IDs đã được sinh ra
         List<OptionResponseDTO> optionResponses = savedQuiz.getOptions().stream()
@@ -159,9 +167,9 @@ public class QuizService {
                 .orElseThrow(() -> new ResourceNotFoundException("User updating Quiz not found with ID: " + updatedByUserId));
 
         // TẠM THỜI COMMENT ĐỂ TEST VỚI NORMAL_MEMBER - NHỚ BỎ COMMENT KHI TRIỂN KHAI THỰC TẾ
-         if (updater.getRole() != Role.SUPER_ADMIN && updater.getRole() != Role.CONTENT_ADMIN) {
-             throw new IllegalArgumentException("Chỉ quản trị viên (SUPER_ADMIN hoặc CONTENT_ADMIN) mới có quyền cập nhật Quiz.");
-         }
+        if (updater.getRole() != Role.SUPER_ADMIN && updater.getRole() != Role.CONTENT_ADMIN) {
+            throw new IllegalArgumentException("Chỉ quản trị viên (SUPER_ADMIN hoặc CONTENT_ADMIN) mới có quyền cập nhật Quiz.");
+        }
 
         // Các kiểm tra validation cho dữ liệu mới (tương tự như khi tạo)
         long correctOptionCount = request.getOptions().stream()
@@ -235,5 +243,38 @@ public class QuizService {
         // Sau khi tất cả các liên kết đã được xóa khỏi các Task, giờ an toàn để xóa Quiz.
         // Các Options cũng sẽ tự động bị xóa do CascadeType.ALL và orphanRemoval=true trong Quiz entity.
         quizRepository.delete(quizToDelete);
+    }
+
+    @Transactional
+    public void linkQuizToTask(UUID quizId, Integer taskId) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with ID: " + quizId));
+
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+
+        task.getQuizzes().add(quiz);
+        taskRepository.save(task);
+    }
+
+    @Transactional
+    public void createTaskForQuiz(UUID quizId, UUID createdByUserId) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with ID: " + quizId));
+
+        User creator = userRepository.findById(createdByUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + createdByUserId));
+
+        Task quizTask = new Task();
+        quizTask.setTypeId(1); // 1 cho Quiz Task
+        quizTask.setCreatedAt(LocalDateTime.now());
+        quizTask.setUpdatedAt(LocalDateTime.now());
+        quizTask.setCreatedByUser(creator);
+
+        Set<Quiz> quizzes = new HashSet<>();
+        quizzes.add(quiz);
+        quizTask.setQuizzes(quizzes);
+
+        taskRepository.save(quizTask);
     }
 }

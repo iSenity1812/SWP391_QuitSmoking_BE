@@ -1,8 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
-import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogRequestDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogResponseDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.BlogUpdateRequestDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.blog.*;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.comment.CommentResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Blog;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
@@ -279,5 +277,59 @@ public class BlogService {
         }
         Page<Blog> blogsPage = blogRepository.findByAuthor_UserId(currentUser.getUserId(), pageable);
         return blogsPage.map(this::convertToBlogResponseDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BlogStatisticsDTO> getAllBlogsForStatistics() {
+        return blogRepository.findAllBlogsForStatistics();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BlogStatisticsDTO> getAllBlogsForStatistics(Pageable pageable) {
+        return blogRepository.findAllBlogsForStatistics(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BlogStatisticsDTO> getBlogsForStatisticsByDateRange(
+            LocalDateTime startDate,
+            LocalDateTime endDate) {
+        return blogRepository.findBlogsForStatisticsByDateRange(startDate, endDate);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BlogStatisticsDTO> getBlogsForStatisticsByStatus(BlogStatus status) {
+        return blogRepository.findBlogsForStatisticsByStatus(status);
+    }
+
+    @Transactional(readOnly = true)
+    public List<BlogStatisticsDTO> getBlogsForStatisticsByAuthor(UUID authorId) {
+        return blogRepository.findBlogsForStatisticsByAuthor(authorId);
+    }
+
+    @Transactional(readOnly = true)
+    public BlogStatisticsSummaryDTO getBlogStatisticsSummary() {
+        Long totalBlogs = blogRepository.count();
+        Long publishedBlogs = blogRepository.countBlogsByStatus(BlogStatus.PUBLISHED);
+        Long pendingBlogs = blogRepository.countBlogsByStatus(BlogStatus.PENDING);
+        Long rejectedBlogs = blogRepository.countBlogsByStatus(BlogStatus.REJECTED);
+
+        return BlogStatisticsSummaryDTO.builder()
+                .totalBlogs(totalBlogs)
+                .publishedBlogs(publishedBlogs)
+                .pendingBlogs(pendingBlogs)
+                .rejectedBlogs(rejectedBlogs)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public BlogStatisticsSummaryDTO getBlogStatisticsSummaryByDateRange(
+            LocalDateTime startDate,
+            LocalDateTime endDate) {
+        Long totalBlogs = blogRepository.countBlogsByDateRange(startDate, endDate);
+
+        // Có thể thêm các query phức tạp hơn để đếm theo status trong date range
+        return BlogStatisticsSummaryDTO.builder()
+                .totalBlogs(totalBlogs)
+                .build();
     }
 }
