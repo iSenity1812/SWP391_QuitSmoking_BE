@@ -19,8 +19,9 @@ public class NotificationController {
     private final UserRepository userRepository;
 
     @PostMapping
-    public ResponseEntity<Notification> createNotification(@RequestBody Notification notification) {
-        return ResponseEntity.ok(notificationService.createNotification(notification));
+    public ResponseEntity<Void> createNotification(@RequestBody Notification notification) {
+        notificationService.createNotification(notification);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/admin/send")

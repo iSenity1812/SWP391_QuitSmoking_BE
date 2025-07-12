@@ -17,10 +17,10 @@ public class NotificationService {
 
     @Async
     @Transactional
-    public Notification createNotification(Notification notification) {
+    public void createNotification(Notification notification) {
         notification.setCreatedAt(LocalDateTime.now());
         notification.setIsRead(false);
-        return notificationRepository.save(notification);
+        notificationRepository.save(notification);
     }
 
     public List<Notification> getNotificationsByUser(UUID userId) {
@@ -41,5 +41,9 @@ public class NotificationService {
             notification.setIsRead(true);
             notificationRepository.save(notification);
         });
+    }
+
+    public void deleteNotificationByUserIdAndContent(UUID userId, String content) {
+        notificationRepository.deleteByUserIdAndContent(userId, content);
     }
 } 

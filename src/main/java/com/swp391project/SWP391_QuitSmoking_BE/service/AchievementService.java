@@ -466,6 +466,12 @@ public class AchievementService {
                 if (!shouldStillUnlock) {
                     System.out.println("[AchievementService] XÓA thành tựu không hợp lệ (cleanInvalidAchievements): " + achievement.getName() + " (" + achievement.getMilestoneValue() + ") cho memberId: " + memberId + ". Số liệu hiện tại: daysQuit=" + currentDaysQuit + ", moneySaved=" + currentMoneySaved + ", cigarettesNotSmoked=" + currentCigarettesNotSmoked);
                     memberAchievementRepository.delete(ma);
+                    // Xóa notification liên quan đến achievement này
+                    Member member = memberRepository.findById(memberId).orElse(null);
+                    if (member != null && member.getUser() != null) {
+                        String content = "Bạn vừa đạt được thành tựu: " + achievement.getName();
+                        notificationService.deleteNotificationByUserIdAndContent(member.getUser().getUserId(), content);
+                    }
                 }
             }
         }
