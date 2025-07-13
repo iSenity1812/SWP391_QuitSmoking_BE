@@ -3,13 +3,18 @@ package com.swp391project.SWP391_QuitSmoking_BE.repository;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Coach;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.CoachSchedule;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.TimeSlot;
+import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -63,6 +68,89 @@ public interface CoachScheduleRepository extends JpaRepository<CoachSchedule, Lo
             LocalDate scheduleDate, Pageable pageable);
 
     List<CoachSchedule> findByCoach_CoachIdAndIsBookedFalseAndScheduleDateGreaterThanEqualOrderByScheduleDateAscTimeSlot_StartTimeAsc(UUID coachId, LocalDate now, Pageable pageable);
+
+    // Query để lấy tất cả CoachSchedule cho một Coach trong một khoảng thời gian
+    // và fetch eagerly các mối quan hệ cần thiết để tránh N+1
+    @Query("SELECT cs FROM CoachSchedule cs " +
+            "LEFT JOIN FETCH cs.timeSlot ts " +
+            "LEFT JOIN FETCH cs.appointments apt " +
+            "LEFT JOIN FETCH apt.member m " +
+            "LEFT JOIN FETCH m.user u_member " +
+            "WHERE cs.coach.coachId = :coachId " +
+            "AND cs.scheduleDate BETWEEN :startDate AND :endDate " +
+            "AND cs.isDeleted = FALSE " + // Loại bỏ các lịch đã bị xóa mềm
+            "ORDER BY cs.scheduleDate ASC, ts.startTime ASC")
+    List<CoachSchedule> findByCoachIdAndScheduleDateBetweenWithDetails(
+            @Param("coachId") UUID coachId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Query("SELECT DISTINCT cs FROM CoachSchedule cs " +
+            "JOIN FETCH cs.timeSlot ts " +
+            "JOIN FETCH cs.coach c " +
+            "JOIN FETCH c.user u " +
+            "LEFT JOIN cs.appointments apt " + // LEFT JOIN để lấy tất cả schedules, dù có appointment hay không
+            "WHERE cs.isDeleted = false " + // Loại bỏ các lịch đã bị xóa mềm
+            "AND cs.scheduleDate = :date " + // Theo ngày cụ thể
+            "AND ts.startTime >= :startTime " + // Giờ bắt đầu của timeslot >= giờ bắt đầu yêu cầu
+            "AND ts.endTime <= :endTime " + // Giờ kết thúc của timeslot <= giờ kết thúc yêu cầu
+            "AND NOT EXISTS (" + // Subquery để loại trừ các schedule có cuộc hẹn CONFIRMED/PENDING
+            "   SELECT a FROM Appointment a " +
+            "   WHERE a.coachSchedule.scheduleId = cs.scheduleId " + //
+            "   AND (a.status = 'CONFIRMED' OR a.status = 'COMPLTETED')" + //
+            ") " +
+            "ORDER BY cs.scheduleDate ASC, ts.startTime ASC, c.fullName ASC")
+    List<CoachSchedule> findAvailableSchedulesByDateAndTimeRange(
+            @Param("date") LocalDate date,
+            @Param("startTime") LocalTime startTime,
+            @Param("endTime") LocalTime endTime
+    );
+
+    @Query("SELECT DISTINCT cs FROM CoachSchedule cs " +
+            "JOIN FETCH cs.timeSlot ts " +
+            "JOIN FETCH cs.coach c " +
+            "JOIN FETCH c.user u " +
+            "LEFT JOIN cs.appointments apt " +
+            "WHERE cs.isDeleted = false " + // Loại bỏ các lịch đã bị xóa mềm
+            "AND cs.scheduleDate BETWEEN :startDate AND :endDate " + // Theo khoảng ngày
+            "AND ts.startTime >= :startTime " + // Giờ bắt đầu của timeslot >= giờ bắt đầu yêu cầu
+            "AND ts.endTime <= :endTime " + // Giờ kết thúc của timeslot <= giờ kết thúc yêu cầu
+            "AND NOT EXISTS (" + // Subquery để loại trừ các schedule có cuộc hẹn CONFIRMED/PENDING
+            "   SELECT a FROM Appointment a " +
+            "   WHERE a.coachSchedule.scheduleId = cs.scheduleId " + //
+            "   AND (a.status = 'CONFIRMED' OR a.status = 'PENDING')" + //
+            ") " +
+            "ORDER BY cs.scheduleDate ASC, ts.startTime ASC, c.fullName ASC")
+    List<CoachSchedule> findAvailableSchedulesByDateRangeAndTimeRange(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("startTime") LocalTime startTime,
+            @Param("endTime") LocalTime endTime
+    );
+
+    Optional<CoachSchedule> findByCoachAndScheduleDateAndTimeSlotAndIsDeletedFalse(Coach coach, @NotNull(message = "Schedule date không thể null") @FutureOrPresent(message = "Schedule date must be today or in the future") LocalDate scheduleDate, TimeSlot timeSlot);
+
+
+    // Phương thức để lấy tất cả các TimeSlot (để Frontend hiển thị lựa chọn)
+    @Query("SELECT ts FROM TimeSlot ts WHERE ts.isDeleted = FALSE")
+    List<TimeSlot> findAllActiveTimeSlots();
+
+
+    // Phương thức tìm kiếm các lịch trình trống dựa trên khoảng ngày và timeSlotIds
+    @Query("SELECT cs FROM CoachSchedule cs " +
+            "JOIN FETCH cs.coach c " +      // Lấy Coach cùng lúc
+            "JOIN FETCH c.user u " +        // Lấy User của Coach cùng lúc
+            "JOIN FETCH cs.timeSlot ts " +  // Lấy TimeSlot cùng lúc
+            "WHERE cs.isBooked = FALSE " +  // Lịch trình chưa được đặt
+            "AND cs.isDeleted = FALSE " +   // Lịch trình chưa bị xóa
+            "AND cs.scheduleDate BETWEEN :startDate AND :endDate " + // Trong khoảng ngày
+            "AND (:timeSlotIds IS NULL OR ts.timeSlotId IN :timeSlotIds)") // Lọc theo timeSlotIds nếu được cung cấp
+    List<CoachSchedule> findAvailableSchedulesByDateRangeAndTimeslots(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("timeSlotIds") List<Integer> timeSlotIds
+    );
 
     // Tìm lịch hẹn sắp tới của một Coach (1 hoặc 2 lịch gần nhất)
     // Sắp xếp theo ngày và giờ bắt đầu tăng dần, chỉ lấy những lịch chưa đặt và ở tương lai/hiện tại

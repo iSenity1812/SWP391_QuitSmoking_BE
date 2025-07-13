@@ -20,9 +20,9 @@ import java.util.UUID;
 public class CravingTrackingCreateRequest {
 //    @NotNull(message = "Member ID không được để trống")
 //    private UUID memberId;
-    @PastOrPresent(message = "Thời gian theo dõi không thể ở tương lai")
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-    private LocalDateTime trackTime;
+//    @PastOrPresent(message = "Thời gian theo dõi không thể ở tương lai")
+//    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+//    private LocalDateTime trackTime;
 
     @Min(value = 0, message = "Số lượng thuốc đã hút không thể là số âm")
     @Max(value = 1000, message = "Số lượng thuốc đã hút không thể vượt quá 1000 điếu")

@@ -23,11 +23,6 @@ public class AppointmentMapperConfig {
     public void configure() {
 
 
-        // User -> UserSimpleResponseDTO
-//        modelMapper.createTypeMap(User.class, UserSimpleResponseDTO.class)
-//                .addMapping(User::getUserId, UserSimpleResponseDTO::setUserId)
-//                .addMapping(User::getUsername, UserSimpleResponseDTO::setUsername)
-//                .addMapping(User::getEmail, UserSimpleResponseDTO::setEmail);
 
         // Member -> UserSimpleResponseDTO
         modelMapper.createTypeMap(Member.class, UserSimpleResponseDTO.class)

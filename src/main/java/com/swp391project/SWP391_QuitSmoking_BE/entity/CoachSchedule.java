@@ -15,19 +15,6 @@ import java.util.List;
 @Table(name = "coach_schedule", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"coach_id", "timeslot_id", "schedule_date"}) // Unique Constraint ở đây
 })
-//@NamedEntityGraph(
-//        name = "coachSchedule.with.coach.user.timeSlot",
-//        attributeNodes = {
-//                @NamedAttributeNode(value = "coach", subgraph = "coach-subgraph"),
-//                @NamedAttributeNode("timeSlot")
-//        },
-//        subgraphs = {
-//                @NamedSubgraph(
-//                        name = "coach-subgraph",
-//                        attributeNodes = @NamedAttributeNode("user")
-//                )
-//        }
-//)
 public class CoachSchedule {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

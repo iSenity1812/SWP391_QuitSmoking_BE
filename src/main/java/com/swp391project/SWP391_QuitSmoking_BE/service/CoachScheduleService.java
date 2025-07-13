@@ -1,10 +1,13 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleRequestDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.appointment.AppointmentDetailsDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.*;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.timeslot.RegisteredSlotDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.Appointment;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Coach;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.CoachSchedule;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.TimeSlot;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.AppointmentStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.CoachRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.CoachScheduleRepository;
@@ -19,10 +22,12 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,32 +47,52 @@ public class CoachScheduleService {
         Coach coach = coachRepository.findById(coachId)
                 .orElseThrow(() -> new ResourceNotFoundException("Coach not found with ID: " + coachId));
 
-        List<CoachSchedule> createdOrUpdatedSchedules = requests.stream()
-                .map(req -> {
-                    TimeSlot timeSlot = timeSlotRepository.findById(req.getTimeSlotId())
-                            .orElseThrow(() -> new ResourceNotFoundException("TimeSlot not found with ID: " + req.getTimeSlotId()));
+        // Kiểm tra xem có phaải là quá khứ không (nếu mà là quá khứ thì không cho tạo lịch (thời gian cụ thể ngày, giờ, phút,...)
+        LocalDate today = LocalDate.now();
+        for (CoachScheduleRequestDTO request : requests) {
+            if (request.getScheduleDate().isBefore(today)) {
+                throw new IllegalArgumentException("Không thể tạo lịch trình trong quá khứ: " + request.getScheduleDate());
+            }
+        }
 
-                    // Kiểm tra xem đã có lịch trình này chưa để tránh trùng lặp
-                    Optional<CoachSchedule> existingSchedule = coachScheduleRepository.findByCoachAndScheduleDateAndTimeSlot(
-                            coach, req.getScheduleDate(), timeSlot);
+        List<CoachSchedule> schedulesToSave = new ArrayList<>(); // Sử dụng List để dễ dàng thêm/thay đổi đối tượng
 
-                    if (existingSchedule.isPresent()) {
-                        // Nếu đã tồn tại, chúng ta bỏ qua việc tạo mới bản ghi này
-                        return null;
-                    }
+        for (CoachScheduleRequestDTO req : requests) {
+            TimeSlot timeSlot = timeSlotRepository.findById(req.getTimeSlotId())
+                    .orElseThrow(() -> new ResourceNotFoundException("TimeSlot not found with ID: " + req.getTimeSlotId()));
 
-                    CoachSchedule newSchedule = new CoachSchedule();
-                    newSchedule.setCoach(coach);
-                    newSchedule.setTimeSlot(timeSlot);
-                    newSchedule.setScheduleDate(req.getScheduleDate());
-                    newSchedule.setBooked(false); // Mặc định là chưa được đặt khi tạo mới
-                    return newSchedule;
-                })
-                .filter(java.util.Objects::nonNull) // Lọc bỏ các bản ghi null (trùng lặp)
-                .collect(Collectors.toList());
+            Optional<CoachSchedule> existingScheduleOptional = coachScheduleRepository.findByCoachAndScheduleDateAndTimeSlot(
+                    coach, req.getScheduleDate(), timeSlot);
 
+            if (existingScheduleOptional.isPresent()) {
+                CoachSchedule existingSchedule = existingScheduleOptional.get();
+
+                if (existingSchedule.isDeleted()) {
+                    // Cập nhật bản ghi đã soft-delete
+                    existingSchedule.setDeleted(false);
+                    existingSchedule.setBooked(false); // Đặt lại trạng thái chưa booked
+                    existingSchedule.setUpdatedAt(LocalDateTime.now());
+                    schedulesToSave.add(existingSchedule); // Thêm bản ghi đã cập nhật vào list
+                } else {
+                    // Nếu lịch trình chưa bị xóa (đang hoạt động), ném lỗi
+                    throw new IllegalArgumentException(
+                            "Lịch trình cho khung giờ " + timeSlot.getStartTime() + " - " + timeSlot.getEndTime() +
+                                    " vào ngày " + req.getScheduleDate() + " đã tồn tại và đang hoạt động.");
+                }
+            } else {
+                // Nếu chưa tồn tại, tạo mới hoàn toàn
+                CoachSchedule newSchedule = new CoachSchedule();
+                newSchedule.setCoach(coach);
+                newSchedule.setTimeSlot(timeSlot);
+                newSchedule.setScheduleDate(req.getScheduleDate());
+                newSchedule.setBooked(false);
+                newSchedule.setDeleted(false);
+                newSchedule.setCreatedAt(LocalDateTime.now());
+                schedulesToSave.add(newSchedule); // Thêm bản ghi mới vào list
+            }
+        }
         // Lưu tất cả các lịch trình mới
-        List<CoachSchedule> savedSchedules = coachScheduleRepository.saveAll(createdOrUpdatedSchedules);
+        List<CoachSchedule> savedSchedules = coachScheduleRepository.saveAll(schedulesToSave);
 
         return savedSchedules.stream()
                 .map(schedule -> modelMapper.map(schedule, CoachScheduleResponseDTO.class)) // Sử dụng ModelMapper
@@ -252,6 +277,196 @@ public class CoachScheduleService {
                 coachId, LocalDate.now(), pageable);
         return upcomingSchedules.stream()
                 .map(schedule -> modelMapper.map(schedule, CoachScheduleResponseDTO.class))
+                .collect(Collectors.toList());
+    }
+
+
+    @Transactional(readOnly = true)
+    public WeeklyScheduleResponseDTO getWeeklyScheduleForCoach(UUID coachId, LocalDate dateInWeek) {
+        // Tìm ngày đầu tuần (thứ Hai) và cuối tuần (Chủ Nhật)
+        LocalDate weekStart = dateInWeek.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate weekEnd = dateInWeek.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+
+        // Lấy tất cả CoachSchedule cho coach trong tuần đó với eager loading các mối quan hệ
+        List<CoachSchedule> rawCoachSchedules = coachScheduleRepository.findByCoachIdAndScheduleDateBetweenWithDetails(
+                coachId, weekStart, weekEnd);
+
+
+        // Map CoachSchedule theo ngày và TimeSlot để xử lý các bản ghi trùng lặp do JOIN FETCH
+        // Sử dụng Map<LocalDate, Map<Integer, CoachSchedule>> để dễ dàng tìm kiếm slot theo ngày và timeslotId
+        Map<LocalDate, Map<Integer, CoachSchedule>> schedulesByDateAndTimeSlot = rawCoachSchedules.stream()
+                .collect(Collectors.groupingBy(
+                        CoachSchedule::getScheduleDate,
+                        Collectors.toMap(
+                                cs -> cs.getTimeSlot().getTimeSlotId(), //
+                                cs -> cs,
+                                (existing, replacement) -> existing // Xử lý các bản ghi trùng lặp do LEFT JOIN FETCH với @OneToMany
+                        )
+                ));
+
+        List<RegisteredSlotDTO> registeredSlots = new ArrayList<>();
+
+        // Trong trường hợp này, chúng ta sẽ chỉ tạo RegisteredSlotDTO cho các CoachSchedule đã đăng ký.
+        // Để đảm bảo thứ tự, chúng ta sẽ lặp qua các ngày và sau đó các timeslot có sẵn.
+        for (LocalDate date = weekStart; !date.isAfter(weekEnd); date = date.plusDays(1)) {
+            Map<Integer, CoachSchedule> dailySchedules = schedulesByDateAndTimeSlot.getOrDefault(date, java.util.Collections.emptyMap());
+
+            // Lấy tất cả TimeSlots cho ngày hiện tại từ các CoachSchedule đã tìm thấy
+            // Nếu bạn có một danh sách TimeSlot chuẩn, bạn có thể lặp qua đó để đảm bảo tất cả slot đều được hiển thị
+            // Kể cả những slot mà coach chưa đăng ký.
+            // Hiện tại, chúng ta chỉ tạo slot DTO cho những coachSchedule thực sự có trong DB.
+            List<CoachSchedule> sortedDailySchedules = dailySchedules.values().stream()
+                    .sorted(Comparator.comparing(cs -> cs.getTimeSlot().getStartTime()))
+                    .collect(Collectors.toList());
+
+            for (CoachSchedule coachSchedule : sortedDailySchedules) {
+                RegisteredSlotDTO slotDto = new RegisteredSlotDTO();
+                slotDto.setCoachScheduleId(coachSchedule.getScheduleId().intValue()); // Chuyển Long sang Integer nếu cần
+                slotDto.setDate(coachSchedule.getScheduleDate());
+                slotDto.setTimeSlotId(coachSchedule.getTimeSlot().getTimeSlotId());
+                slotDto.setLabel(coachSchedule.getTimeSlot().getLabel());
+                slotDto.setStartTime(coachSchedule.getTimeSlot().getStartTime().toString());
+                slotDto.setEndTime(coachSchedule.getTimeSlot().getEndTime().toString());
+
+                // Logic cho isAvailable: Một slot được coi là "available" nếu KHÔNG CÓ cuộc hẹn CONFIRMED nào.
+                boolean hasConfirmedAppointment = coachSchedule.getAppointments().stream()
+                        .anyMatch(apt -> apt.getStatus() == AppointmentStatus.CONFIRMED);
+                slotDto.setAvailable(!hasConfirmedAppointment);
+
+                // Lấy TẤT CẢ các cuộc hẹn liên quan đến CoachSchedule này
+                List<AppointmentDetailsDTO> appointmentDetailsList = coachSchedule.getAppointments().stream()
+                        .map(apt -> {
+                            AppointmentDetailsDTO aptDetailsDto = new AppointmentDetailsDTO();
+                            aptDetailsDto.setAppointmentId(apt.getAppointmentId());
+                            aptDetailsDto.setStatus(apt.getStatus());
+                            aptDetailsDto.setNotes(apt.getNote());
+
+                            if (apt.getMember() != null && apt.getMember().getUser() != null) {
+                                aptDetailsDto.setClientId(apt.getMember().getMemberId()); // MemberID của Member
+                                aptDetailsDto.setClientName(apt.getMember().getUser().getUsername()); // Giả sử User có fullName
+                            }
+                            return aptDetailsDto;
+                        })
+                        // Sắp xếp các cuộc hẹn nếu cần (ví dụ theo booking_time)
+                        .sorted(Comparator.comparing(AppointmentDetailsDTO::getAppointmentId)) // Sắp xếp theo ID hoặc booking_time
+                        .collect(Collectors.toList());
+
+                slotDto.setAppointmentDetails(appointmentDetailsList); // Set List of appointments
+                registeredSlots.add(slotDto);
+            }
+        }
+        return WeeklyScheduleResponseDTO.builder()
+                .weekStartDate(weekStart)
+                .weekEndDate(weekEnd)
+                .registeredSlots(registeredSlots)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CoachScheduleResponseDTO> findAvailableSchedulesTodayByTimeRange(
+            LocalDate date,
+            LocalTime startTime,
+            LocalTime endTime
+    ) {
+        List<TimeSlot> relevantTimeSlots = timeSlotRepository
+                .findByStartTimeGreaterThanEqualAndEndTimeLessThanEqual(startTime, endTime);
+        if (relevantTimeSlots.isEmpty()) {
+            throw new ResourceNotFoundException("Không tìm thấy các khung giờ phù hợp trong khoảng " + startTime + " - " + endTime);
+        }
+
+        List<CoachSchedule> schedules = coachScheduleRepository.findAvailableSchedulesByDateAndTimeRange(
+                date, startTime, endTime);
+
+        return schedules.stream()
+                .map(schedule -> modelMapper.map(schedule, CoachScheduleResponseDTO.class)) // Sử dụng ModelMapper
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Tìm kiếm lịch rảnh của tất cả các Coach theo khoảng giờ trong một khoảng ngày (tối đa 2 tuần).
+     * @param searchRequest DTO chứa startDate, endDate, startTime, endTime.
+     * @return Danh sách CoachScheduleResponseDTO rảnh.
+     */
+    @Transactional(readOnly = true)
+    public List<CoachScheduleResponseDTO> findAvailableSchedulesByDateRangeAndTimeRange(
+            AvailableScheduleSearchRequestDTO searchRequest) {
+        LocalDate startDate = searchRequest.getStartDate();
+        LocalDate endDate = searchRequest.getEndDate();
+        LocalTime startTime = searchRequest.getStartTime();
+        LocalTime endTime = searchRequest.getEndTime();
+
+        // Validations
+        if (startDate == null) {
+            throw new IllegalArgumentException("Ngày bắt đầu không được để trống.");
+        }
+        if (startTime == null || endTime == null) {
+            throw new IllegalArgumentException("Giờ bắt đầu và giờ kết thúc không được để trống.");
+        }
+        if (startTime.isAfter(endTime)) {
+            throw new IllegalArgumentException("Giờ bắt đầu không thể sau giờ kết thúc.");
+        }
+        // Nếu endDate không được cung cấp, mặc định là startDate
+        if (endDate == null) {
+            endDate = startDate;
+        }
+
+        // Giới hạn khoảng ngày tối đa 2 tuần
+        if (startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("Ngày bắt đầu không thể sau ngày kết thúc.");
+        }
+        if (startDate.plusWeeks(2).isBefore(endDate)) {
+            throw new IllegalArgumentException("Khoảng thời gian tìm kiếm không được vượt quá 2 tuần.");
+        }
+        // Kiểm tra xem TimeSlots có tồn tại với `startTime` và `endTime` đã cho không
+        // Tương tự như trên, bạn cần TimeSlotRepository để xác thực.
+        timeSlotRepository.findByStartTime(startTime)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy TimeSlot với thời gian bắt đầu: " + startTime));
+        timeSlotRepository.findByEndTime(endTime)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy TimeSlot với thời gian kết thúc: " + endTime));
+
+        List<CoachSchedule> schedules = coachScheduleRepository.findAvailableSchedulesByDateRangeAndTimeRange(
+                startDate, endDate, startTime, endTime);
+
+        return schedules.stream()
+                .map(schedule -> modelMapper.map(schedule, CoachScheduleResponseDTO.class)) // Sử dụng ModelMapper
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<CoachScheduleResponseDTO> findAvailableSchedulesByDateAndTimeSlot(SearchAvailableScheduleBySlotDTO request) {
+        // end date ko được truước start date
+        if (request.getStartDate() == null) {
+            throw new IllegalArgumentException("Ngày bắt đầu không được để trống.");
+        }
+
+        // Nếu endDate không được cung cấp, mặc định là startDate
+        if (request.getEndDate() == null) {
+            request.setEndDate(request.getStartDate());
+        }
+
+        if (request.getStartDate().isAfter(request.getEndDate())) {
+            throw new IllegalArgumentException("Ngày bắt đầu không thể sau ngày kết thúc.");
+        }
+
+        // Nếu timeslot rỗng -> chuyển sang null
+        List<Integer> timeSlotIds = request.getTimeSlotIds();
+        if (timeSlotIds == null || timeSlotIds.isEmpty()) {
+            timeSlotIds = null; // Chuyển sang null nếu không có timeslot nào được chọn
+        }
+        
+        List<CoachSchedule> schedules = coachScheduleRepository.findAvailableSchedulesByDateRangeAndTimeslots(
+                request.getStartDate(), request.getEndDate(), timeSlotIds);
+
+        return schedules.stream()
+                .map(schedule -> {
+                    CoachScheduleResponseDTO dto = modelMapper.map(schedule, CoachScheduleResponseDTO.class);
+                    if (schedule.getCoach() != null && schedule.getCoach().getUser() != null) {
+                        dto.getCoach().setFullName(schedule.getCoach().getFullName());
+                        dto.getCoach().setEmail(schedule.getCoach().getUser().getEmail());
+                        dto.getCoach().setUsername(schedule.getCoach().getUser().getUsername());
+                    }
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 }

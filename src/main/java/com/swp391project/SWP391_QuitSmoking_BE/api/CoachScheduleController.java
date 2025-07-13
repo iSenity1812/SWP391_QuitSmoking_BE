@@ -1,10 +1,12 @@
 package com.swp391project.SWP391_QuitSmoking_BE.api;
 
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleRequestDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.CoachScheduleResponseDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.coachschedule.*;
+import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.CoachRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.service.CoachScheduleService;
 import com.swp391project.SWP391_QuitSmoking_BE.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -13,12 +15,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,6 +33,7 @@ import java.util.UUID;
 public class CoachScheduleController {
     private final CoachScheduleService coachScheduleService;
     private final UserService userService;
+    private final CoachRepository coachRepository;
 
     /**
      * API cho Coach tạo lịch
@@ -39,10 +44,10 @@ public class CoachScheduleController {
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestBody List<CoachScheduleRequestDTO> requests) {
         UUID coachId = userService.getUserIdFromUserDetails(userDetails);
-        List<CoachScheduleResponseDTO> createdSchedules = coachScheduleService.createCoachSchedules(coachId, requests);
+        List<CoachScheduleResponseDTO> createdSchedules = coachScheduleService. createCoachSchedules(coachId, requests);
         if (createdSchedules.isEmpty() && !requests.isEmpty()) {
             return ResponseEntity
-                    .status(HttpStatus.OK)
+                    .status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.success(createdSchedules, "Các lịch trình đã tồn tại hoặc không có lịch trình mới được tạo."));
         }
         return ResponseEntity
@@ -106,7 +111,7 @@ public class CoachScheduleController {
 
         coachScheduleService.softDeleteCoachSchedule(scheduleId, currentUserId, isAdmin);
         return ResponseEntity
-                .status(HttpStatus.NO_CONTENT)
+                .status(HttpStatus.OK)
                 .body(ApiResponse.success(null, "Xóa lịch trình huấn luyện viên thành công"));
     }
 
@@ -212,6 +217,118 @@ public class CoachScheduleController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(ApiResponse.success(schedules, "Lấy các lịch trình sắp tới của bạn thành công"));
+    }
+
+    /**
+     * API cho Coach: Lấy lịch trình tuần của một Coach.
+     * @param requestedCoachId ID của Coach cần lấy lịch trình (nếu không cung cấp, sẽ lấy của chính Coach đang đăng nhập).
+     * @param dateInWeek Ngày trong tuần để lấy lịch trình (nếu không cung cấp, sẽ lấy tuần hiện tại).
+     * @return Lịch trình tuần của Coach, bao gồm thông tin cuộc hẹn nếu có.
+     */
+    @Operation(summary = "Lấy lịch trình tuần của Coach",
+            description = "Lấy chi tiết lịch trình đã đăng ký của một Coach trong một tuần cụ thể, bao gồm thông tin cuộc hẹn nếu có. Ngày trong tuần có thể là bất kỳ ngày nào trong tuần đó.")
+    @GetMapping("/weekly")
+    @PreAuthorize("hasAnyRole('CONTENT_ADMIN', 'COACH', 'PREMIUM_MEMBER')") // Premium Member có thể xem lịch trình của coach để đặt
+    public ResponseEntity<ApiResponse<WeeklyScheduleResponseDTO>> getCoachWeeklySchedule(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam(name = "coachId", required = false) UUID requestedCoachId,
+            @RequestParam(name = "dateInWeek", required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate dateInWeek) {
+
+        UUID currentUserId = userService.getUserIdFromUserDetails(userDetails);
+        // Kiểm tra quyền: ADMIN có thể xem của bất kỳ ai. COACH chỉ xem của chính mình. PREMIUM_MEMBER có thể xem của bất kỳ coach nào.
+        boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CONTENT_ADMIN"));
+        boolean isCoach = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_COACH"));
+        boolean isPremiumMember = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_PREMIUM_MEMBER"));
+
+
+        UUID targetCoachId;
+
+        if (requestedCoachId == null) {
+            // Nếu coachId không được cung cấp trong request
+            if (isCoach) {
+                // Nếu người dùng hiện tại là COACH, thì lấy lịch của chính họ
+                targetCoachId = currentUserId;
+            } else {
+                // Nếu không phải COACH (ví dụ: Member, Admin) và không cung cấp coachId, thì không biết lấy lịch của ai
+                throw new IllegalArgumentException("Vui lòng cung cấp coachId để xem lịch trình.");
+            }
+        } else {
+            // Nếu coachId được cung cấp trong request
+            targetCoachId = requestedCoachId;
+
+            // Kiểm tra quyền truy cập lịch của coach khác
+            if (isCoach && !isAdmin && !currentUserId.equals(targetCoachId)) {
+                // Coach chỉ được xem lịch của chính mình, trừ khi là Admin
+                throw new AccessDeniedException("Bạn không có quyền truy cập lịch trình của coach khác.");
+            }
+            // Premium Member và Admin có thể xem lịch của coach khác
+        }
+
+        // Đảm bảo targetCoachId tồn tại trong hệ thống
+        if (!coachRepository.existsById(targetCoachId)) {
+            throw new ResourceNotFoundException("Coach not found with ID: " + targetCoachId);
+        }
+
+        if (dateInWeek == null) {
+            dateInWeek = LocalDate.now(); // Mặc định là tuần hiện tại
+        }
+
+        WeeklyScheduleResponseDTO responseData = coachScheduleService.getWeeklyScheduleForCoach(targetCoachId, dateInWeek);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(responseData, "Lấy lịch trình tuần thành công"));
+    }
+
+    /**
+     * API cho Premium member
+     */
+    @Operation(summary = "Lấy lịch trình của các Coach trong ngày cụ thể theo khoảng thời gian",
+            description = "Lấy danh sách lịch trình của các Coach trong khoảng thời gian cụ thể của ngày cụ thể")
+    @GetMapping("/available/today-by-time-range")
+    @PreAuthorize("hasRole('PREMIUM_MEMBER')")
+    public ResponseEntity<ApiResponse<List<CoachScheduleResponseDTO>>> getAvailableSchedulesTodayByTimeRange(
+            @RequestParam@org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.TIME) LocalTime startTime,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.TIME) LocalTime endTime
+    ) {
+        List<CoachScheduleResponseDTO> availableSchedules = coachScheduleService.findAvailableSchedulesTodayByTimeRange(date, startTime, endTime);
+        if (availableSchedules.isEmpty()) {
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ApiResponse.success(availableSchedules, "Không có lịch trình trống trong khoảng thời gian đã chọn"));
+        }
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(availableSchedules, "Lấy danh sách lịch trình trống trong khoảng thời gian đã chọn thành công"));
+    }
+
+    @Operation(summary = "Lấy lịch trình rảnh của tất cả các Coach trong khoảng ngày và giờ",
+            description = "Lấy danh sách lịch trình rảnh của tất cả các Coach trong khoảng ngày và giờ cụ thể")
+    @PostMapping("/available/by-date-time-range") // Sử dụng POST nếu bạn dùng RequestBody DTO, hoặc GET với nhiều @RequestParam
+    @PreAuthorize("hasRole('PREMIUM_MEMBER')")
+    public ResponseEntity<ApiResponse<List<CoachScheduleResponseDTO>>> getAvailableSchedulesByDateRangeAndTimeRange(
+            @RequestBody AvailableScheduleSearchRequestDTO searchRequest) {
+
+        List<CoachScheduleResponseDTO> availableSchedules = coachScheduleService.findAvailableSchedulesByDateRangeAndTimeRange(searchRequest);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(availableSchedules, "Lấy danh sách lịch rảnh của tất cả các huấn luyện viên trong khoảng ngày và giờ thành công"));
+    }
+
+    @Operation(summary = "Lấy lịch trình rảnh của các Coach theo các time slot trong khoảng ngày")
+    @PostMapping("/available/by-date-and-timeslot")
+    @PreAuthorize("hasRole('PREMIUM_MEMBER')")
+    public ResponseEntity<ApiResponse<List<CoachScheduleResponseDTO>>> getAvailableSchedulesByDateAndTimeSlot(
+            @RequestBody SearchAvailableScheduleBySlotDTO searchRequest
+            ){
+
+        List<CoachScheduleResponseDTO> availableSchedules = coachScheduleService.findAvailableSchedulesByDateAndTimeSlot(searchRequest);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(availableSchedules, "Lấy danh sách lịch trình rảnh của các Coach trong ngày và khoảng thời gian thành công"));
     }
 
 }

@@ -146,4 +146,36 @@ public class DataVisualizationController {
                     .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Có lỗi xảy ra khi lấy dữ liệu Month Chart: " + e.getMessage()));
         }
     }
+
+    @GetMapping("/day-range")
+    @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER')")
+    public ResponseEntity<ApiResponse<List<DailyChartDataResponse>>> getDailyDataForDayRange(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        try {
+            UUID memberId = getAuthenticatedMemberId(userDetails);
+            List<DailyChartDataResponse> data = dataVisualizationService.getDailyDataForPeriod(memberId, startDate, endDate);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ApiResponse.success(data, "Lấy thông tin cho Day Range Chart thành công"));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, e.getMessage()));
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(HttpStatus.NOT_FOUND, e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Có lỗi xảy ra khi lấy dữ liệu Day Range Chart: " + e.getMessage()));
+        }
+    }
 }

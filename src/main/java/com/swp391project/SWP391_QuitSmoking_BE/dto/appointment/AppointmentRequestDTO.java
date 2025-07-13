@@ -18,5 +18,5 @@ public class AppointmentRequestDTO {
 
     private String note; // Ghi chú của thành viên
 
-    private UUID memberIdToBook; // ID của thành viên muốn đặt lịch hẹn (id member mà coach đặt hộ)
+//    private UUID memberIdToBook; // ID của thành viên muốn đặt lịch hẹn (id member mà coach đặt hộ)
 }

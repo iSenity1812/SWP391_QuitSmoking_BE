@@ -40,14 +40,14 @@ public class QuitPlanDatesValidator implements ConstraintValidator<ValidQuitPlan
 //        }
 
         //CreatedAt không được sau StartDate
-        if (createdAt != null && startDate != null) {
-            if (createdAt.isAfter(startDate)) {
-                context.buildConstraintViolationWithTemplate("Ngày tạo kế hoạch không được sau ngày bắt đầu")
-                        .addPropertyNode("createdAt")
-                        .addConstraintViolation();
-                isValid = false;
-            }
-        }
+//        if (createdAt != null && startDate != null) {
+//            if (createdAt.isAfter(startDate)) {
+//                context.buildConstraintViolationWithTemplate("Ngày tạo kế hoạch không được sau ngày bắt đầu")
+//                        .addPropertyNode("createdAt")
+//                        .addConstraintViolation();
+//                isValid = false;
+//            }
+//        }
 
 
         //StartDate không được sau GoalDate
