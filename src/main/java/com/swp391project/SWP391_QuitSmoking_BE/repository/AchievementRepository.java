@@ -17,4 +17,11 @@ public interface AchievementRepository extends JpaRepository<Achievement, Long> 
     
     @Query("SELECT a FROM Achievement a WHERE a.achievementId NOT IN (SELECT ma.achievementId FROM MemberAchievement ma WHERE ma.member.memberId = :memberId)")
     List<Achievement> findLockedAchievementsByMember_MemberId(@Param("memberId") UUID memberId);
+    
+    // Additional methods for UserProfileService
+    @Query("SELECT a FROM Achievement a JOIN MemberAchievement ma ON a.achievementId = ma.achievementId WHERE ma.member.user.userId = :userId ORDER BY ma.dateAchieved DESC")
+    List<Achievement> findByUserIdOrderByEarnedDateDesc(@Param("userId") UUID userId);
+    
+    @Query("SELECT a FROM Achievement a JOIN MemberAchievement ma ON a.achievementId = ma.achievementId WHERE ma.member.user.userId = :userId AND ma.isShared = true")
+    List<Achievement> findByUserIdAndIsSharedTrue(@Param("userId") UUID userId);
 } 

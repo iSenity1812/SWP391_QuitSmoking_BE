@@ -208,6 +208,23 @@ public class DailySummaryService {
         return convertToResponseDto(dailySummary);
     }
 
+    private DailySummaryResponse createEmptyDailySummaryResponse(LocalDate trackDate) {
+        DailySummaryResponse emptySummary = new DailySummaryResponse();
+        // dailySummaryId sẽ là null vì đây không phải bản ghi từ DB
+        emptySummary.setDailySummaryId(null);
+        emptySummary.setTrackDate(trackDate); // Đặt ngày theo dõi
+        emptySummary.setTotalSmokedCount(0); // Số điếu hút mặc định là 0
+        emptySummary.setTotalCravingCount(0); // Số lần thèm mặc định là 0
+        emptySummary.setMood(null);           // Không có tâm trạng ghi nhận
+        emptySummary.setNote(null);           // Không có ghi chú
+        emptySummary.setMoneySaved(BigDecimal.ZERO); // Tiền tiết kiệm mặc định là 0
+        emptySummary.setGoalAchievedToday(false);    // Mục tiêu chưa đạt được (vì không tracking)
+        // Trường cravingTrackings (nếu có) sẽ là null hoặc danh sách rỗng
+        // emptySummary.setCravingTrackings(new ArrayList<>()); // Nếu bạn có trường này và muốn nó là danh sách rỗng
+
+        return emptySummary;
+    }
+
     public boolean isTrackDateExistsForMember(UUID memberId, LocalDate trackDate) {
         Optional<QuitPlan> quitPlanOptional = quitPlanService.getProgressQuitPlansByMemberId(memberId);
         if (quitPlanOptional.isEmpty()) {

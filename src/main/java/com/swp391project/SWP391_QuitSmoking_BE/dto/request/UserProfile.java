@@ -18,6 +18,7 @@ public class UserProfile {
     private Role role;
     private boolean isActive; // Indicates if the user account is active
     private LocalDateTime createdAt; // Timestamp when the user was created
+    private Integer streakCount; // Number of consecutive days the user has not smoked
 
     // Add these fields for detailed admin view
     private List<SubscriptionAdminResponseDTO> subscriptions;

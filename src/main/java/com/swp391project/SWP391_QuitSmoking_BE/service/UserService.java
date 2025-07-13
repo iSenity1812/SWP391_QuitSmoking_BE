@@ -8,10 +8,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserProfile;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.request.UserUpdateRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.response.SubscriptionAdminResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.response.UserQuitStatsResponse;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.Subscription;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.*;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.DuplicateEmailException;
@@ -428,7 +425,21 @@ public class UserService {
         List<User> users = userRepository.findByEmailContainingIgnoreCaseOrUsernameContainingIgnoreCase(query, query);
         return users.stream()
                 .filter(user -> user.getRole() == Role.NORMAL_MEMBER || user.getRole() == Role.PREMIUM_MEMBER || user.getRole() == Role.COACH)
-                .map(user -> modelMapper.map(user, UserProfile.class)).toList();
+                .map(user -> {
+                    UserProfile profile = modelMapper.map(user, UserProfile.class);
+
+                    if (user.getRole() == Role.NORMAL_MEMBER || user.getRole() == Role.PREMIUM_MEMBER) {
+                        Member member = user.getMember();
+                        if (member != null) {
+                            profile.setStreakCount(member.getStreak());
+                        } else {
+                            profile.setStreakCount(0); // Nếu không có member, streak là 0
+                        }
+                    } else {
+                        profile.setStreakCount(null); // Không áp dụng cho Coach
+                    }
+                    return profile;
+                }).toList();
     }
 
     // Tìm kiếm và lọc members với phân trang cho admin

@@ -14,4 +14,5 @@ public interface MemberAchievementRepository extends JpaRepository<MemberAchieve
     List<MemberAchievement> findByMember(Member member);
     List<MemberAchievement> findByMember_MemberId(UUID memberId);
     boolean existsByMember_MemberIdAndAchievementId(UUID memberId, Long achievementId);
-} 
+    long countByMember_MemberId(UUID memberId);
+}

@@ -10,6 +10,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberAchievementRepos
 import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
+import lombok.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,50 +18,44 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
+import com.swp391project.SWP391_QuitSmoking_BE.service.EmailService;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.email.EmailDetail;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.Notification;
+import com.swp391project.SWP391_QuitSmoking_BE.service.NotificationService;
 
 @Service
+@RequiredArgsConstructor
 public class AchievementService {
-    @Autowired
-    private AchievementRepository achievementRepository;
+    private final AchievementRepository achievementRepository;
     @Getter
-    @Autowired
-    private MemberAchievementRepository memberAchievementRepository;
+    private final MemberAchievementRepository memberAchievementRepository;
     // Getter methods for testing
     @Getter
-    @Autowired
-    private MemberRepository memberRepository;
-    @Autowired
-    private QuitPlanRepository quitPlanRepository;
-    @Autowired
-    private DailySummaryRepository dailySummaryRepository;
+    private final MemberRepository memberRepository;
+    private final QuitPlanRepository quitPlanRepository;
+    private final DailySummaryRepository dailySummaryRepository;
+    private final EmailService emailService;
+    private final NotificationService notificationService;
 
     // CRUD Achievement
-    @Transactional
     public List<Achievement> getAllAchievements() {
         return achievementRepository.findAll();
     }
-
-    @Transactional
     public Optional<Achievement> getAchievementById(Long id) {
         return achievementRepository.findById(id);
     }
-
-    @Transactional
     public Achievement createAchievement(Achievement achievement) {
         achievement.setCreatedAt(LocalDateTime.now());
         achievement.setUpdatedAt(LocalDateTime.now());
         return achievementRepository.save(achievement);
     }
-
-
-    @Transactional
     public Achievement updateAchievement(Long id, Achievement updated) {
         return achievementRepository.findById(id).map(a -> {
             a.setName(updated.getName());
@@ -75,23 +70,19 @@ public class AchievementService {
     }
 
     // MemberAchievement
-    @Transactional
     public List<MemberAchievement> getMemberAchievements(UUID memberId) {
         return memberAchievementRepository.findByMember_MemberId(memberId);
     }
 
-    @Transactional
     public List<Achievement> getUnlockedAchievements(UUID memberId) {
         return achievementRepository.findUnlockedAchievementsByMember_MemberId(memberId);
     }
 
-    @Transactional
     public List<Achievement> getLockedAchievements(UUID memberId) {
         return achievementRepository.findLockedAchievementsByMember_MemberId(memberId);
     }
 
     // Method for backward compatibility
-    @Transactional
     public List<MemberAchievement> getAchievementsOfMember(UUID memberId) {
         return getMemberAchievements(memberId);
     }
@@ -184,10 +175,33 @@ public class AchievementService {
         memberAchievement.setAchievementId(achievement.getAchievementId());
         memberAchievement.setDateAchieved(LocalDateTime.now());
         memberAchievementRepository.save(memberAchievement);
+        // Gửi email chúc mừng
+        Member member = memberRepository.findById(memberId).orElse(null);
+        if (member != null && member.getUser() != null && member.getUser().getEmail() != null) {
+            String email = member.getUser().getEmail();
+            String subject = "Chúc mừng bạn đã đạt thành tựu mới!";
+            // Chuẩn bị biến động cho template
+            Map<String, Object> templateVars = new java.util.HashMap<>();
+            templateVars.put("username", member.getUser().getUsername());
+            templateVars.put("achievementName", achievement.getName());
+            templateVars.put("achievementDescription", achievement.getDescription());
+            EmailDetail emailDetail = new EmailDetail(email, subject, null, "achievementTemplate.html", templateVars);
+            emailService.sendEmail(emailDetail);
+        }
+        // Tạo notification achievement
+        if (member != null && member.getUser() != null) {
+            Notification notification = new Notification();
+            notification.setUserId(member.getUser().getUserId());
+            notification.setTitle("Chúc mừng!");
+            notification.setContent("Bạn vừa đạt được thành tựu: " + achievement.getName());
+            notification.setNotificationType("ACHIEVEMENT");
+            notification.setFromUserId(null); // Hệ thống
+            notificationService.createNotification(notification);
+        }
     }
 
     // Calculation methods
-    private BigDecimal calculateDaysQuit(UUID memberId) {
+    public BigDecimal calculateDaysQuit(UUID memberId) {
         // Lấy quit plan hiện tại của member
         Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
         
@@ -204,7 +218,7 @@ public class AchievementService {
         return BigDecimal.valueOf(Math.max(0, days));
     }
 
-    private BigDecimal calculateMoneySaved(UUID memberId) {
+    public BigDecimal calculateMoneySaved(UUID memberId) {
         // Lấy quit plan hiện tại
         Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
         if (quitPlanOpt.isEmpty()) {
@@ -230,7 +244,7 @@ public class AchievementService {
         return BigDecimal.valueOf(moneySaved);
     }
 
-    private BigDecimal calculateCigarettesNotSmoked(UUID memberId) {
+    public BigDecimal calculateCigarettesNotSmoked(UUID memberId) {
         // Lấy quit plan hiện tại
         Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
         
@@ -438,6 +452,12 @@ public class AchievementService {
                 if (!shouldStillUnlock) {
                     System.out.println("[AchievementService] XÓA thành tựu không hợp lệ (cleanInvalidAchievements): " + achievement.getName() + " (" + achievement.getMilestoneValue() + ") cho memberId: " + memberId + ". Số liệu hiện tại: daysQuit=" + currentDaysQuit + ", moneySaved=" + currentMoneySaved + ", cigarettesNotSmoked=" + currentCigarettesNotSmoked);
                     memberAchievementRepository.delete(ma);
+                    // Xóa notification liên quan đến achievement này
+                    Member member = memberRepository.findById(memberId).orElse(null);
+                    if (member != null && member.getUser() != null) {
+                        String content = "Bạn vừa đạt được thành tựu: " + achievement.getName();
+                        notificationService.deleteNotificationByUserIdAndContent(member.getUser().getUserId(), content);
+                    }
                 }
             }
         }

@@ -80,4 +80,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             "WHERE s.isActive = true " +
             "GROUP BY p.planId")
     List<Object[]> getActiveSubscriptionCountByPlan();
+    
+    // Additional method for UserProfileService
+//    Optional<Subscription> findByUserIdAndIsActiveTrueAndEndDateAfter(UUID userId, LocalDateTime endDate);
 }
