@@ -52,7 +52,7 @@ public class DataVisualizationService {
                 ));
             } else {
                 // Giờ không có dữ liệu sẽ có giá trị 0 và Set rỗng cho situations/withWhoms
-                result.add(new HourlyChartDataResponse(hour, 0, 0));
+                result.add(new HourlyChartDataResponse(hour, null, null));
             }
         }
         return result;
@@ -86,8 +86,8 @@ public class DataVisualizationService {
             } else {
                 result.add(new DailyChartDataResponse(
                         currentDate,
-                        0,
-                        0,
+                        null,
+                        null,
                         BigDecimal.ZERO, // Hoặc giá trị mặc định phù hợp cho tiền tiết kiệm
                         null //mặc định là null nếu không có DailySummary cho ngày đó
                 ));

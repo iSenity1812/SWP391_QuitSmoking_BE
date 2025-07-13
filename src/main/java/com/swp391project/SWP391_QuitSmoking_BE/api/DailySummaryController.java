@@ -24,6 +24,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -123,10 +125,14 @@ public class DailySummaryController {
 
         try {
             UUID memberId = getAuthenticatedMemberId(userDetails);
-            DailySummaryResponse response = dailySummaryService.getDailySummaryByMemberIdAndDate(memberId, date);
-            return ResponseEntity
-                    .status(HttpStatus.OK)
-                    .body(ApiResponse.success(response, "Lấy nhật ký hằng ngày thành công"));
+            Optional<DailySummaryResponse> dailySummaryOptional = dailySummaryService.getDailySummaryByMemberIdAndDate(memberId, date);
+            if (dailySummaryOptional.isPresent()) {
+                return ResponseEntity
+                        .ok(ApiResponse.success(dailySummaryOptional.get(), "Lấy nhật ký hàng ngày thành công"));
+            } else {
+                return ResponseEntity
+                        .ok(ApiResponse.success(null, "Không tìm thấy nhật ký hàng ngày cho ngày này"));
+            }
         } catch (AccessDeniedException e) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)

@@ -67,13 +67,7 @@ public class CravingTrackingService {
         LocalDateTime startOfHour;
         LocalDate dateOfHour;
 
-        //Nếu không có trackTime trong request, sử dụng thời gian hiện tại
-        LocalDateTime trackTime = request.getTrackTime()!= null ? request.getTrackTime() : LocalDateTime.now();
-
-        // Chỉ cho phép ghi nhận cho ngày hiện tại
-        if (!trackTime.toLocalDate().isEqual(LocalDate.now())) {
-            throw new DailySummaryEditForbiddenException("Không thể ghi nhận cho ngày đã qua");
-        }
+        LocalDateTime trackTime = LocalDateTime.now();
 
         // Chuẩn hóa trackTime về đầu giờ (ví dụ: 13:12:30 -> 13:00:00)
         startOfHour = trackTime.withMinute(0).withSecond(0).withNano(0);

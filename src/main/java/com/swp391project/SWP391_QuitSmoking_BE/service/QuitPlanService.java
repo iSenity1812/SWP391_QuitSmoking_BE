@@ -84,6 +84,7 @@ public class QuitPlanService {
 
         //Đảm bảo trạng thái được cập nhật theo thời gian thực trước khi trả về
         ensureQuitPlanStatusIsCurrent(quitPlan);
+
         return convertToResponseDto(quitPlan);
     }
 
@@ -196,7 +197,6 @@ public class QuitPlanService {
         LocalDateTime nowForConsistency = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).plusSeconds(1);
         QuitPlan quitPlan = new QuitPlan();
         quitPlan.setMember(member);
-        quitPlan.setCreatedAt(nowForConsistency); // Đặt ngày tạo là hiện tại
 
         ReductionQuitPlanType reductionType = request.getReductionType();
         LocalDateTime actualStartDate;
@@ -264,6 +264,7 @@ public class QuitPlanService {
             }
         }
 
+        quitPlan.setCreatedAt(nowForConsistency); // Đặt ngày tạo là hiện tại
         quitPlan.setReductionType(reductionType);
         quitPlan.setStartDate(actualStartDate); // Chuyển đổi sang LocalDateTime
         quitPlan.setStatus(status); // Trạng thái mới là IN_PROGRESS hoặc NOT_STARTED
@@ -387,7 +388,7 @@ public class QuitPlanService {
         switch (currentStatus) {
             case NOT_STARTED:
                 // Logic: Ngày hiện tại >= ngày bắt đầu -> chuyển sang IN_PROGRESS
-                if (!plan.getStartDate().isAfter(currentDate)) {
+                if (currentDate.isAfter(plan.getStartDate())) {
                     newStatus = QuitPlanStatus.IN_PROGRESS;
                     log.info("Kế hoạch ID {} đã chuyển từ NOT_STARTED sang IN_PROGRESS", plan.getQuitPlanId());
                 }

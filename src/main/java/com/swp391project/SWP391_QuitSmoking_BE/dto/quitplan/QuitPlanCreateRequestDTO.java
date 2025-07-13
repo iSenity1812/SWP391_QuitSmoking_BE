@@ -28,12 +28,12 @@ public class QuitPlanCreateRequestDTO {
     private ReductionQuitPlanType reductionType;
 
 //    @NotNull(message = "Ngày bắt đầu không được để trống")
-    @FutureOrPresent(message = "Ngày bắt đầu không thể ở quá khứ")
+//    @FutureOrPresent(message = "Ngày bắt đầu không thể ở quá khứ")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime startDate; // Người dùng nhập ngày bắt đầu
 
     @NotNull(message = "Ngày mục tiêu không được để trống")
-    @FutureOrPresent(message = "Ngày mục tiêu phải ở tương lai")
+//    @FutureOrPresent(message = "Ngày mục tiêu phải ở tương lai")
     private LocalDate goalDate;
 
     @Min(value = 1, message = "Số lượng thuốc ban đầu phải lớn hơn 0")

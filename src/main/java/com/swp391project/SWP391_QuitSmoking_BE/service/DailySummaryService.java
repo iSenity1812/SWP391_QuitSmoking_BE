@@ -13,6 +13,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.exception.DailySummaryEditForbidd
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.CravingTrackingRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.util.QuitPlanCalculator;
 import lombok.AllArgsConstructor;
 import org.modelmapper.ModelMapper;
@@ -39,6 +40,7 @@ public class DailySummaryService {
     private final ModelMapper modelMapper;
     private final QuitPlanCalculator quitPlanCalculator;
     private final QuitPlanService quitPlanService;
+    private final QuitPlanRepository quitPlanRepository;
 
     private static final int RELAPSE_CONSECUTIVE_DAYS_THRESHOLD = 3;
     private static final double RELAPSE_PERCENTAGE_OVER_TARGET_THRESHOLD = 0.20; // 20%
@@ -86,6 +88,9 @@ public class DailySummaryService {
         if (quitPlanOptional.isEmpty()) {
             throw new ResourceNotFoundException("Không tìm thấy kế hoạch của người dùng với ID: " + memberId);
         }
+
+        quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlanOptional.get());
+
         return dailySummaryRepository.findByQuitPlanAndTrackDate(quitPlanOptional.get(), trackDate)
                 .orElseGet(() -> createDailySummary(quitPlanOptional.get(), trackDate));
     }
@@ -194,18 +199,41 @@ public class DailySummaryService {
 
     //Lấy DailySummary cho một thành viên và ngày cụ thể
     @Transactional(readOnly = true)
-    public DailySummaryResponse getDailySummaryByMemberIdAndDate(UUID memberId, LocalDate trackDate) {
-        Optional<QuitPlan> quitPlanOptional = quitPlanService.getProgressQuitPlansByMemberId(memberId);
-        if (quitPlanOptional.isEmpty()) {
-            throw new ResourceNotFoundException("Không tìm thấy kế hoạch cai thuốc đang tiến hành cho thành viên: " + memberId);
+    public Optional<DailySummaryResponse> getDailySummaryByMemberIdAndDate(UUID memberId, LocalDate trackDate) {
+        log.debug("Bắt đầu tìm kế hoạch cai thuốc cho memberId: {} vào ngày: {}", memberId, trackDate);
+
+        // Tìm kế hoạch đang IN_PROGRESS trước
+        Optional<QuitPlan> inProgressPlan = quitPlanRepository.findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.IN_PROGRESS);
+        QuitPlan quitPlan;
+
+        if (inProgressPlan.isPresent()) {
+            quitPlan = inProgressPlan.get();
+            log.debug("Tìm thấy kế hoạch IN_PROGRESS (ID: {}) cho memberId: {}", quitPlan.getQuitPlanId(), memberId);
+        } else {
+            log.debug("Không tìm thấy kế hoạch IN_PROGRESS cho memberId: {}. Đang tìm kế hoạch NOT_STARTED.", memberId);
+            // Nếu không có kế hoạch IN_PROGRESS, tìm kế hoạch NOT_STARTED
+            Optional<QuitPlan> notStartedPlan = quitPlanRepository.findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.NOT_STARTED);
+            if (notStartedPlan.isPresent()) {
+                quitPlan = notStartedPlan.get();
+                log.debug("Tìm thấy kế hoạch NOT_STARTED (ID: {}) cho memberId: {}", quitPlan.getQuitPlanId(), memberId);
+            } else {
+                // Nếu không tìm thấy cả hai, ném lỗi
+                log.warn("Không tìm thấy kế hoạch cai thuốc nào đang hoạt động hoặc chưa bắt đầu cho memberId: {}", memberId);
+                throw new ResourceNotFoundException("Không tìm thấy kế hoạch cai thuốc nào đang hoạt động hoặc chưa bắt đầu cho thành viên này.");
+            }
         }
-        QuitPlan quitPlan = quitPlanOptional.get();
 
-        DailySummary dailySummary = dailySummaryRepository.findByQuitPlanAndTrackDate(quitPlan, trackDate)
-                .orElseThrow(() -> new ResourceNotFoundException
-                        ("Không tìm thấy nhật ký hàng ngày cho thành viên " + memberId + " vào ngày " + trackDate));
+        // Tìm DailySummary cho ngày và QuitPlan cụ thể
+        Optional<DailySummary> dailySummaryOptional = dailySummaryRepository.findByQuitPlanAndTrackDate(quitPlan, trackDate);
 
-        return convertToResponseDto(dailySummary);
+        if (dailySummaryOptional.isPresent()) {
+            log.debug("Tìm thấy DailySummary (ID: {}) cho ngày {} và QuitPlan ID {}", dailySummaryOptional.get().getDailySummaryId(), trackDate, quitPlan.getQuitPlanId());
+            return Optional.of(convertToResponseDto(dailySummaryOptional.get()));
+        } else {
+            // Nếu không tìm thấy DailySummary, trả về Optional.empty()
+            log.debug("Không tìm thấy DailySummary cho ngày {} và QuitPlan ID {}. Trả về Optional.empty().", trackDate, quitPlan.getQuitPlanId());
+            return Optional.empty();
+        }
     }
 
     private DailySummaryResponse createEmptyDailySummaryResponse(LocalDate trackDate) {
@@ -231,6 +259,8 @@ public class DailySummaryService {
             return false; // Không có kế hoạch nào cho thành viên này
         }
         QuitPlan quitPlan = quitPlanOptional.get();
+        quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlan);
+
         return dailySummaryRepository.findByQuitPlanAndTrackDate(quitPlan, trackDate).isPresent();
     }
 
