@@ -61,6 +61,9 @@ public interface QuitPlanRepository extends JpaRepository<QuitPlan, Integer> {
 
     Optional<QuitPlan> findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(UUID memberId, QuitPlanStatus quitPlanStatus);
 
+    // Method for achievement calculation with String status
+    Optional<QuitPlan> findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(UUID memberId, String status);
+
     // Method for achievement calculation
     Optional<QuitPlan> findByMember_MemberIdOrderByCreatedAtDesc(UUID memberId);
 }

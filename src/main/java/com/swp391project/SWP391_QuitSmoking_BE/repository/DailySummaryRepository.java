@@ -33,4 +33,7 @@ public interface DailySummaryRepository extends JpaRepository<DailySummary, Inte
 
     // Method for achievement calculation
     List<DailySummary> findByQuitPlan_QuitPlanId(Integer quitPlanId);
+
+    // Lấy tất cả daily_summary của user (dựa vào memberId của quitPlan)
+    List<DailySummary> findByQuitPlan_Member_MemberId(UUID memberId);
 }

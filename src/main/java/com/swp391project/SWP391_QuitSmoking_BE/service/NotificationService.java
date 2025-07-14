@@ -21,6 +21,18 @@ public class NotificationService {
         notification.setCreatedAt(LocalDateTime.now());
         notification.setIsRead(false);
         notificationRepository.save(notification);
+        
+        // TODO: Implement push notification service later
+        // try {
+        //     pushNotificationService.sendNotificationToUser(
+        //         notification.getUserId(),
+        //         notification.getTitle(),
+        //         notification.getContent(),
+        //         notification.getNotificationType()
+        //     );
+        // } catch (Exception e) {
+        //     System.err.println("Failed to send push notification: " + e.getMessage());
+        // }
     }
 
     public List<Notification> getNotificationsByUser(UUID userId) {

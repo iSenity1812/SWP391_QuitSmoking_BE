@@ -32,6 +32,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.Objects;
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -295,36 +297,26 @@ public class UserService {
     }
 
     public UserQuitStatsResponse getUserQuitStats(UUID memberId) {
-        // 1. Lấy QuitPlan mới nhất (ưu tiên IN_PROGRESS, fallback gần nhất)
-        QuitPlan plan = quitPlanRepository.findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.IN_PROGRESS)
-            .orElseGet(() -> quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId).orElse(null));
-        if (plan == null) {
-            throw new ResourceNotFoundException("No quit plan found");
+        // Lấy tất cả daily_summary của user
+        List<DailySummary> summaries = dailySummaryRepository.findByQuitPlan_Member_MemberId(memberId);
+        if (summaries.isEmpty()) {
+            return new UserQuitStatsResponse(0, 0, 0);
         }
-        LocalDate startDate = plan.getStartDate().toLocalDate();
-        int cigarettesPerDay = plan.getInitialSmokingAmount();
-        int pricePerPack = plan.getPricePerPack().intValue();
-        int cigarettesPerPack = plan.getCigarettesPerPack();
-        int pricePerCigarette = pricePerPack / cigarettesPerPack;
 
-        // 2. Số ngày không hút
-        long days = ChronoUnit.DAYS.between(startDate, LocalDate.now());
+        long days = summaries.size();
 
-        // 3. Tổng số điếu lẽ ra hút
-        long totalShouldSmoke = days * cigarettesPerDay;
+        // Tổng số điếu đã hút thực tế (tức là tổng số điếu đã bỏ/tránh)
+        long totalAvoided = summaries.stream()
+            .mapToLong(DailySummary::getTotalSmokedCount)
+            .sum();
 
-        // 4. Tổng số điếu thực tế hút
-        List<DailySummary> summaries = dailySummaryRepository.findByQuitPlan_QuitPlanId(plan.getQuitPlanId());
-        long totalActualSmoked = summaries.stream().mapToLong(DailySummary::getTotalSmokedCount).sum();
+        long moneySaved = summaries.stream()
+            .map(DailySummary::getMoneySaved)
+            .filter(Objects::nonNull)
+            .mapToLong(BigDecimal::longValue)
+            .sum();
 
-        // 5. Điếu đã tránh
-        long avoided = totalShouldSmoke - totalActualSmoked;
-        if (avoided < 0) avoided = 0;
-
-        // 6. Tiền tiết kiệm
-        long moneySaved = avoided * pricePerCigarette;
-
-        return new UserQuitStatsResponse(days, avoided, moneySaved);
+        return new UserQuitStatsResponse(days, totalAvoided, moneySaved);
     }
 
     public List<UserProfile> searchUserByEmailOrUsername(String query) {

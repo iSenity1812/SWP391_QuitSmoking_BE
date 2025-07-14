@@ -705,7 +705,7 @@ public class DailySummaryService {
 
     //chạy định kỳ để cập nhật trạng thái hoàn thành mục tiêu (isGoalAchievedToday)
     //cho các bản ghi DailySummary của ngày hôm trước
-    @Scheduled(cron = "0 0 9 * * ?") // Chạy mỗi ngày lúc 09:00 (GMT+7)
+    @Scheduled(cron = "0 30 7 * * ?") // Chạy mỗi ngày lúc 09:15 (GMT+7)
     @Transactional
     public void updateGoalAchievementStatusForPreviousDay() {
         //lấy dữ liệu của ngày đã qua

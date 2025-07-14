@@ -31,6 +31,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.service.EmailService;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.email.EmailDetail;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Notification;
 import com.swp391project.SWP391_QuitSmoking_BE.service.NotificationService;
+import java.util.Comparator;
 
 @Service
 public class AchievementService {
@@ -216,73 +217,28 @@ public class AchievementService {
 
     // Calculation methods
     public BigDecimal calculateDaysQuit(UUID memberId) {
-        // Lấy quit plan hiện tại của member
-        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
-        
-        if (quitPlanOpt.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-
-        QuitPlan quitPlan = quitPlanOpt.get();
-        LocalDateTime startDate = quitPlan.getStartDate();
-        LocalDate today = LocalDate.now();
-
-        // Tính số ngày từ ngày bắt đầu đến hôm nay
-        long days = ChronoUnit.DAYS.between(startDate.toLocalDate(), today);
-        return BigDecimal.valueOf(Math.max(0, days));
+        // Đếm số ngày user có nhập nhật ký (daily_summary)
+        List<DailySummary> summaries = dailySummaryRepository.findByQuitPlan_Member_MemberId(memberId);
+        long days = summaries.size();
+        return BigDecimal.valueOf(days);
     }
 
     public BigDecimal calculateMoneySaved(UUID memberId) {
-        // Lấy quit plan hiện tại
-        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
-        if (quitPlanOpt.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-        QuitPlan plan = quitPlanOpt.get();
-        LocalDate startDate = plan.getStartDate().toLocalDate();
-        int cigarettesPerDay = plan.getInitialSmokingAmount();
-        int pricePerPack = plan.getPricePerPack().intValue();
-        int cigarettesPerPack = plan.getCigarettesPerPack();
-        int pricePerCigarette = pricePerPack / cigarettesPerPack;
-
-        long days = ChronoUnit.DAYS.between(startDate, LocalDate.now());
-        long totalShouldSmoke = days * cigarettesPerDay;
-
-        List<DailySummary> summaries = dailySummaryRepository.findByQuitPlan_QuitPlanId(plan.getQuitPlanId());
-        long totalActualSmoked = summaries.stream().mapToLong(DailySummary::getTotalSmokedCount).sum();
-
-        long avoided = totalShouldSmoke - totalActualSmoked;
-        if (avoided < 0) avoided = 0;
-
-        long moneySaved = avoided * pricePerCigarette;
-        return BigDecimal.valueOf(moneySaved);
+        // Tổng tiền tiết kiệm từ tất cả daily_summary của user
+        List<DailySummary> summaries = dailySummaryRepository.findByQuitPlan_Member_MemberId(memberId);
+        BigDecimal total = summaries.stream()
+            .map(ds -> ds.getMoneySaved() != null ? ds.getMoneySaved() : BigDecimal.ZERO)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return total;
     }
 
     public BigDecimal calculateCigarettesNotSmoked(UUID memberId) {
-        // Lấy quit plan hiện tại
-        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
-        
-        if (quitPlanOpt.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-
-        QuitPlan quitPlan = quitPlanOpt.get();
-        int initialSmokingAmount = quitPlan.getInitialSmokingAmount();
-
-        // Tính tổng số điếu đã hút từ daily summaries
-        List<DailySummary> dailySummaries = dailySummaryRepository.findByQuitPlan_QuitPlanId(quitPlan.getQuitPlanId());
-        
-        int totalSmoked = 0;
-        for (DailySummary summary : dailySummaries) {
-            totalSmoked += summary.getTotalSmokedCount();
-        }
-
-        // Tính số điếu không hút = số điếu ban đầu * số ngày - số điếu đã hút
-        long daysQuit = ChronoUnit.DAYS.between(quitPlan.getStartDate().toLocalDate(), LocalDate.now());
-        int expectedSmoked = (int) (initialSmokingAmount * daysQuit);
-        int cigarettesNotSmoked = Math.max(0, expectedSmoked - totalSmoked);
-
-        return BigDecimal.valueOf(cigarettesNotSmoked);
+        // Tổng số điếu đã hút thực tế (tức là tổng số điếu đã bỏ/tránh)
+        List<DailySummary> summaries = dailySummaryRepository.findByQuitPlan_Member_MemberId(memberId);
+        int totalAvoided = summaries.stream()
+            .mapToInt(DailySummary::getTotalSmokedCount)
+            .sum();
+        return BigDecimal.valueOf(totalAvoided);
     }
 
     // Method to get current progress for each achievement type
@@ -400,13 +356,9 @@ public class AchievementService {
      * Kiểm tra user đã hoàn thành liên tiếp requiredDays ngày với isGoalAchievedToday=true chưa
      */
     private boolean hasConsecutiveDailyAchievements(UUID memberId, int requiredDays) {
-        // Lấy quit plan hiện tại
-        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
-        if (quitPlanOpt.isEmpty()) return false;
-        QuitPlan quitPlan = quitPlanOpt.get();
-        // Lấy toàn bộ daily summary của quit plan này, sắp xếp giảm dần theo ngày
-        List<DailySummary> summaries = dailySummaryRepository.findByQuitPlanOrderByTrackDateDesc(quitPlan);
-        if (summaries.isEmpty()) return false;
+        // Lấy toàn bộ daily summary của user, sắp xếp theo ngày tăng dần
+        List<DailySummary> summaries = dailySummaryRepository.findByQuitPlan_Member_MemberId(memberId);
+        summaries.sort(Comparator.comparing(DailySummary::getTrackDate));
         int count = 0;
         LocalDate prevDate = null;
         for (DailySummary summary : summaries) {
@@ -415,15 +367,10 @@ public class AchievementService {
                 prevDate = null;
                 continue;
             }
-            if (prevDate == null) {
+            if (prevDate != null && !summary.getTrackDate().equals(prevDate.plusDays(1))) {
                 count = 1;
             } else {
-                // Kiểm tra ngày có liên tiếp không
-                if (summary.getTrackDate().plusDays(1).equals(prevDate)) {
-                    count++;
-                } else {
-                    count = 1;
-                }
+                count++;
             }
             prevDate = summary.getTrackDate();
             if (count >= requiredDays) return true;
