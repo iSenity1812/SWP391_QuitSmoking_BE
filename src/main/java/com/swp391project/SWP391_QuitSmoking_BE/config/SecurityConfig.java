@@ -80,9 +80,11 @@ public class SecurityConfig {
         config.addAllowedOrigin("http://localhost:5173");
         config.addAllowedOrigin("http://localhost:5174");
         config.addAllowedOrigin("http://localhost:3000");
+        config.addAllowedOrigin("http://localhost:8080");
         // Nếu deploy lên VPS, bạn cần thay đổi "http://localhost:3000" thành URL của frontend
         config.addAllowedHeader("*"); // Cho phép tất cả các header
         config.addAllowedMethod("*"); // Cho phép tất cả các phương thức HTTP (GET, POST, PUT, DELETE...)
+        config.setMaxAge(3600L); // Thời gian cache CORS preflight request (1 giờ)
         source.registerCorsConfiguration("/**", config); // Áp dụng cấu hình CORS cho tất cả các đường dẫn
         return new CorsFilter(source);
     }
@@ -115,6 +117,7 @@ public class SecurityConfig {
                             .requestMatchers("/api/auth/logout").authenticated()
                             .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
                             .requestMatchers("/api/coaches/**").authenticated()
+                            .requestMatchers("/api/task/admin/**").hasRole("CONTENT_ADMIN")
 
                         .anyRequest().authenticated()
                 )

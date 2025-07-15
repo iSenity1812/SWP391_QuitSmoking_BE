@@ -12,14 +12,19 @@ import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.service.QuizService;
 import com.swp391project.SWP391_QuitSmoking_BE.service.TaskService;
 import com.swp391project.SWP391_QuitSmoking_BE.service.TipService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List; // Đảm bảo có import List
 import java.util.UUID;
@@ -166,5 +171,16 @@ public class TaskController {
         User currentUser = (User) authentication.getPrincipal();
         QuizAttemptResponseDTO result = taskService.submitQuizAttempt(currentUser.getUserId(), request);
         return ResponseEntity.ok(ApiResponse.success(result, "Nộp bài quiz thành công."));
+    }
+
+    @Operation(summary = "Import quizzes from an Excel file")
+    @PostMapping(value = "/admin/quizzes/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('CONTENT_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> importQuizzes(
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        quizService.importQuizzesFromExcel(file, currentUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Quizzes đã được nhập thành công."));
     }
 }

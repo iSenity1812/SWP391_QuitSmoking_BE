@@ -1,6 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.repository;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
@@ -33,4 +34,10 @@ public interface DailySummaryRepository extends JpaRepository<DailySummary, Inte
 
     // Method for achievement calculation
     List<DailySummary> findByQuitPlan_QuitPlanId(Integer quitPlanId);
+
+    List<DailySummary> findByQuitPlan_Member(Member member);
+
+    List<DailySummary> findTop7ByQuitPlan_MemberOrderByTrackDateDesc(Member member);
+
+    List<DailySummary> findTop7ByQuitPlanOrderByTrackDateDesc(QuitPlan quitPlan);
 }

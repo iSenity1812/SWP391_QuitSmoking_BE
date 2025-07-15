@@ -15,7 +15,9 @@ import com.swp391project.SWP391_QuitSmoking_BE.repository.TaskRepository; // Imp
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -276,5 +278,19 @@ public class QuizService {
         quizTask.setQuizzes(quizzes);
 
         taskRepository.save(quizTask);
+    }
+
+    @Transactional
+    public void importQuizzesFromExcel(MultipartFile file, UUID createdByUserId) {
+        if (!QuizExcelService.hasExcelFormat(file)) {
+            throw new IllegalArgumentException("Please upload an excel file!");
+        }
+
+        try {
+            List<Quiz> quizzes = QuizExcelService.excelToQuizzes(file.getInputStream(), createdByUserId, userRepository, taskRepository);
+            quizRepository.saveAll(quizzes);
+        } catch (IOException e) {
+            throw new RuntimeException("fail to store excel data: " + e.getMessage());
+        }
     }
 }
