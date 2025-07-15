@@ -25,8 +25,8 @@ public class QuizCreationRequestDTO {
     @Size(max = 1000, message = "Mô tả câu đố không được vượt quá 1000 ký tự")
     private String description;
 
-    @NotNull(message = "Điểm tối đa có thể đạt được không được để trống")
-    private Integer scorePossible;
+//    @NotNull(message = "Điểm tối đa có thể đạt được không được để trống")
+//    private Integer scorePossible;
 
     // --- DÒNG NÀY ĐÃ BỊ XÓA HOẶC COMMENT OUT ---
     // private UUID createdByAdminId;

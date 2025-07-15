@@ -8,4 +8,5 @@ import lombok.*;
 public class OptionResponseDTO {
     private Integer optionId;
     private String content;
+    private boolean isCorrect;
 }

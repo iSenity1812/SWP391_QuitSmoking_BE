@@ -1,16 +1,12 @@
 package com.swp391project.SWP391_QuitSmoking_BE.api;
 
-import com.swp391project.SWP391_QuitSmoking_BE.dto.quiz.QuizAttemptResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.quiz.QuizCreationRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.quiz.QuizResponseDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.quiz.SubmitQuizAttemptRequestDTO;
-import com.swp391project.SWP391_QuitSmoking_BE.dto.task.TaskResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.tip.TipCreationRequestDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.tip.TipResponseDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.service.QuizService;
-import com.swp391project.SWP391_QuitSmoking_BE.service.TaskService;
 import com.swp391project.SWP391_QuitSmoking_BE.service.TipService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -32,7 +28,6 @@ public class TaskController {
 
     private final QuizService quizService;
     private final TipService tipService;
-    private final TaskService taskService;
 
     // --- API TẠO ---
     @PostMapping("/admin/quizzes")
@@ -73,7 +68,11 @@ public class TaskController {
     // Tạm thời cho phép tất cả các role có thể xem danh sách quiz.
     // Nếu có trường `isPublished` trong Quiz, bạn có thể lọc ở service.
     @GetMapping("/quizzes")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('CONTENT_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') " +
+            "or hasRole('CONTENT_ADMIN') " +
+            "or hasRole('NORMAL_MEMBER') " +
+            "or hasRole('PREMIUM_MEMBER') " +
+            "or hasRole('COACH')")
     public ResponseEntity<ApiResponse<List<QuizResponseDTO>>> getAllQuizzes() {
         List<QuizResponseDTO> quizzes = quizService.getAllQuizzes();
         return ResponseEntity.ok(ApiResponse.success(quizzes, "Lấy danh sách Quiz thành công."));
@@ -89,8 +88,12 @@ public class TaskController {
 
     // --- API XEM DANH SÁCH & CHI TIẾT TIP ---
     // Get all Tips: Tương tự như Quiz, cho phép các role xem danh sách Tip
-    @GetMapping("/admin/tips")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('CONTENT_ADMIN')")
+    @GetMapping("/tips")
+    @PreAuthorize("hasRole('SUPER_ADMIN') " +
+            "or hasRole('CONTENT_ADMIN') " +
+            "or hasRole('NORMAL_MEMBER') " +
+            "or hasRole('PREMIUM_MEMBER') " +
+            "or hasRole('COACH')")
     public ResponseEntity<ApiResponse<List<TipResponseDTO>>> getAllTips() {
         List<TipResponseDTO> tips = tipService.getAllTips();
         return ResponseEntity.ok(ApiResponse.success(tips, "Lấy danh sách Tip thành công."));
@@ -147,24 +150,5 @@ public class TaskController {
             Authentication authentication) {
         tipService.deleteTip(tipId);
         return ResponseEntity.ok(ApiResponse.success(null, "Tip đã được xóa thành công."));
-    }
-
-    @PostMapping("/generate-random")
-    @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER') or hasRole('COACH')")
-    public ResponseEntity<ApiResponse<TaskResponseDTO>> generateRandomTask(Authentication authentication) {
-        User currentUser = (User) authentication.getPrincipal();
-        TaskResponseDTO randomTask = taskService.generateRandomCravingTask(currentUser.getUserId());
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(randomTask, "Nhiệm vụ ngẫu nhiên đã được tạo thành công."));
-    }
-
-    @PostMapping("/submit-quiz")
-    @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER') or hasRole('COACH')")
-    public ResponseEntity<ApiResponse<QuizAttemptResponseDTO>> submitQuizAttempt(
-            @Valid @RequestBody SubmitQuizAttemptRequestDTO request,
-            Authentication authentication) {
-        User currentUser = (User) authentication.getPrincipal();
-        QuizAttemptResponseDTO result = taskService.submitQuizAttempt(currentUser.getUserId(), request);
-        return ResponseEntity.ok(ApiResponse.success(result, "Nộp bài quiz thành công."));
     }
 }
