@@ -97,7 +97,7 @@ public class SecurityConfig {
                     req -> req
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger UI
-                        .requestMatchers("/auth/login", "/auth/register", "/api/auth/login", "/api/auth/register").permitAll() // Cho phép truy cập không cần xác thực cho login/register
+                        .requestMatchers("/auth/login", "/auth/register", "/api/auth/login", "/api/auth/register", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/auth/validate-reset-token", "/api/auth/google", "/api/auth/google/**").permitAll() // Cho phép truy cập không cần xác thực cho login/register, password reset và google auth
                         .requestMatchers("/auth/logout").authenticated()
                         .requestMatchers("/superadmin/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/coaches/**").authenticated()

@@ -76,7 +76,7 @@ public class User implements UserDetails {
 
     @Size(max = 255, message = "Đường dẫn ảnh đại diện không được vượt quá 255 ký tự")
     @Pattern(
-            regexp = "^$|.*\\.(jpg|jpeg|png|gif|webp|bmp|svg)$",
+            regexp = "^$|.*\\.(jpg|jpeg|png|gif|webp|bmp|svg)$|^https?://.*$",
             message = "Tên file ảnh không hợp lệ hoặc định dạng không được hỗ trợ",
             flags = Pattern.Flag.CASE_INSENSITIVE
     )
