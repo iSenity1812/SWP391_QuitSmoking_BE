@@ -10,7 +10,9 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "MemberAchievement")
+@Table(name = "MemberAchievement", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"MemberID", "AchievementID"})
+})
 public class MemberAchievement {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

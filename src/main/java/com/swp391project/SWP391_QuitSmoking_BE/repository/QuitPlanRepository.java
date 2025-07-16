@@ -62,6 +62,7 @@ public interface QuitPlanRepository extends JpaRepository<QuitPlan, Integer> {
     Optional<QuitPlan> findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(UUID memberId, QuitPlanStatus quitPlanStatus);
 
     Optional<QuitPlan> findByMember_MemberIdOrderByCreatedAtDesc(UUID memberId);
+    Optional<QuitPlan> findFirstByMember_MemberIdOrderByCreatedAtDesc(UUID memberId);
 
     Optional<QuitPlan> findFirstByMemberOrderByStartDateDesc(Member member);
 
@@ -69,6 +70,12 @@ public interface QuitPlanRepository extends JpaRepository<QuitPlan, Integer> {
             "AND qp.status = 'IN_PROGRESS' " +
             "ORDER BY qp.startDate DESC")
     Optional<QuitPlan> findActiveQuitPlanByMember(@Param("member") Member member);
+
+    // find active quit plan by member id
+    @Query("SELECT qp FROM QuitPlan qp WHERE qp.member.memberId = :memberId " +
+            "AND qp.status = 'IN_PROGRESS' " +
+            "ORDER BY qp.startDate DESC")
+    Optional<QuitPlan> findActiveQuitPlanByMemberId(@Param("memberId") UUID memberId);
 
 //    Optional<QuitPlan> findByMember_MemberIdAnd(UUID memberId);
 }

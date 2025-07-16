@@ -43,6 +43,7 @@ public class Achievement {
         DAYS_QUIT,           // Số ngày cai thuốc
         MONEY_SAVED,         // Số tiền tiết kiệm (VND)
         CIGARETTES_NOT_SMOKED, // Số điếu không hút
+        CRAVING_RESISTED,    // Số lần chống chọi cơn thèm
         DAILY,               // Thành tựu daily
         RESILIENCE,          // Thành tựu kiên trì/quay lại
         HEALTH,              // Thành tựu sức khỏe

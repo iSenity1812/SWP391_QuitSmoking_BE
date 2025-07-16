@@ -1,10 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
-import com.swp391project.SWP391_QuitSmoking_BE.entity.Achievement;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.MemberAchievement;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.*;
+import com.swp391project.SWP391_QuitSmoking_BE.event.UserResistedCravingEvent;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.AchievementRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberAchievementRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberRepository;
@@ -12,6 +9,8 @@ import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
 import lombok.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
@@ -27,11 +26,11 @@ import java.util.ArrayList;
 
 import com.swp391project.SWP391_QuitSmoking_BE.service.EmailService;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.email.EmailDetail;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.Notification;
 import com.swp391project.SWP391_QuitSmoking_BE.service.NotificationService;
 
 @Service
 @RequiredArgsConstructor
+@EnableScheduling
 public class AchievementService {
     private final AchievementRepository achievementRepository;
     @Getter
@@ -43,6 +42,20 @@ public class AchievementService {
     private final DailySummaryRepository dailySummaryRepository;
     private final EmailService emailService;
     private final NotificationService notificationService;
+
+    @EventListener
+    public void handleUserResistedCravingEvent(UserResistedCravingEvent event) {
+        System.out.println("[AchievementService] Received UserResistedCravingEvent for user: " + event.getUser().getUserId());
+        checkAndUnlockAchievements(event.getUser().getUserId());
+    }
+
+    @Transactional
+    public void checkTimeBasedAchievements() {
+        List<User> users = memberRepository.findAll().stream().map(Member::getUser).toList();
+        for (User user : users) {
+            checkAndUnlockAchievements(user.getUserId());
+        }
+    }
 
     // CRUD Achievement
     public List<Achievement> getAllAchievements() {
@@ -99,10 +112,18 @@ public class AchievementService {
     // Auto-unlock logic
     @Transactional
     public void checkAndUnlockAchievements(UUID memberId) {
+        System.out.println("[AchievementService] Starting achievement check for memberId: " + memberId);
+        
         // Tính toán các mốc hiện tại của member
         BigDecimal currentDaysQuit = calculateDaysQuit(memberId);
         BigDecimal currentMoneySaved = calculateMoneySaved(memberId);
         BigDecimal currentCigarettesNotSmoked = calculateCigarettesNotSmoked(memberId);
+        BigDecimal currentCravingResisted = calculateCravingResisted(memberId);
+
+        System.out.println("[AchievementService] Current progress - Days: " + currentDaysQuit + 
+                         ", Money: " + currentMoneySaved + 
+                         ", Cigarettes: " + currentCigarettesNotSmoked + 
+                         ", Cravings: " + currentCravingResisted);
 
         // Lấy tất cả achievements
         List<Achievement> allAchievements = achievementRepository.findAll();
@@ -125,6 +146,9 @@ public class AchievementService {
                     case CIGARETTES_NOT_SMOKED:
                         shouldStillUnlock = currentCigarettesNotSmoked.compareTo(achievement.getMilestoneValue()) >= 0;
                         break;
+                    case CRAVING_RESISTED:
+                        shouldStillUnlock = currentCravingResisted.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
                     case DAILY:
                         shouldStillUnlock = hasConsecutiveDailyAchievements(memberId, achievement.getMilestoneValue().intValue());
                         break;
@@ -132,7 +156,7 @@ public class AchievementService {
                         shouldStillUnlock = false;
                 }
                 if (!shouldStillUnlock) {
-                    System.out.println("[AchievementService] XÓA thành tựu không hợp lệ: " + achievement.getName() + " (" + achievement.getMilestoneValue() + ") cho memberId: " + memberId + ". Số liệu hiện tại: daysQuit=" + currentDaysQuit + ", moneySaved=" + currentMoneySaved + ", cigarettesNotSmoked=" + currentCigarettesNotSmoked);
+                    System.out.println("[AchievementService] XÓA thành tựu không hợp lệ: " + achievement.getName() + " (" + achievement.getMilestoneValue() + ") cho memberId: " + memberId + ". Số liệu hiện tại: daysQuit=" + currentDaysQuit + ", moneySaved=" + currentMoneySaved + ", cigarettesNotSmoked=" + currentCigarettesNotSmoked + ", cravingResisted=" + currentCravingResisted);
                     memberAchievementRepository.delete(ma);
                 }
             }
@@ -152,6 +176,9 @@ public class AchievementService {
                     case CIGARETTES_NOT_SMOKED:
                         shouldUnlock = currentCigarettesNotSmoked.compareTo(achievement.getMilestoneValue()) >= 0;
                         break;
+                    case CRAVING_RESISTED:
+                        shouldUnlock = currentCravingResisted.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
                     case DAILY:
                         shouldUnlock = hasConsecutiveDailyAchievements(memberId, achievement.getMilestoneValue().intValue());
                         break;
@@ -159,10 +186,13 @@ public class AchievementService {
                         shouldUnlock = false;
                 }
                 if (shouldUnlock) {
+                    System.out.println("[AchievementService] Unlocking achievement: " + achievement.getName() + " for memberId: " + memberId);
                     unlockAchievement(memberId, achievement);
                 }
             }
         }
+        
+        System.out.println("[AchievementService] Completed achievement check for memberId: " + memberId);
     }
 
     private boolean isAchievementUnlocked(UUID memberId, Long achievementId) {
@@ -188,7 +218,7 @@ public class AchievementService {
             EmailDetail emailDetail = new EmailDetail(email, subject, null, "achievementTemplate.html", templateVars);
             emailService.sendEmail(emailDetail);
         }
-        // Tạo notification achievement
+        // Tạo notification achievement và gửi WebSocket real-time
         if (member != null && member.getUser() != null) {
             Notification notification = new Notification();
             notification.setUserId(member.getUser().getUserId());
@@ -197,13 +227,21 @@ public class AchievementService {
             notification.setNotificationType("ACHIEVEMENT");
             notification.setFromUserId(null); // Hệ thống
             notificationService.createNotification(notification);
+            
+            // Gửi WebSocket notification real-time cho achievement
+            try {
+                notificationService.sendAchievementNotification(member.getUser().getUserId(), achievement);
+                System.out.println("[AchievementService] Đã gửi WebSocket notification cho achievement: " + achievement.getName() + " tới user: " + member.getUser().getUserId());
+            } catch (Exception e) {
+                System.err.println("[AchievementService] Lỗi khi gửi WebSocket notification: " + e.getMessage());
+            }
         }
     }
 
     // Calculation methods
     public BigDecimal calculateDaysQuit(UUID memberId) {
         // Lấy quit plan hiện tại của member
-        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
+        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
         
         if (quitPlanOpt.isEmpty()) {
             return BigDecimal.ZERO;
@@ -220,7 +258,7 @@ public class AchievementService {
 
     public BigDecimal calculateMoneySaved(UUID memberId) {
         // Lấy quit plan hiện tại
-        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
+        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
         if (quitPlanOpt.isEmpty()) {
             return BigDecimal.ZERO;
         }
@@ -246,7 +284,7 @@ public class AchievementService {
 
     public BigDecimal calculateCigarettesNotSmoked(UUID memberId) {
         // Lấy quit plan hiện tại
-        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
+        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
         
         if (quitPlanOpt.isEmpty()) {
             return BigDecimal.ZERO;
@@ -271,6 +309,27 @@ public class AchievementService {
         return BigDecimal.valueOf(cigarettesNotSmoked);
     }
 
+    public BigDecimal calculateCravingResisted(UUID memberId) {
+        // Lấy quit plan hiện tại
+        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
+        
+        if (quitPlanOpt.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        QuitPlan quitPlan = quitPlanOpt.get();
+        
+        // Tính tổng số lần thèm thuốc từ daily summaries
+        List<DailySummary> dailySummaries = dailySummaryRepository.findByQuitPlan_QuitPlanId(quitPlan.getQuitPlanId());
+        
+        int totalCravingCount = 0;
+        for (DailySummary summary : dailySummaries) {
+            totalCravingCount += summary.getTotalCravingCount();
+        }
+
+        return BigDecimal.valueOf(totalCravingCount);
+    }
+
     // Method to get current progress for each achievement type
     public BigDecimal getCurrentProgress(UUID memberId, Achievement.AchievementType type) {
         switch (type) {
@@ -280,6 +339,8 @@ public class AchievementService {
                 return calculateMoneySaved(memberId);
             case CIGARETTES_NOT_SMOKED:
                 return calculateCigarettesNotSmoked(memberId);
+            case CRAVING_RESISTED:
+                return calculateCravingResisted(memberId);
             default:
                 return BigDecimal.ZERO;
         }
@@ -342,6 +403,28 @@ public class AchievementService {
         createAchievement(new Achievement(null, "200 Cigarettes Free", "/icons/200cigs.png", 
             "Avoided 200 cigarettes!", Achievement.AchievementType.CIGARETTES_NOT_SMOKED, 
             new BigDecimal("200"), LocalDateTime.now(), null));
+
+
+        // Craving Resisted Achievements
+        createAchievement(new Achievement(null, "First Resistance", "/icons/5craving.png",
+                "Resisted 5 cravings!", Achievement.AchievementType.CRAVING_RESISTED,
+                new BigDecimal("5"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Craving Fighter", "/icons/10craving.png",
+                "Resisted 10 cravings!", Achievement.AchievementType.CRAVING_RESISTED,
+                new BigDecimal("10"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Willpower Warrior", "/icons/25craving.png",
+                "Resisted 25 cravings!", Achievement.AchievementType.CRAVING_RESISTED,
+                new BigDecimal("25"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Craving Conqueror", "/icons/50craving.png",
+                "Resisted 50 cravings!", Achievement.AchievementType.CRAVING_RESISTED,
+                new BigDecimal("50"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Temptation Master", "/icons/100craving.png",
+                "Resisted 100 cravings!", Achievement.AchievementType.CRAVING_RESISTED,
+                new BigDecimal("100"), LocalDateTime.now(), null));
     }
 
     // DTO trả về cho FE
@@ -387,7 +470,7 @@ public class AchievementService {
      */
     private boolean hasConsecutiveDailyAchievements(UUID memberId, int requiredDays) {
         // Lấy quit plan hiện tại
-        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
+        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
         if (quitPlanOpt.isEmpty()) return false;
         QuitPlan quitPlan = quitPlanOpt.get();
         // Lấy toàn bộ daily summary của quit plan này, sắp xếp giảm dần theo ngày
@@ -470,8 +553,8 @@ public class AchievementService {
         List<Achievement> allAchievements = achievementRepository.findAll();
         List<MemberAchievement> userAchievements = memberAchievementRepository.findByMember_MemberId(memberId);
         var unlockedIds = userAchievements.stream().map(MemberAchievement::getAchievementId).collect(Collectors.toSet());
-        // Ưu tiên DAYS_QUIT trước, sau đó MONEY_SAVED, rồi CIGARETTES_NOT_SMOKED
-        Achievement.AchievementType[] types = {Achievement.AchievementType.DAYS_QUIT, Achievement.AchievementType.MONEY_SAVED, Achievement.AchievementType.CIGARETTES_NOT_SMOKED};
+        // Ưu tiên DAYS_QUIT trước, sau đó MONEY_SAVED, CIGARETTES_NOT_SMOKED, rồi CRAVING_RESISTED
+        Achievement.AchievementType[] types = {Achievement.AchievementType.DAYS_QUIT, Achievement.AchievementType.MONEY_SAVED, Achievement.AchievementType.CIGARETTES_NOT_SMOKED, Achievement.AchievementType.CRAVING_RESISTED};
         for (Achievement.AchievementType type : types) {
             var milestones = allAchievements.stream()
                 .filter(a -> a.getAchievementType() == type)

@@ -17,4 +17,8 @@ public interface MemberAchievementRepository extends JpaRepository<MemberAchieve
     long countByMember_MemberId(UUID memberId);
 
     List<MemberAchievement> findTop5ByMemberOrderByDateAchievedDesc(Member member);
+
+    long countByMember(Member member);
+    List<MemberAchievement> findByMemberAndIsShared(Member member, boolean isShared);
+    List<MemberAchievement> findTop3ByMemberOrderByDateAchievedDesc(Member member);
 }

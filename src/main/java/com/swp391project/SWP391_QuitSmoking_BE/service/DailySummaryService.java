@@ -41,6 +41,7 @@ public class DailySummaryService {
     private final QuitPlanCalculator quitPlanCalculator;
     private final QuitPlanService quitPlanService;
     private final QuitPlanRepository quitPlanRepository;
+    private final AchievementTriggerService achievementTriggerService;
 
     private static final int RELAPSE_CONSECUTIVE_DAYS_THRESHOLD = 3;
     private static final double RELAPSE_PERCENTAGE_OVER_TARGET_THRESHOLD = 0.20; // 20%
@@ -76,7 +77,17 @@ public class DailySummaryService {
         dailySummary.setUpdatedAt(null);
         dailySummary.setGoalAchievedToday(false);
 
-        return dailySummaryRepository.save(dailySummary);
+        DailySummary savedSummary = dailySummaryRepository.save(dailySummary);
+        
+        // Trigger achievement check khi tạo daily summary
+        try {
+            achievementTriggerService.onDailySummaryAdded(quitPlan.getMember().getMemberId());
+            log.info("[DailySummaryService] Triggered achievement check for memberId: {}", quitPlan.getMember().getMemberId());
+        } catch (Exception e) {
+            log.error("[DailySummaryService] Error triggering achievement check: {}", e.getMessage());
+        }
+
+        return savedSummary;
     }
 
     //Tìm hoặc tạo một DailySummary cho một QuitPlan và ngày cụ thể
@@ -434,6 +445,14 @@ public class DailySummaryService {
 
             quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlan);
             quitPlanService.handleDailySummaryUpdateForRelapse(savedDailySummary);
+
+            // Trigger achievement check khi cập nhật daily summary
+            try {
+                achievementTriggerService.onDailySummaryAdded(quitPlan.getMember().getMemberId());
+                log.info("[DailySummaryService] Triggered achievement check after update for memberId: {}", quitPlan.getMember().getMemberId());
+            } catch (Exception e) {
+                log.error("[DailySummaryService] Error triggering achievement check after update: {}", e.getMessage());
+            }
 
             return convertToResponseDto(savedDailySummary);
         } else {

@@ -1,6 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.profile.PremiumProfileDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.profile.NormalProfileDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.MemberAchievement;
@@ -38,9 +39,11 @@ public class ProfileServiceImpl implements ProfileService{
         User user = profileRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User with ID " + userId + " not found"));
         if (user.getRole() == Role.PREMIUM_MEMBER) {
-            return getPremiumProfile(user); // Replace with actual DTO for premium profile
+            return getPremiumProfile(user);
+        } else if (user.getRole() == Role.NORMAL_MEMBER) {
+            return getNormalProfile(user);
         } else {
-            return null; // Replace with actual DTO conversion logic
+            throw new RuntimeException("Unsupported user role: " + user.getRole());
         }
     }
 
@@ -234,6 +237,113 @@ public class ProfileServiceImpl implements ProfileService{
                 })
                 .collect(Collectors.toList());
         builder.last5Achievements(achievementDTOs);
+
+        return builder.build();
+    }
+
+    private NormalProfileDTO getNormalProfile(User user) {
+        Member member = user.getMember();
+        if (member == null) throw new RuntimeException("Member not found for user with ID " + user.getUserId());
+
+        NormalProfileDTO.NormalProfileDTOBuilder builder = NormalProfileDTO.builder();
+
+        // Core Information
+        builder.userId(user.getUserId().toString());
+        builder.username(user.getUsername());
+        builder.email(user.getEmail());
+        builder.profilePicture(user.getProfilePicture());
+        builder.role(user.getRole().name());
+        builder.accountCreationDate(Date.from(user.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant()));
+        builder.currentStreakCount(member.getStreak());
+
+        // Quit Plan Details
+        quitPlanRepository.findActiveQuitPlanByMember(member).ifPresent(quitPlan -> {
+            builder.currentQuitPlanId(quitPlan.getQuitPlanId());
+            builder.quitPlanStatus(quitPlan.getStatus().name());
+        });
+
+        // Quit Statistics (simplified version for normal members)
+        quitPlanRepository.findActiveQuitPlanByMember(member).ifPresent(quitPlan -> {
+            List<DailySummary> activePlanSummaries = dailySummaryRepository.findByQuitPlan(quitPlan);
+            long totalCigarettesSmoked = activePlanSummaries.stream().mapToLong(DailySummary::getTotalSmokedCount).sum();
+
+            // Tính số ngày từ khi bắt đầu quit plan đến hiện tại
+            long daysSinceStart = ChronoUnit.DAYS.between(quitPlan.getStartDate().toLocalDate(), LocalDate.now()) + 1;
+            
+            if (daysSinceStart > 0) {
+                // Lấy số thuốc hút ban đầu mỗi ngày
+                int initialSmokingAmount = quitPlan.getInitialSmokingAmount();
+                
+                // Công thức: (số thuốc hút ban đầu * số ngày từ khi bắt đầu) - tổng số thuốc đã hút thực tế
+                long cigarettesAvoided = (initialSmokingAmount * daysSinceStart) - totalCigarettesSmoked;
+                cigarettesAvoided = Math.max(0, cigarettesAvoided);
+                builder.cigarettesAvoided(cigarettesAvoided);
+
+                // Tính số ngày không hút thuốc
+                long daysWithSmoking = activePlanSummaries.stream()
+                    .filter(summary -> summary.getTotalSmokedCount() > 0)
+                    .count();
+                long daysWithoutSmoking = daysSinceStart - daysWithSmoking;
+                builder.daysWithoutSmoking(daysWithoutSmoking);
+
+                // Money saved hôm nay (chỉ hiển thị tiền tiết kiệm được hôm nay, không phải tổng)
+                LocalDate today = LocalDate.now();
+                Optional<DailySummary> todaySummary = activePlanSummaries.stream()
+                        .filter(summary -> summary.getTrackDate().isEqual(today))
+                        .findFirst();
+
+                builder.moneySaved(todaySummary.filter(summary -> summary.getMoneySaved() != null).map(DailySummary::getMoneySaved).orElse(BigDecimal.ZERO));
+
+                // Chart Data - 7 days gần nhất (chỉ hiển thị cigarettes smoked, không có cravings)
+                LocalDate weekAgo = today.minusDays(6);
+                List<DailySummary> chartSummaries = dailySummaryRepository.findByQuitPlanAndTrackDateBetween(quitPlan, weekAgo, today);
+
+                // Tạo map để lookup nhanh
+                Map<LocalDate, DailySummary> summaryMap = chartSummaries.stream()
+                        .collect(Collectors.toMap(DailySummary::getTrackDate, summary -> summary));
+
+                List<NormalProfileDTO.DailyChartData> chartData = new ArrayList<>();
+
+                // Tạo data cho từng ngày trong 7 ngày (từ cũ nhất đến mới nhất)
+                for (int i = 6; i >= 0; i--) {
+                    LocalDate date = today.minusDays(i);
+                    DailySummary summary = summaryMap.get(date);
+
+                    chartData.add(NormalProfileDTO.DailyChartData.builder()
+                            .date(date)
+                            .cigarettesSmoked(summary != null ? summary.getTotalSmokedCount() : 0)
+                            .build());
+                }
+
+                builder.dailyChartData(chartData);
+            } else {
+                builder.cigarettesAvoided(0L);
+                builder.daysWithoutSmoking(0L);
+                builder.moneySaved(BigDecimal.ZERO);
+                builder.dailyChartData(new ArrayList<>());
+            }
+        });
+
+        // Follow Statistics
+        builder.followersCount(followRepository.countByFollowedId(user.getUserId()));
+        builder.followingCount(followRepository.countByFollowerId(user.getUserId()));
+
+        // Achievements (chỉ lấy 3 achievements gần nhất cho normal member)
+        List<MemberAchievement> memberAchievements = memberAchievementRepository.findTop3ByMemberOrderByDateAchievedDesc(member);
+        List<NormalProfileDTO.AchievementDTO> achievementDTOs = memberAchievements.stream()
+                .map(memberAchievement -> {
+                    LocalDateTime localDateTime = memberAchievement.getDateAchieved();
+                    Date dateAchieved = Date.from(localDateTime.atZone(ZoneId.systemDefault()).toInstant());
+
+                    return NormalProfileDTO.AchievementDTO.builder()
+                            .id(memberAchievement.getAchievement().getAchievementId())
+                            .name(memberAchievement.getAchievement().getName())
+                            .iconUrl(memberAchievement.getAchievement().getIconUrl())
+                            .dateAchieved(dateAchieved)
+                            .build();
+                })
+                .collect(Collectors.toList());
+        builder.last3Achievements(achievementDTOs);
 
         return builder.build();
     }

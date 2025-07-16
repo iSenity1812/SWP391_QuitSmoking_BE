@@ -5,13 +5,17 @@ import com.swp391project.SWP391_QuitSmoking_BE.dto.craving.CravingTrackingRespon
 import com.swp391project.SWP391_QuitSmoking_BE.dto.craving.CravingTrackingUpdateRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.CravingTracking;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
+import com.swp391project.SWP391_QuitSmoking_BE.event.UserResistedCravingEvent;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.CravingTrackingDeletedException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.DailySummaryEditForbiddenException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.CravingTrackingRepository;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.validator.internal.util.stereotypes.Lazy;
 import org.modelmapper.ModelMapper;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +33,9 @@ public class CravingTrackingService {
     private final ModelMapper modelMapper;
     @Lazy //to break circular dependency
     private final QuitPlanService quitPlanService;
+    private final AchievementTriggerService achievementTriggerService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final MemberRepository memberRepository;
 
     //chuyển đổi entity thành response DTO
     public CravingTrackingResponse convertToResponseDto(CravingTracking cravingTracking) {
@@ -146,6 +153,30 @@ public class CravingTrackingService {
 
         // Tái tính toán tổng của DailySummary liên quan
         dailySummaryService.recalculateDailyTotals(dailySummary);
+
+        // Trigger achievement check khi user resist craving hoặc có smoking tracking
+        try {
+            // Nếu có cravingsCount > 0, đó là resist craving
+            if (request.getCravingsCount() != null && request.getCravingsCount() > 0) {
+                achievementTriggerService.onCravingResisted(memberId);
+                
+                // Publish UserResistedCravingEvent for additional processing
+                Member member = memberRepository.findById(memberId).orElse(null);
+                if (member != null && member.getUser() != null) {
+                    UserResistedCravingEvent event = new UserResistedCravingEvent(member.getUser());
+                    eventPublisher.publishEvent(event);
+                    System.out.println("[CravingTrackingService] Published UserResistedCravingEvent for user: " + member.getUser().getUserId());
+                }
+                
+                System.out.println("[CravingTrackingService] Triggered craving resisted for memberId: " + memberId);
+            }
+            
+            // Trigger general smoking data update
+            achievementTriggerService.onSmokingDataUpdated(memberId);
+            System.out.println("[CravingTrackingService] Triggered smoking data update for memberId: " + memberId);
+        } catch (Exception e) {
+            System.err.println("[CravingTrackingService] Error triggering achievement check: " + e.getMessage());
+        }
 
         return convertToResponseDto(savedAggregatedRecord);
     }
