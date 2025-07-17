@@ -1,4 +1,5 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -28,6 +29,7 @@ public class Member {
     @MapsId //Khóa chính của Member được lấy từ khóa chính của User
     @JoinColumn(name = "MemberID", referencedColumnName = "UserID")
     @NotNull(message = "Người dùng liên kết không được để trống")
+    @JsonIgnore
     private User user; //Tham chiếu đến đối tượng User mà Member này thuộc về
 
     @Min(value = 0, message = "Streak không thể là số âm")

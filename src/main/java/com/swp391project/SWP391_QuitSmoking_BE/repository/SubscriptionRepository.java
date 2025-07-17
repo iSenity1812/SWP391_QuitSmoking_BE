@@ -82,6 +82,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     List<Object[]> getActiveSubscriptionCountByPlan();
 
     Optional<Subscription> findFirstByUserOrderByEndDateDesc(User user);
+    Optional<Subscription> findFirstByUserOrderByStartDateAsc(User user);
 
     // Additional method for UserProfileService
 //    Optional<Subscription> findByUserIdAndIsActiveTrueAndEndDateAfter(UUID userId, LocalDateTime endDate);

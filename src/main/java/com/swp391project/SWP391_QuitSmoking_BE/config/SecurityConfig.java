@@ -81,7 +81,8 @@ public class SecurityConfig {
         config.addAllowedOrigin("http://localhost:5174");
         config.addAllowedOrigin("http://localhost:3000");
         config.addAllowedOrigin("http://localhost:8080");
-        // Nếu deploy lên VPS, bạn cần thay đổi "http://localhost:3000" thành URL của frontend
+        config.addAllowedOrigin("https://*.ngrok-free.app");
+//        config.addAllowedOrigin("*");
         config.addAllowedHeader("*"); // Cho phép tất cả các header
         config.addAllowedMethod("*"); // Cho phép tất cả các phương thức HTTP (GET, POST, PUT, DELETE...)
         config.setMaxAge(3600L); // Thời gian cache CORS preflight request (1 giờ)

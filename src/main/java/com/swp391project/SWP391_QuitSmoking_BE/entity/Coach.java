@@ -1,5 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.CoachSpecialty;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
@@ -32,6 +33,7 @@ public class Coach {
     @MapsId //chỉ định khóa chính của Coach được lấy từ khóa chính của User
     @JoinColumn(name = "coach_id")
     @NotNull(message = "Người dùng liên kết không được để trống")
+    @JsonIgnore
     private User user; // Tham chiếu đến đối tượng User mà Coach này thuộc về
 
     @Column(precision = 3, scale = 2) // DECIMAL(3, 2)

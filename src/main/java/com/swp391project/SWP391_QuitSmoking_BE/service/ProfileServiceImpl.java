@@ -2,6 +2,7 @@ package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.dto.profile.PremiumProfileDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.profile.NormalProfileDTO;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.profile.PublicProfileDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.MemberAchievement;
@@ -45,6 +46,87 @@ public class ProfileServiceImpl implements ProfileService{
         } else {
             throw new RuntimeException("Unsupported user role: " + user.getRole());
         }
+    }
+
+    @Override
+    public PublicProfileDTO getPublicProfile(UUID userId) {
+        User user = profileRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User with ID " + userId + " not found"));
+        
+        Member member = user.getMember();
+        if (member == null) throw new RuntimeException("Member not found for user with ID " + user.getUserId());
+
+        PublicProfileDTO.PublicProfileDTOBuilder builder = PublicProfileDTO.builder();
+
+        // Core Information
+        builder.userId(user.getUserId().toString());
+        builder.username(user.getUsername());
+        builder.profilePicture(user.getProfilePicture());
+        builder.role(user.getRole().name());
+        
+        // Member since (account creation date formatted)
+        LocalDateTime createdAt = user.getCreatedAt();
+        String monthName = createdAt.getMonth().name().toLowerCase();
+        String formattedMonth = monthName.substring(0, 1).toUpperCase() + monthName.substring(1, 3);
+        String memberSince = formattedMonth + " " + createdAt.getYear();
+        builder.memberSince(memberSince);
+
+        // Public Statistics
+        builder.streakCount(member.getStreak());
+        
+        // Quit Journey Status
+        quitPlanRepository.findActiveQuitPlanByMember(member).ifPresentOrElse(
+            quitPlan -> {
+                long daysCompleted = ChronoUnit.DAYS.between(quitPlan.getStartDate().toLocalDate(), LocalDate.now());
+                long totalDays = ChronoUnit.DAYS.between(quitPlan.getStartDate().toLocalDate(), quitPlan.getGoalDate());
+                if (totalDays > 0) {
+                    double progress = (double) daysCompleted / totalDays * 100;
+                    builder.quitJourneyStatus(String.format("%.1f%% Complete - Day %d", progress, daysCompleted + 1));
+                } else {
+                    builder.quitJourneyStatus("Just Started");
+                }
+            },
+            () -> builder.quitJourneyStatus("No Active Plan")
+        );
+
+        // Total Achievements Earned
+        long totalAchievements = memberAchievementRepository.countByMember(member);
+        builder.totalAchievementsEarned(totalAchievements);
+
+        // Follow Statistics
+        builder.followersCount(followRepository.countByFollowedId(user.getUserId()));
+        builder.followingCount(followRepository.countByFollowerId(user.getUserId()));
+
+        // Shared Achievements (chỉ những achievements được share publicly)
+        List<MemberAchievement> sharedAchievements = memberAchievementRepository.findByMemberAndIsSharedTrueOrderByDateAchievedDesc(member);
+        List<PublicProfileDTO.SharedAchievementDTO> sharedAchievementDTOs = sharedAchievements.stream()
+                .map(memberAchievement -> {
+                    LocalDateTime localDateTime = memberAchievement.getDateAchieved();
+                    Date dateAchieved = Date.from(localDateTime.atZone(ZoneId.systemDefault()).toInstant());
+
+                    return PublicProfileDTO.SharedAchievementDTO.builder()
+                            .name(memberAchievement.getAchievement().getName())
+                            .iconUrl(memberAchievement.getAchievement().getIconUrl())
+                            .dateAchieved(dateAchieved)
+                            .build();
+                })
+                .collect(Collectors.toList());
+        builder.sharedAchievements(sharedAchievementDTOs);
+
+        // Subscription Status
+        boolean isPremium = user.getRole() == Role.PREMIUM_MEMBER;
+        builder.isPremium(isPremium);
+        builder.hasPremiumBadge(isPremium);
+
+        if (isPremium) {
+            // Find when user became premium (earliest subscription start date)
+            subscriptionRepository.findFirstByUserOrderByStartDateAsc(user).ifPresent(subscription -> {
+                Date premiumSince = Date.from(subscription.getStartDate().atZone(ZoneId.systemDefault()).toInstant());
+                builder.premiumSince(premiumSince);
+            });
+        }
+
+        return builder.build();
     }
 
     private PremiumProfileDTO getPremiumProfile(User user) {
