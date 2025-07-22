@@ -31,6 +31,8 @@ public class PublicProfileDTO {
     private Date premiumSince;
     private boolean hasPremiumBadge;
 
+    private boolean isFollowing;
+
     @Data
     @Builder
     public static class SharedAchievementDTO {

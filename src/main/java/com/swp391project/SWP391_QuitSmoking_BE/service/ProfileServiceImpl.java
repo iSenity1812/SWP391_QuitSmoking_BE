@@ -49,7 +49,7 @@ public class ProfileServiceImpl implements ProfileService{
     }
 
     @Override
-    public PublicProfileDTO getPublicProfile(UUID userId) {
+    public PublicProfileDTO getPublicProfile(UUID userId, UUID currentUserId) {
         User user = profileRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User with ID " + userId + " not found"));
         
@@ -81,12 +81,12 @@ public class ProfileServiceImpl implements ProfileService{
                 long totalDays = ChronoUnit.DAYS.between(quitPlan.getStartDate().toLocalDate(), quitPlan.getGoalDate());
                 if (totalDays > 0) {
                     double progress = (double) daysCompleted / totalDays * 100;
-                    builder.quitJourneyStatus(String.format("%.1f%% Complete - Day %d", progress, daysCompleted + 1));
+                    builder.quitJourneyStatus(String.format("%.1f%% Hoàn thành - Ngày %d", progress, daysCompleted + 1));
                 } else {
-                    builder.quitJourneyStatus("Just Started");
+                    builder.quitJourneyStatus("Mới bắt đầu");
                 }
             },
-            () -> builder.quitJourneyStatus("No Active Plan")
+            () -> builder.quitJourneyStatus("Không có kế hoạch")
         );
 
         // Total Achievements Earned
@@ -125,6 +125,14 @@ public class ProfileServiceImpl implements ProfileService{
                 builder.premiumSince(premiumSince);
             });
         }
+
+        // Check if the current user is following this profile
+        boolean isFollowing = false;
+        if (currentUserId != null) {
+            isFollowing = followRepository.existsByFollowerIdAndFollowedId(currentUserId, user.getUserId());
+        }
+        builder.isFollowing(isFollowing);
+        log.info("Public profile for user {}: {}", userId, builder.build());
 
         return builder.build();
     }

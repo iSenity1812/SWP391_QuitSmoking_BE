@@ -50,15 +50,24 @@ public class ProfileController {
     }
 
     @GetMapping("/{userId}")
-    public ResponseEntity<ApiResponse<Object>> getPublicProfile(@PathVariable UUID userId) {
+    public ResponseEntity<ApiResponse<Object>> getPublicProfile(
+            @PathVariable UUID userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
         if (userId == null) {
             return ResponseEntity
                     .status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error(HttpStatus.BAD_REQUEST, "ID người dùng không hợp lệ"));
         }
 
+        UUID currentUserId = userService.getUserIdFromUserDetails(userDetails);
+        if (currentUserId == null) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, "Bạn chưa đăng nhập hoặc thông tin người dùng không hợp lệ"));
+        }
+
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(ApiResponse.success(profileService.getPublicProfile(userId), "Lấy thông tin công khai thành công"));
+                .body(ApiResponse.success(profileService.getPublicProfile(userId, currentUserId), "Lấy thông tin công khai thành công"));
     }
 }

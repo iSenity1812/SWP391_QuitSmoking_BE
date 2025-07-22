@@ -6,5 +6,5 @@ import java.util.UUID;
 
 public interface ProfileService {
     Object getMyProfile(UUID userId);
-    PublicProfileDTO getPublicProfile(UUID userId);
+    PublicProfileDTO getPublicProfile(UUID userId, UUID currentUserId);
 }
