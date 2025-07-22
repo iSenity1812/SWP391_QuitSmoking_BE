@@ -2,6 +2,7 @@ package com.swp391project.SWP391_QuitSmoking_BE.repository;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,6 +21,14 @@ public interface DailySummaryRepository extends JpaRepository<DailySummary, Inte
     Optional<DailySummary> findByQuitPlanAndTrackDate(QuitPlan quitPlan, LocalDate trackDate);
     List<DailySummary> findByQuitPlan_Member_MemberIdAndTrackDateBetween(UUID memberId, LocalDate startDate, LocalDate endDate);
     List<DailySummary> findByQuitPlan(QuitPlan quitPlan);
+
+    //để tìm DailySummary trong khoảng ngày và lọc theo trạng thái QuitPlan
+    List<DailySummary> findByQuitPlan_Member_MemberIdAndTrackDateBetweenAndQuitPlan_StatusIn(
+            UUID memberId,
+            LocalDate startDate,
+            LocalDate endDate,
+            Collection<QuitPlanStatus> statuses
+    );
 
     List<DailySummary> findByQuitPlanAndTrackDateBetween
             (QuitPlan plan,

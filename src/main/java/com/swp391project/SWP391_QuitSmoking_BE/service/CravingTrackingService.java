@@ -5,6 +5,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.dto.craving.CravingTrackingRespon
 import com.swp391project.SWP391_QuitSmoking_BE.dto.craving.CravingTrackingUpdateRequest;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.CravingTracking;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.CravingTrackingDeletedException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.DailySummaryEditForbiddenException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
@@ -75,7 +76,7 @@ public class CravingTrackingService {
 
         // Tìm hoặc tạo DailySummary cho thành viên này và ngày này
         // Nếu không tìm thấy sẽ tạo mới
-        DailySummary dailySummary = dailySummaryService.findOrCreateDailySummary(memberId, dateOfHour);
+        DailySummary dailySummary = dailySummaryService.findOrCreateDailySummary(memberId);
         if (dailySummary == null) {
             throw new IllegalStateException
                     ("Không tìm thấy hoặc tạo được DailySummary cho thành viên " + memberId + " vào ngày " + dateOfHour);
@@ -263,8 +264,12 @@ public class CravingTrackingService {
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.atTime(LocalTime.MAX); // Cuối ngày (23:59:59.999...)
 
+        // Định nghĩa các trạng thái QuitPlan hợp lệ
+        List<QuitPlanStatus> validStatuses = Arrays.asList(QuitPlanStatus.NOT_STARTED, QuitPlanStatus.IN_PROGRESS);
+
         List<CravingTracking> cravingTrackingList = cravingTrackingRepository.
-                findAllByDailySummary_QuitPlan_Member_MemberIdAndTrackTimeBetween(memberId, startOfDay, endOfDay);
+                findAllByDailySummary_QuitPlan_Member_MemberIdAndTrackTimeBetweenAndDailySummary_QuitPlan_StatusIn(
+                        memberId, startOfDay, endOfDay, validStatuses);
 
         if(cravingTrackingList.isEmpty()) {
             // Thay vì ném ResourceNotFoundException nếu danh sách rỗng
