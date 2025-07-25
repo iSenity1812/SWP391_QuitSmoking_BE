@@ -93,14 +93,22 @@ public class FileUploadService {
             throw new AppException(ErrorCode.FILE_TOO_LARGE);
         }
 
-
-
         String filename = file.getOriginalFilename();
         if (filename == null || filename.trim().isEmpty()) {
             throw new AppException(ErrorCode.INVALID_FILE_NAME);
         }
 
+        // Validate file extension
+        String fileExtension = getFileExtension(filename).toLowerCase();
+        if (!ALLOWED_EXTENSIONS.contains(fileExtension)) {
+            throw new AppException(ErrorCode.INVALID_FILE_TYPE);
+        }
 
+        // Validate content type
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
+            throw new AppException(ErrorCode.INVALID_FILE_TYPE);
+        }
     }
 
     private String getFileExtension(String filename) {
