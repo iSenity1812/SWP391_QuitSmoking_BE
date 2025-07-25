@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import org.springframework.web.multipart.MultipartFile;
 
 @Data
 public class UserUpdateRequest {
@@ -15,13 +16,7 @@ public class UserUpdateRequest {
     @Email(message = "Email must be valid")
     private String email;
 
-    @Size(max = 255, message = "Avatar URL cannot exceed 255 characters")
-    @Pattern(
-            regexp = "^$|.*\\.(jpg|jpeg|png|gif|webp|bmp|svg)$",
-            message = "Tên file ảnh không hợp lệ hoặc định dạng không được hỗ trợ",
-            flags = Pattern.Flag.CASE_INSENSITIVE
-    )
-    private String profilePicture;
+    private MultipartFile profilePicture;
 
     @Size(min = 8, message = "Password must be more than 8 characters")
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,20}$",

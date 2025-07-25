@@ -26,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -46,6 +47,8 @@ public class UserService {
     private final DailySummaryRepository dailySummaryRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final QuitPlanService quitPlanService;
+    private final FileUploadService fileUploadService;
+
 
     public List<UserProfile> getAllUsers() {
         List<User> users = userRepository.findAll();
@@ -222,6 +225,26 @@ public class UserService {
         return modelMapper.map(updatedUser, UserProfile.class);
     }
 
+    @Transactional
+    public UserProfile updateProfilePicture(UUID userId, MultipartFile profilePicture) {
+        User user = getUserEntity(userId);
+
+        if (profilePicture != null && !profilePicture.isEmpty()) {
+            // Xóa ảnh cũ nếu có
+            if (user.getProfilePicture() != null && !user.getProfilePicture().isEmpty()) {
+                fileUploadService.deleteImage(user.getProfilePicture());
+            }
+
+            // Upload ảnh mới
+            String imageUrl = fileUploadService.uploadImage(profilePicture);
+            user.setProfilePicture(imageUrl);
+            user.setUpdatedAt(LocalDateTime.now());
+        }
+
+        User updatedUser = userRepository.save(user);
+        return modelMapper.map(updatedUser, UserProfile.class);
+    }
+
     // Bulk Update
     @Transactional
     public UserProfile updateUserProfile(UUID userId, UserUpdateRequest userUpdateRequest) {
@@ -258,18 +281,19 @@ public class UserService {
         System.out.println("Email updated");
 
         // Update avatar
-        if (userUpdateRequest.getProfilePicture() != null && !userUpdateRequest.getProfilePicture().trim().isEmpty()) {
-            user.setProfilePicture(userUpdateRequest.getProfilePicture());
+        if (userUpdateRequest.getProfilePicture() != null && !userUpdateRequest.getProfilePicture().isEmpty()) {
+            // Xóa ảnh cũ nếu có
+            if (user.getProfilePicture() != null && !user.getProfilePicture().isEmpty()) {
+                fileUploadService.deleteImage(user.getProfilePicture());
+            }
+
+            // Upload ảnh mới
+            String imageUrl = fileUploadService.uploadImage(userUpdateRequest.getProfilePicture());
+            user.setProfilePicture(imageUrl);
             hasChanges = true;
         }
 
-        System.out.println("picture updated");
-
-        // Update password (no need to check confirm password here)
-        if (userUpdateRequest.getPassword() != null && !userUpdateRequest.getPassword().trim().isEmpty()) {
-            user.setPasswordHash(passwordEncoder.encode(userUpdateRequest.getPassword()));
-            hasChanges = true;
-        }
+        System.out.println("Picture updated");
 
         System.out.println("password updated");
 

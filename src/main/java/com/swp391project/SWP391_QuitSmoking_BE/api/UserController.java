@@ -13,10 +13,12 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -185,6 +187,19 @@ public class UserController {
                 .body(ApiResponse.success(updatedProfile, "Cập nhật hồ sơ thành công"));
     }
 
+    @PatchMapping(value = "/profile/picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<UserProfile>> updateProfilePicture(
+            Authentication authentication,
+            @RequestParam("profilePicture") MultipartFile profilePicture) {
+
+        User user = (User) authentication.getPrincipal();
+        UserProfile updatedProfile = userService.updateProfilePicture(user.getUserId(), profilePicture);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(updatedProfile, "Cập nhật ảnh đại diện thành công"));
+    }
+
     // Cập nhật username của người dùng hiện tại
     @PatchMapping("/profile/username")
     @PreAuthorize("isAuthenticated()")
@@ -225,4 +240,6 @@ public class UserController {
         List<UserProfile> users = userService.searchUserByEmailOrUsername(query);
         return ResponseEntity.ok(ApiResponse.success(users, users.isEmpty() ? "Không tìm thấy người dùng" : "Tìm thấy người dùng"));
     }
+
+
 }
