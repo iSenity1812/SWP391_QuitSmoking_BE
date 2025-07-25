@@ -13,6 +13,6 @@ public class QuizResponseDTO {
     private UUID quizId;
     private String title;
     private String description;
-    private Integer scorePossible; // THÊM TRƯỜNG NÀY
+//    private Integer scorePossible;
     private List<OptionResponseDTO> options; // Các lựa chọn cho câu đố
 }

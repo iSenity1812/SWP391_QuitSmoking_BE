@@ -45,8 +45,4 @@ public class Tip {
     @NotNull(message = "Người dùng tạo mẹo không được để trống")
     // Đảm bảo CreatedByAdminID này là một User có Role.SUPER_ADMIN hoặc Role.CONTENT_ADMIN
     private User createdByUser;
-
-    // Mối quan hệ Many-to-Many ngược với Task
-    @ManyToMany(mappedBy = "tips")
-    private Set<Task> tasks = new HashSet<>();
 }

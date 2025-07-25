@@ -5,42 +5,55 @@ import com.swp391project.SWP391_QuitSmoking_BE.dto.option.*;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Option;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Quiz;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.Task; // Import Task entity
 import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.OptionRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.QuizRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
-import com.swp391project.SWP391_QuitSmoking_BE.repository.TaskRepository; // Import TaskRepository
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class QuizService {
 
     private final QuizRepository quizRepository;
-    private final OptionRepository optionRepository; // Giữ lại nếu bạn có nhu cầu thao tác trực tiếp với Option
+    private final OptionRepository optionRepository; // Giữ lại nếu có nhu cầu thao tác trực tiếp với Option
     private final UserRepository userRepository;
-    private final TaskRepository taskRepository; // Thêm TaskRepository
 
-    private static final int REQUIRED_NUMBER_OF_OPTIONS = 4;
+    private static final int REQUIRED_NUMBER_OF_OPTIONS = 2;
 
     @Autowired
-    public QuizService(QuizRepository quizRepository, OptionRepository optionRepository, UserRepository userRepository, TaskRepository taskRepository) {
+    public QuizService(QuizRepository quizRepository, OptionRepository optionRepository, UserRepository userRepository) {
         this.quizRepository = quizRepository;
         this.optionRepository = optionRepository;
         this.userRepository = userRepository;
-        this.taskRepository = taskRepository;
+    }
+
+    // Phương thức chuyển đổi Entity sang DTO
+    private QuizResponseDTO convertToResponseDto(Quiz quiz) {
+        List<OptionResponseDTO> optionDTOs = quiz.getOptions().stream()
+                .map(option -> new OptionResponseDTO(option.getOptionId(), option.getContent(), option.getIsCorrect()))
+                .collect(Collectors.toList());
+        return new QuizResponseDTO(quiz.getQuizId(), quiz.getTitle(), quiz.getDescription(), optionDTOs);
+    }
+
+    // Phương thức chuyển đổi DTO sang Entity
+    private Quiz convertToEntity(QuizCreationRequestDTO quizDto, User createdByAdmin) {
+        Quiz quiz = new Quiz();
+        quiz.setTitle(quizDto.getTitle());
+        quiz.setDescription(quizDto.getDescription());
+        quiz.setCreatedByAdmin(createdByAdmin);
+        quiz.setCreatedAt(LocalDateTime.now());
+        quiz.setUpdatedAt(LocalDateTime.now());
+        return quiz;
     }
 
     @Transactional
@@ -53,14 +66,13 @@ public class QuizService {
             throw new IllegalArgumentException("Chỉ quản trị viên (SUPER_ADMIN hoặc CONTENT_ADMIN) mới có quyền tạo Quiz.");
         }
 
-        long correctOptionCount = request.getOptions().stream()
-                .filter(QuizCreationRequestDTO.OptionRequest::getIsCorrect)
-                .count();
-        if (correctOptionCount != 1) {
-            throw new IllegalArgumentException("Một Quiz phải có đúng một lựa chọn đúng.");
+        // Kiểm tra số lượng options và đảm bảo có ít nhất một đáp án đúng
+        if (request.getOptions() == null || request.getOptions().size() < REQUIRED_NUMBER_OF_OPTIONS) {
+            throw new IllegalArgumentException("Quiz phải có ít nhất " + REQUIRED_NUMBER_OF_OPTIONS + " lựa chọn.");
         }
-        if (request.getOptions().size() != REQUIRED_NUMBER_OF_OPTIONS) {
-            throw new IllegalArgumentException("Một Quiz phải có đúng " + REQUIRED_NUMBER_OF_OPTIONS + " lựa chọn.");
+        boolean hasCorrectOption = request.getOptions().stream().anyMatch(QuizCreationRequestDTO.OptionRequest::getIsCorrect);
+        if (!hasCorrectOption) {
+            throw new IllegalArgumentException("Quiz phải có ít nhất một lựa chọn đúng.");
         }
 
         Quiz quiz = new Quiz();
@@ -88,53 +100,15 @@ public class QuizService {
                 .collect(Collectors.toSet());
 
         savedQuiz.setOptions(options);
-
-        // TỰ ĐỘNG TẠO TASK CHO QUIZ
-        Task quizTask = new Task();
-        quizTask.setTypeId(1); // 1 cho Quiz Task
-        quizTask.setCreatedAt(LocalDateTime.now());
-        quizTask.setUpdatedAt(LocalDateTime.now());
-        quizTask.setCreatedByUser(creator);
-
-        // Liên kết Quiz với Task
-        Set<Quiz> quizzes = new HashSet<>();
-        quizzes.add(savedQuiz);
-        quizTask.setQuizzes(quizzes);
-
-        // Lưu Task - điều này sẽ tạo ra bảng trung gian TaskQuiz
-        taskRepository.save(quizTask);
-
-        // Lấy lại options từ savedQuiz để đảm bảo IDs đã được sinh ra
-        List<OptionResponseDTO> optionResponses = savedQuiz.getOptions().stream()
-                .map(option -> new OptionResponseDTO(option.getOptionId(), option.getContent()))
-                .collect(Collectors.toList());
-
-        return new QuizResponseDTO(
-                savedQuiz.getQuizId(),
-                savedQuiz.getTitle(),
-                savedQuiz.getDescription(),
-                savedQuiz.getScorePossible(),
-                optionResponses
-        );
+        return convertToResponseDto(savedQuiz);
     }
 
     @Transactional
     public List<QuizResponseDTO> getAllQuizzes() {
+        // Đảm bảo options được tải đủ để tránh LazyInitializationException nếu không có FetchType.EAGER
+        // Hoặc thêm @EntityGraph vào repository method nếu bạn muốn load options eager
         return quizRepository.findAll().stream()
-                .map(quiz -> {
-                    // Đảm bảo options được tải đủ để tránh LazyInitializationException nếu không có FetchType.EAGER
-                    // Hoặc thêm @EntityGraph vào repository method nếu bạn muốn load options eager
-                    List<OptionResponseDTO> optionResponses = quiz.getOptions().stream()
-                            .map(option -> new OptionResponseDTO(option.getOptionId(), option.getContent()))
-                            .collect(Collectors.toList());
-                    return new QuizResponseDTO(
-                            quiz.getQuizId(),
-                            quiz.getTitle(),
-                            quiz.getDescription(),
-                            quiz.getScorePossible(),
-                            optionResponses
-                    );
-                })
+                .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
     }
 
@@ -146,17 +120,7 @@ public class QuizService {
 
         // Options đã được tải thông qua mối quan hệ trong Quiz entity,
         // nếu bạn đang trong một giao dịch, có thể truy cập trực tiếp.
-        List<OptionResponseDTO> optionResponses = quiz.getOptions().stream() // Sử dụng quiz.getOptions()
-                .map(option -> new OptionResponseDTO(option.getOptionId(), option.getContent()))
-                .collect(Collectors.toList());
-
-        return new QuizResponseDTO(
-                quiz.getQuizId(),
-                quiz.getTitle(),
-                quiz.getDescription(),
-                quiz.getScorePossible(), // <-- Dòng này
-                optionResponses
-        );
+        return convertToResponseDto(quiz);
     }
 
     // --- PHƯƠNG THỨC CẬP NHẬT QUIZ ---
@@ -174,25 +138,23 @@ public class QuizService {
         }
 
         // Các kiểm tra validation cho dữ liệu mới (tương tự như khi tạo)
-        long correctOptionCount = request.getOptions().stream()
-                .filter(QuizCreationRequestDTO.OptionRequest::getIsCorrect)
-                .count();
-        if (correctOptionCount != 1) {
-            throw new IllegalArgumentException("Một Quiz phải có đúng một lựa chọn đúng.");
+        // Kiểm tra số lượng options và đảm bảo có ít nhất một đáp án đúng
+        if (request.getOptions() == null || request.getOptions().size() < REQUIRED_NUMBER_OF_OPTIONS) {
+            throw new IllegalArgumentException("Quiz phải có ít nhất " + REQUIRED_NUMBER_OF_OPTIONS + " lựa chọn.");
         }
-        if (request.getOptions().size() != REQUIRED_NUMBER_OF_OPTIONS) {
-            throw new IllegalArgumentException("Một Quiz phải có đúng " + REQUIRED_NUMBER_OF_OPTIONS + " lựa chọn.");
+        boolean hasCorrectOption = request.getOptions().stream().anyMatch(QuizCreationRequestDTO.OptionRequest::getIsCorrect);
+        if (!hasCorrectOption) {
+            throw new IllegalArgumentException("Quiz phải có ít nhất một lựa chọn đúng.");
         }
 
         existingQuiz.setTitle(request.getTitle());
         existingQuiz.setDescription(request.getDescription());
-        existingQuiz.setScorePossible(request.getScorePossible());
         existingQuiz.setUpdatedAt(LocalDateTime.now());
 
-        // --- ĐOẠN CODE ĐÃ SỬA LỖI "A collection with orphan deletion was no longer referenced" ---
+
         // 1. Xóa tất cả các options cũ khỏi collection của Quiz.
         //    Vì có orphanRemoval = true, các Option này sẽ được đánh dấu để xóa khỏi DB.
-        existingQuiz.getOptions().clear(); // Rất quan trọng: Xóa khỏi collection trước
+        existingQuiz.getOptions().clear();
 
         // 2. Thêm các options mới vào collection của Quiz.
         //    Vì có CascadeType.ALL, các Option này sẽ được PERSIST (lưu) vào DB.
@@ -215,18 +177,7 @@ public class QuizService {
 
         Quiz updatedQuiz = quizRepository.save(existingQuiz); // Lưu Quiz, Hibernate sẽ xử lý options
 
-        // Chuyển đổi các options mới thành DTO để trả về
-        List<OptionResponseDTO> optionResponses = updatedQuiz.getOptions().stream()
-                .map(option -> new OptionResponseDTO(option.getOptionId(), option.getContent()))
-                .collect(Collectors.toList());
-
-        return new QuizResponseDTO(
-                updatedQuiz.getQuizId(),
-                updatedQuiz.getTitle(),
-                updatedQuiz.getDescription(),
-                updatedQuiz.getScorePossible(), // <-- Dòng này
-                optionResponses
-        );
+        return convertToResponseDto(updatedQuiz);
     }
 
     // --- PHƯƠNG THỨC XÓA QUIZ ---

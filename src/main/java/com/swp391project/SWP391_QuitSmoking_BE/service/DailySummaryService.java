@@ -93,7 +93,7 @@ public class DailySummaryService {
     //Tìm hoặc tạo một DailySummary cho một QuitPlan và ngày cụ thể
     //để đảm bảo DailySummary tồn tại trước khi tạo CravingTracking
     @Transactional
-    public DailySummary findOrCreateDailySummary(UUID memberId, LocalDate trackDate) {
+    public DailySummary findOrCreateDailySummary(UUID memberId) {
         //Tìm quit plan của người dùng đang tracking
         Optional<QuitPlan> quitPlanOptional = quitPlanService.getProgressQuitPlansByMemberId(memberId);
         if (quitPlanOptional.isEmpty()) {
@@ -101,6 +101,8 @@ public class DailySummaryService {
         }
 
         quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlanOptional.get());
+
+        LocalDate trackDate = LocalDate.now(); // Sử dụng ngày hiện tại
 
         return dailySummaryRepository.findByQuitPlanAndTrackDate(quitPlanOptional.get(), trackDate)
                 .orElseGet(() -> createDailySummary(quitPlanOptional.get(), trackDate));
@@ -132,10 +134,11 @@ public class DailySummaryService {
         QuitPlan quitPlan = quitPlanOptional.get();
 
         //Kiểm tra xem ngày theo dõi có hợp lệ không
-        //Chỉ cho phép ghi nhận DailySummary cho ngày hiện tại
-        LocalDate trackDate = request.getTrackDate() != null ? request.getTrackDate() : LocalDate.now();
-        if (!trackDate.isEqual(LocalDate.now())) {
-            throw new IllegalArgumentException("Chỉ có thể tạo nhật ký cho ngày hiện tại");
+        //Chỉ cho phép ghi nhận DailySummary cho ngày hiện tại hoặc quá khứ
+        LocalDate trackDate = request.getTrackDate();
+
+        if (trackDate.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Không thể ghi nhận cho ngày trong tương lai");
         }
 
         // Kiểm tra xem ngày theo dõi có hợp lệ không
@@ -275,11 +278,15 @@ public class DailySummaryService {
         return dailySummaryRepository.findByQuitPlanAndTrackDate(quitPlan, trackDate).isPresent();
     }
 
+    // GET ALL for a specific member and date range, filtered by QuitPlan status
     @Transactional(readOnly = true)
     public List<DailySummaryResponse> getDailySummariesByDateBetween(UUID memberId, LocalDate startDate, LocalDate endDate) {
-        List<DailySummary> dailySummaryList = dailySummaryRepository.findByQuitPlan_Member_MemberIdAndTrackDateBetween(
-                memberId, startDate, endDate
-        );
+        // Định nghĩa các trạng thái QuitPlan hợp lệ
+        List<QuitPlanStatus> validStatuses = Arrays.asList(QuitPlanStatus.NOT_STARTED, QuitPlanStatus.IN_PROGRESS);
+
+        List<DailySummary> dailySummaryList = dailySummaryRepository.
+                findByQuitPlan_Member_MemberIdAndTrackDateBetweenAndQuitPlan_StatusIn(
+                memberId, startDate, endDate, validStatuses);
 
         // Thay vì ném ResourceNotFoundException nếu danh sách rỗng
         // trả về danh sách rỗng để DataVisualizationService có thể xử lý điền giá trị 0
@@ -325,10 +332,10 @@ public class DailySummaryService {
         }
         DailySummary existingSummary = existingSummaryOptional.get();
 
-        //Chỉ cho phép cập nhật bản ghi DailySummary cho ngày hiện tại
-        LocalDate today = LocalDate.now();
-        if (!existingSummary.getTrackDate().isEqual(today)) {
-            throw new DailySummaryEditForbiddenException("Chỉ có thể cập nhật nhật ký cho ngày hiện tại");
+        //cho phép cập nhật bản ghi DailySummary cho các ngày trong quá khứ (sau khi plan bắt đầu) và hiện tại
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        if (!existingSummary.getTrackDate().isBefore(tomorrow)) {
+            throw new DailySummaryEditForbiddenException("Không thể cập nhật nhật ký cho ngày trong tương lai");
         }
 
         // Tính tổng từ CravingTracking liên kết để so sánh
@@ -342,7 +349,7 @@ public class DailySummaryService {
         // Cập nhật totalSmokedCount và manualSmokedCount dựa trên request
         if (request.getUpdateSmokedCount() != null) {
             // Giá trị cập nhật cho totalSmokedCount không thể nhỏ hơn tổng số được ghi nhận từ CravingTracking
-            if (request.getUpdateSmokedCount() < sumSmokedFromCraving) {
+            if ((existingSummary.getTrackDate().isEqual(LocalDate.now())) && (request.getUpdateSmokedCount() < sumSmokedFromCraving)) {
                 throw new IllegalArgumentException
                         ("Số lượng thuốc cập nhật (" + request.getUpdateSmokedCount() + ") không thể nhỏ hơn tổng số được ghi nhận " +
                                 "từ các lần theo dõi chi tiết (" + sumSmokedFromCraving + ")");
@@ -366,7 +373,7 @@ public class DailySummaryService {
         // Cập nhật totalCravingCount và manualCravingCount dựa trên request
         if (request.getUpdateCravingCount() != null) {
             // Giá trị cập nhật cho totalCravingCount không thể nhỏ hơn tổng số được ghi nhận từ CravingTracking
-            if (request.getUpdateCravingCount() < sumCravingsFromCraving) {
+            if ((existingSummary.getTrackDate().isEqual(LocalDate.now())) && (request.getUpdateCravingCount() < sumCravingsFromCraving)) {
                 throw new IllegalArgumentException
                         ("Số lần thèm thuốc cập nhật (" + request.getUpdateCravingCount() + ") không thể nhỏ hơn tổng số được ghi nhận " +
                                 "từ các lần theo dõi chi tiết (" + sumCravingsFromCraving + "). Vui lòng cập nhật giá trị lớn hơn hoặc bằng.");
@@ -790,6 +797,13 @@ public class DailySummaryService {
                 if (quitPlan == null) {
                     log.warn("DailySummary ID {} không có QuitPlan liên kết. Bỏ qua cập nhật isGoalAchievedToday",
                             dailySummary.getDailySummaryId());
+                    continue;
+                }
+
+                // Chỉ cập nhật nếu QuitPlan đang IN_PROGRESS hoặc NOT_STARTED
+                if (quitPlan.getStatus() != QuitPlanStatus.IN_PROGRESS && quitPlan.getStatus() != QuitPlanStatus.NOT_STARTED) {
+                    log.info("Bỏ qua cập nhật isGoalAchievedToday cho DailySummary ID {} vào ngày {} vì kế hoạch không ở trạng thái IN_PROGRESS hoặc NOT_STARTED.",
+                            dailySummary.getDailySummaryId(), dailySummary.getTrackDate());
                     continue;
                 }
 

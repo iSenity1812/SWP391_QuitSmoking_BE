@@ -35,9 +35,9 @@ public class Quiz {
     @Column(name = "Description", columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "ScorePossible")
-    @Min(value = 0, message = "Điểm tối đa không được là số âm")
-    private Integer scorePossible;
+//    @Column(name = "ScorePossible")
+//    @Min(value = 0, message = "Điểm tối đa không được là số âm")
+//    private Integer scorePossible;
 
     @Column(name = "CreatedAt", nullable = false, updatable = false)
     @NotNull(message = "Ngày tạo không được để trống")
@@ -57,8 +57,4 @@ public class Quiz {
 
     @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Option> options = new HashSet<>();
-
-    // Mối quan hệ Many-to-Many ngược với Task
-    @ManyToMany(mappedBy = "quizzes")
-    private Set<Task> tasks = new HashSet<>();
 }
