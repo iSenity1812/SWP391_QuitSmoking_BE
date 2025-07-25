@@ -7,6 +7,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberAchievementRepos
 import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.WeeklyGoalRepository;
 import lombok.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
@@ -40,6 +41,7 @@ public class AchievementService {
     private final MemberRepository memberRepository;
     private final QuitPlanRepository quitPlanRepository;
     private final DailySummaryRepository dailySummaryRepository;
+    private final WeeklyGoalRepository weeklyGoalRepository;
     private final EmailService emailService;
     private final NotificationService notificationService;
 
@@ -152,6 +154,12 @@ public class AchievementService {
                     case DAILY:
                         shouldStillUnlock = hasConsecutiveDailyAchievements(memberId, achievement.getMilestoneValue().intValue());
                         break;
+                    case WEEKLY_GOAL:
+                        shouldStillUnlock = calculateWeeklyGoalAchievements(memberId).compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case GOAL_STREAK:
+                        shouldStillUnlock = calculateWeeklyGoalStreak(memberId).compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
                     default:
                         shouldStillUnlock = false;
                 }
@@ -181,6 +189,12 @@ public class AchievementService {
                         break;
                     case DAILY:
                         shouldUnlock = hasConsecutiveDailyAchievements(memberId, achievement.getMilestoneValue().intValue());
+                        break;
+                    case WEEKLY_GOAL:
+                        shouldUnlock = calculateWeeklyGoalAchievements(memberId).compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case GOAL_STREAK:
+                        shouldUnlock = calculateWeeklyGoalStreak(memberId).compareTo(achievement.getMilestoneValue()) >= 0;
                         break;
                     default:
                         shouldUnlock = false;
@@ -341,6 +355,10 @@ public class AchievementService {
                 return calculateCigarettesNotSmoked(memberId);
             case CRAVING_RESISTED:
                 return calculateCravingResisted(memberId);
+            case WEEKLY_GOAL:
+                return calculateWeeklyGoalAchievements(memberId);
+            case GOAL_STREAK:
+                return calculateWeeklyGoalStreak(memberId);
             default:
                 return BigDecimal.ZERO;
         }
@@ -425,6 +443,40 @@ public class AchievementService {
         createAchievement(new Achievement(null, "Temptation Master", "/icons/100craving.png",
                 "Resisted 100 cravings!", Achievement.AchievementType.CRAVING_RESISTED,
                 new BigDecimal("100"), LocalDateTime.now(), null));
+
+        // Weekly Goal Achievements
+        createAchievement(new Achievement(null, "Goal Setter", "/icons/first_goal.png",
+                "Completed your first weekly goal!", Achievement.AchievementType.WEEKLY_GOAL,
+                new BigDecimal("1"), LocalDateTime.now(), null));
+        
+        createAchievement(new Achievement(null, "Goal Achiever", "/icons/5_goals.png",
+                "Completed 5 weekly goals!", Achievement.AchievementType.WEEKLY_GOAL,
+                new BigDecimal("5"), LocalDateTime.now(), null));
+        
+        createAchievement(new Achievement(null, "Goal Master", "/icons/10_goals.png",
+                "Completed 10 weekly goals!", Achievement.AchievementType.WEEKLY_GOAL,
+                new BigDecimal("10"), LocalDateTime.now(), null));
+        
+        createAchievement(new Achievement(null, "Goal Champion", "/icons/25_goals.png",
+                "Completed 25 weekly goals!", Achievement.AchievementType.WEEKLY_GOAL,
+                new BigDecimal("25"), LocalDateTime.now(), null));
+
+        // Goal Streak Achievements  
+        createAchievement(new Achievement(null, "Consistent Performer", "/icons/2_streak.png",
+                "2 weeks goal streak!", Achievement.AchievementType.GOAL_STREAK,
+                new BigDecimal("2"), LocalDateTime.now(), null));
+        
+        createAchievement(new Achievement(null, "Streak Builder", "/icons/4_streak.png",
+                "4 weeks goal streak!", Achievement.AchievementType.GOAL_STREAK,
+                new BigDecimal("4"), LocalDateTime.now(), null));
+        
+        createAchievement(new Achievement(null, "Streak Master", "/icons/8_streak.png",
+                "8 weeks goal streak!", Achievement.AchievementType.GOAL_STREAK,
+                new BigDecimal("8"), LocalDateTime.now(), null));
+        
+        createAchievement(new Achievement(null, "Unstoppable", "/icons/12_streak.png",
+                "12 weeks goal streak!", Achievement.AchievementType.GOAL_STREAK,
+                new BigDecimal("12"), LocalDateTime.now(), null));
     }
 
     // DTO trả về cho FE
@@ -589,4 +641,30 @@ public class AchievementService {
         private String type;
         private BigDecimal milestoneValue;
     }
-} 
+
+    /**
+     * Calculate the number of weekly goals completed by a member
+     */
+    private BigDecimal calculateWeeklyGoalAchievements(UUID memberId) {
+        Optional<Member> memberOpt = memberRepository.findById(memberId);
+        if (memberOpt.isEmpty()) return BigDecimal.ZERO;
+        
+        List<WeeklyGoal> completedGoals = weeklyGoalRepository.findCompletedWeeklyGoalsByMember(memberOpt.get());
+        return BigDecimal.valueOf(completedGoals.size());
+    }
+
+    /**
+     * Calculate the current streak of consecutive weeks with completed goals
+     */
+    private BigDecimal calculateWeeklyGoalStreak(UUID memberId) {
+        Optional<Member> memberOpt = memberRepository.findById(memberId);
+        if (memberOpt.isEmpty()) return BigDecimal.ZERO;
+        
+        // Get active quit plan
+        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
+        if (quitPlanOpt.isEmpty()) return BigDecimal.ZERO;
+        
+        Integer streak = weeklyGoalRepository.getCurrentStreak(quitPlanOpt.get().getQuitPlanId());
+        return BigDecimal.valueOf(streak != null ? streak : 0);
+    }
+}

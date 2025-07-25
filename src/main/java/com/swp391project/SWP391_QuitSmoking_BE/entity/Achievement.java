@@ -45,6 +45,8 @@ public class Achievement {
         CIGARETTES_NOT_SMOKED, // Số điếu không hút
         CRAVING_RESISTED,    // Số lần chống chọi cơn thèm
         DAILY,               // Thành tựu daily
+        WEEKLY_GOAL,         // Thành tựu weekly goal
+        GOAL_STREAK,         // Thành tựu chuỗi goal liên tiếp
         RESILIENCE,          // Thành tựu kiên trì/quay lại
         HEALTH,              // Thành tựu sức khỏe
         SOCIAL,              // Thành tựu cộng đồng
