@@ -78,7 +78,6 @@ public class QuizService {
         Quiz quiz = new Quiz();
         quiz.setTitle(request.getTitle());
         quiz.setDescription(request.getDescription());
-        quiz.setScorePossible(request.getScorePossible());
         quiz.setCreatedAt(LocalDateTime.now());
         quiz.setUpdatedAt(LocalDateTime.now());
         quiz.setCreatedByAdmin(creator);
@@ -188,48 +187,44 @@ public class QuizService {
 
         // --- QUAN TRỌNG: NGẮT KẾT NỐI QUIZ KHỎI TẤT CẢ CÁC TASK LIÊN QUAN (Many-to-Many) ---
         // Lặp qua các Task đang liên kết với Quiz này
-        for (Task task : quizToDelete.getTasks()) {
-            task.getQuizzes().remove(quizToDelete); // Xóa quiz này khỏi set quizzes của mỗi task
-            taskRepository.save(task); // Lưu lại thay đổi trên task để cập nhật bảng trung gian
-        }
 
         // Sau khi tất cả các liên kết đã được xóa khỏi các Task, giờ an toàn để xóa Quiz.
         // Các Options cũng sẽ tự động bị xóa do CascadeType.ALL và orphanRemoval=true trong Quiz entity.
         quizRepository.delete(quizToDelete);
     }
 
-    @Transactional
-    public void linkQuizToTask(UUID quizId, Integer taskId) {
-        Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with ID: " + quizId));
+//    @Transactional
+//    public void linkQuizToTask(UUID quizId, Integer taskId) {
+//        Quiz quiz = quizRepository.findById(quizId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with ID: " + quizId));
+//
+//        Task task = taskRepository.findById(taskId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
+//
+//        task.getQuizzes().add(quiz);
+//        taskRepository.save(task);
+//    }
 
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + taskId));
-
-        task.getQuizzes().add(quiz);
-        taskRepository.save(task);
-    }
-
-    @Transactional
-    public void createTaskForQuiz(UUID quizId, UUID createdByUserId) {
-        Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with ID: " + quizId));
-
-        User creator = userRepository.findById(createdByUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + createdByUserId));
-
-        Task quizTask = new Task();
-        quizTask.setTypeId(1); // 1 cho Quiz Task
-        quizTask.setCreatedAt(LocalDateTime.now());
-        quizTask.setUpdatedAt(LocalDateTime.now());
-        quizTask.setCreatedByUser(creator);
-
-        Set<Quiz> quizzes = new HashSet<>();
-        quizzes.add(quiz);
-        quizTask.setQuizzes(quizzes);
-
-        taskRepository.save(quizTask);
-    }
+//    @Transactional
+//    public void createTaskForQuiz(UUID quizId, UUID createdByUserId) {
+//        Quiz quiz = quizRepository.findById(quizId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with ID: " + quizId));
+//
+//        User creator = userRepository.findById(createdByUserId)
+//                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + createdByUserId));
+//
+//        Task quizTask = new Task();
+//        quizTask.setTypeId(1); // 1 cho Quiz Task
+//        quizTask.setCreatedAt(LocalDateTime.now());
+//        quizTask.setUpdatedAt(LocalDateTime.now());
+//        quizTask.setCreatedByUser(creator);
+//
+//        Set<Quiz> quizzes = new HashSet<>();
+//        quizzes.add(quiz);
+//        quizTask.setQuizzes(quizzes);
+//
+//        taskRepository.save(quizTask);
+//    }
 
     @Transactional
     public void importQuizzesFromExcel(MultipartFile file, UUID createdByUserId) {
@@ -238,7 +233,7 @@ public class QuizService {
         }
 
         try {
-            List<Quiz> quizzes = QuizExcelService.excelToQuizzes(file.getInputStream(), createdByUserId, userRepository, taskRepository);
+            List<Quiz> quizzes = QuizExcelService.excelToQuizzes(file.getInputStream(), createdByUserId, userRepository);
             quizRepository.saveAll(quizzes);
         } catch (IOException e) {
             throw new RuntimeException("fail to store excel data: " + e.getMessage());

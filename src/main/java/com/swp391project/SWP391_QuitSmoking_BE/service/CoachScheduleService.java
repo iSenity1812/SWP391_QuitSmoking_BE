@@ -64,6 +64,15 @@ public class CoachScheduleService {
             TimeSlot timeSlot = timeSlotRepository.findById(req.getTimeSlotId())
                     .orElseThrow(() -> new ResourceNotFoundException("TimeSlot not found with ID: " + req.getTimeSlotId()));
 
+            // áp dụng logic 1h trước khi bắt đầu lịch trình
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime slotStartTime = LocalDateTime.of(req.getScheduleDate(), timeSlot.getStartTime());
+            // đặt lịch trước 1h
+            LocalDateTime bookingCutoffTime = slotStartTime.minusHours(1);
+            if (now.isAfter(bookingCutoffTime)) {
+                throw new IllegalArgumentException("Không thể tạo lịch trình trong vòng 1 giờ trước thời gian bắt đầu: " + slotStartTime);
+            }
+            // Kiểm tra xem lịch trình đã tồn tại chưa
             Optional<CoachSchedule> existingScheduleOptional = coachScheduleRepository.findByCoachAndScheduleDateAndTimeSlot(
                     coach, req.getScheduleDate(), timeSlot);
 
@@ -151,6 +160,16 @@ public class CoachScheduleService {
 
             // 6. Với mỗi ngày, lặp qua các TimeSlot đã chọn
             for (TimeSlot timeSlot : timeSlots) {
+                // áp dụng logic 1h trước khi bắt đầu lịch trình
+                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime slotStartTime = LocalDateTime.of(currentDate, timeSlot.getStartTime());
+                // đặt lịch trước 1h
+                LocalDateTime bookingCutoffTime = slotStartTime.minusHours(1);
+                if (now.isAfter(bookingCutoffTime)) {
+                    throw new IllegalArgumentException("Không thể tạo lịch trình trong vòng 1 giờ trước thời gian bắt đầu: " + slotStartTime);
+                }
+                // Kiểm tra xem lịch trình đã tồn tại chưa
+
                 Optional<CoachSchedule> existingScheduleOptional = coachScheduleRepository.findByCoachAndScheduleDateAndTimeSlot(
                         coach, currentDate, timeSlot);
 
@@ -291,8 +310,17 @@ public class CoachScheduleService {
      * @return CoachSchedule nếu tìm thấy và chưa được đặt, ngược lại ném ngoại lệ
      */
     public CoachSchedule getCoachScheduleByIdAndNotBooked(Long scheduleId) {
-        return coachScheduleRepository.findByScheduleIdAndIsBookedFalse(scheduleId)
+        CoachSchedule coachSchedule = coachScheduleRepository.findByScheduleIdAndIsBookedFalse(scheduleId)
                 .orElseThrow(() -> new ResourceNotFoundException("CoachSchedule not found or already booked with ID: " + scheduleId));
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime slotStartTime = LocalDateTime.of(coachSchedule.getScheduleDate(), coachSchedule.getTimeSlot().getStartTime());
+        // đặt lịch trước 1h
+        LocalDateTime bookingCutoffTime = slotStartTime.minusHours(1);
+        if (now.isAfter(bookingCutoffTime)) {
+            throw new IllegalStateException("Không thể đặt lịch trong vòng 1 giờ trước thời gian bắt đầu.");
+        }
+        return  coachSchedule;
     }
 
     /**

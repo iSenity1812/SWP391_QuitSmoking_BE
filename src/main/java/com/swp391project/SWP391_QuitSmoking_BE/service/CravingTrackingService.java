@@ -7,7 +7,6 @@ import com.swp391project.SWP391_QuitSmoking_BE.entity.CravingTracking;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.DailySummary;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Member;
 import com.swp391project.SWP391_QuitSmoking_BE.event.UserResistedCravingEvent;
-import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.CravingTrackingDeletedException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.DailySummaryEditForbiddenException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
@@ -160,7 +159,7 @@ public class CravingTrackingService {
             // Nếu có cravingsCount > 0, đó là resist craving
             if (request.getCravingsCount() != null && request.getCravingsCount() > 0) {
                 achievementTriggerService.onCravingResisted(memberId);
-
+                
                 // Publish UserResistedCravingEvent for additional processing
                 Member member = memberRepository.findById(memberId).orElse(null);
                 if (member != null && member.getUser() != null) {
@@ -168,10 +167,10 @@ public class CravingTrackingService {
                     eventPublisher.publishEvent(event);
                     System.out.println("[CravingTrackingService] Published UserResistedCravingEvent for user: " + member.getUser().getUserId());
                 }
-
+                
                 System.out.println("[CravingTrackingService] Triggered craving resisted for memberId: " + memberId);
             }
-
+            
             // Trigger general smoking data update
             achievementTriggerService.onSmokingDataUpdated(memberId);
             System.out.println("[CravingTrackingService] Triggered smoking data update for memberId: " + memberId);
@@ -295,12 +294,8 @@ public class CravingTrackingService {
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.atTime(LocalTime.MAX); // Cuối ngày (23:59:59.999...)
 
-        // Định nghĩa các trạng thái QuitPlan hợp lệ
-        List<QuitPlanStatus> validStatuses = Arrays.asList(QuitPlanStatus.NOT_STARTED, QuitPlanStatus.IN_PROGRESS);
-
         List<CravingTracking> cravingTrackingList = cravingTrackingRepository.
-                findAllByDailySummary_QuitPlan_Member_MemberIdAndTrackTimeBetweenAndDailySummary_QuitPlan_StatusIn(
-                        memberId, startOfDay, endOfDay, validStatuses);
+                findAllByDailySummary_QuitPlan_Member_MemberIdAndTrackTimeBetween(memberId, startOfDay, endOfDay);
 
         if(cravingTrackingList.isEmpty()) {
             // Thay vì ném ResourceNotFoundException nếu danh sách rỗng

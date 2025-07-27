@@ -436,7 +436,7 @@ public class AppointmentService {
      */
     @Transactional(readOnly = true)
     public List<AppointmentResponseDTO> getUpcomingCoachAppointments(UUID coachId, int limit) {
-        List<AppointmentStatus> activeStatuses = Arrays.asList(AppointmentStatus.CONFIRMED);
+        List<AppointmentStatus> activeStatuses = List.of(AppointmentStatus.CONFIRMED);
         Pageable pageable = PageRequest.of(0, limit, Sort.by("coachSchedule.scheduleDate", "coachSchedule.timeSlot.startTime").ascending());
 
         List<Appointment> upcomingAppointments = appointmentRepository

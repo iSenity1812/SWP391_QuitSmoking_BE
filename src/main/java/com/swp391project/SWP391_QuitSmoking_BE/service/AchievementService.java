@@ -1,13 +1,13 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.*;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.event.UserResistedCravingEvent;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.AchievementRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberAchievementRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
-import com.swp391project.SWP391_QuitSmoking_BE.repository.WeeklyGoalRepository;
 import lombok.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
@@ -41,7 +41,6 @@ public class AchievementService {
     private final MemberRepository memberRepository;
     private final QuitPlanRepository quitPlanRepository;
     private final DailySummaryRepository dailySummaryRepository;
-    private final WeeklyGoalRepository weeklyGoalRepository;
     private final EmailService emailService;
     private final NotificationService notificationService;
 
@@ -121,11 +120,15 @@ public class AchievementService {
         BigDecimal currentMoneySaved = calculateMoneySaved(memberId);
         BigDecimal currentCigarettesNotSmoked = calculateCigarettesNotSmoked(memberId);
         BigDecimal currentCravingResisted = calculateCravingResisted(memberId);
+        BigDecimal currentResilienceScore = calculateResilienceCount(memberId);
+        BigDecimal currentHealthScore = calculateDaysQuit(memberId); // Health = days quit
 
         System.out.println("[AchievementService] Current progress - Days: " + currentDaysQuit + 
                          ", Money: " + currentMoneySaved + 
                          ", Cigarettes: " + currentCigarettesNotSmoked + 
-                         ", Cravings: " + currentCravingResisted);
+                         ", Cravings: " + currentCravingResisted +
+                         ", Resilience: " + currentResilienceScore +
+                         ", Health: " + currentHealthScore);
 
         // Lấy tất cả achievements
         List<Achievement> allAchievements = achievementRepository.findAll();
@@ -154,11 +157,17 @@ public class AchievementService {
                     case DAILY:
                         shouldStillUnlock = hasConsecutiveDailyAchievements(memberId, achievement.getMilestoneValue().intValue());
                         break;
-                    case WEEKLY_GOAL:
-                        shouldStillUnlock = calculateWeeklyGoalAchievements(memberId).compareTo(achievement.getMilestoneValue()) >= 0;
+                    case RESILIENCE:
+                        shouldStillUnlock = currentResilienceScore.compareTo(achievement.getMilestoneValue()) >= 0;
                         break;
-                    case GOAL_STREAK:
-                        shouldStillUnlock = calculateWeeklyGoalStreak(memberId).compareTo(achievement.getMilestoneValue()) >= 0;
+                    case HEALTH:
+                        shouldStillUnlock = currentHealthScore.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case SOCIAL:
+                        shouldStillUnlock = currentDaysQuit.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case SPECIAL:
+                        shouldStillUnlock = currentDaysQuit.compareTo(achievement.getMilestoneValue()) >= 0;
                         break;
                     default:
                         shouldStillUnlock = false;
@@ -190,11 +199,17 @@ public class AchievementService {
                     case DAILY:
                         shouldUnlock = hasConsecutiveDailyAchievements(memberId, achievement.getMilestoneValue().intValue());
                         break;
-                    case WEEKLY_GOAL:
-                        shouldUnlock = calculateWeeklyGoalAchievements(memberId).compareTo(achievement.getMilestoneValue()) >= 0;
+                    case RESILIENCE:
+                        shouldUnlock = currentResilienceScore.compareTo(achievement.getMilestoneValue()) >= 0;
                         break;
-                    case GOAL_STREAK:
-                        shouldUnlock = calculateWeeklyGoalStreak(memberId).compareTo(achievement.getMilestoneValue()) >= 0;
+                    case HEALTH:
+                        shouldUnlock = currentHealthScore.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case SOCIAL:
+                        shouldUnlock = currentDaysQuit.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case SPECIAL:
+                        shouldUnlock = currentDaysQuit.compareTo(achievement.getMilestoneValue()) >= 0;
                         break;
                     default:
                         shouldUnlock = false;
@@ -344,6 +359,27 @@ public class AchievementService {
         return BigDecimal.valueOf(totalCravingCount);
     }
 
+    public BigDecimal calculateResilienceCount(UUID memberId) {
+        // RESILIENCE  Chỉ đếm số lần attempts
+        // Loại bỏ logic score phức tạp, chỉ dựa trên số lần thử lại
+        
+        Member member = memberRepository.findById(memberId).orElse(null);
+        if (member == null) {
+            return BigDecimal.ZERO;
+        }
+        
+        List<QuitPlan> allQuitPlans = quitPlanRepository.findByMemberOrderByCreatedAtDesc(member);
+        
+        // Resilience = số lần attempts (ít nhất phải có 2 lần mới có resilience)
+        int totalAttempts = allQuitPlans.size();
+        if (totalAttempts <= 1) {
+            return BigDecimal.ZERO;
+        }
+        
+        // Đơn giản: mỗi lần attempt sau lần đầu = +1 điểm resilience
+        return BigDecimal.valueOf(totalAttempts - 1);
+    }
+
     // Method to get current progress for each achievement type
     public BigDecimal getCurrentProgress(UUID memberId, Achievement.AchievementType type) {
         switch (type) {
@@ -355,10 +391,14 @@ public class AchievementService {
                 return calculateCigarettesNotSmoked(memberId);
             case CRAVING_RESISTED:
                 return calculateCravingResisted(memberId);
-            case WEEKLY_GOAL:
-                return calculateWeeklyGoalAchievements(memberId);
-            case GOAL_STREAK:
-                return calculateWeeklyGoalStreak(memberId);
+            case RESILIENCE:
+                return calculateResilienceCount(memberId);
+            case HEALTH:
+                return calculateDaysQuit(memberId); // Health improves with days quit
+            case SOCIAL:
+                return calculateDaysQuit(memberId); // Social milestones based on days quit
+            case SPECIAL:
+                return calculateDaysQuit(memberId); // Special achievements based on days quit
             default:
                 return BigDecimal.ZERO;
         }
@@ -444,39 +484,85 @@ public class AchievementService {
                 "Resisted 100 cravings!", Achievement.AchievementType.CRAVING_RESISTED,
                 new BigDecimal("100"), LocalDateTime.now(), null));
 
-        // Weekly Goal Achievements
-        createAchievement(new Achievement(null, "Goal Setter", "/icons/first_goal.png",
-                "Completed your first weekly goal!", Achievement.AchievementType.WEEKLY_GOAL,
+        // Resilience Achievements - Based on number of attempts (simple logic)
+        createAchievement(new Achievement(null, "Second Chance", "/icons/resilience-1.png",
+                "Made your second attempt at quitting - that's resilience!", Achievement.AchievementType.RESILIENCE,
                 new BigDecimal("1"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "Goal Achiever", "/icons/5_goals.png",
-                "Completed 5 weekly goals!", Achievement.AchievementType.WEEKLY_GOAL,
-                new BigDecimal("5"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "Goal Master", "/icons/10_goals.png",
-                "Completed 10 weekly goals!", Achievement.AchievementType.WEEKLY_GOAL,
-                new BigDecimal("10"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "Goal Champion", "/icons/25_goals.png",
-                "Completed 25 weekly goals!", Achievement.AchievementType.WEEKLY_GOAL,
-                new BigDecimal("25"), LocalDateTime.now(), null));
 
-        // Goal Streak Achievements  
-        createAchievement(new Achievement(null, "Consistent Performer", "/icons/2_streak.png",
-                "2 weeks goal streak!", Achievement.AchievementType.GOAL_STREAK,
+        createAchievement(new Achievement(null, "Comeback Kid", "/icons/resilience-2.png",
+                "Third time's the charm! Your persistence is admirable!", Achievement.AchievementType.RESILIENCE,
                 new BigDecimal("2"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "Streak Builder", "/icons/4_streak.png",
-                "4 weeks goal streak!", Achievement.AchievementType.GOAL_STREAK,
+
+        createAchievement(new Achievement(null, "Never Give Up", "/icons/resilience-3.png",
+                "Four attempts and counting - you never give up!", Achievement.AchievementType.RESILIENCE,
+                new BigDecimal("3"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Phoenix Rising", "/icons/resilience-4.png",
+                "Fifth attempt shows true phoenix spirit!", Achievement.AchievementType.RESILIENCE,
                 new BigDecimal("4"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "Streak Master", "/icons/8_streak.png",
-                "8 weeks goal streak!", Achievement.AchievementType.GOAL_STREAK,
-                new BigDecimal("8"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "Unstoppable", "/icons/12_streak.png",
-                "12 weeks goal streak!", Achievement.AchievementType.GOAL_STREAK,
-                new BigDecimal("12"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Unbreakable Spirit", "/icons/resilience-5.png",
+                "Six attempts or more - you have an unbreakable spirit!", Achievement.AchievementType.RESILIENCE,
+                new BigDecimal("5"), LocalDateTime.now(), null));
+
+        // Health Achievements - Based on days quit (health improvement milestones)
+        createAchievement(new Achievement(null, "Fresh Breath", "/icons/health-breath.png",
+                "3 days smoke-free: Your breath is getting fresher!", Achievement.AchievementType.HEALTH,
+                new BigDecimal("3"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Taste Buds Awakening", "/icons/health-taste.png",
+                "1 week smoke-free: Your taste buds are recovering!", Achievement.AchievementType.HEALTH,
+                new BigDecimal("7"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Better Circulation", "/icons/health-circulation.png",
+                "2 weeks smoke-free: Your circulation is improving!", Achievement.AchievementType.HEALTH,
+                new BigDecimal("14"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Lung Recovery", "/icons/health-lungs.png",
+                "1 month smoke-free: Your lungs are healing!", Achievement.AchievementType.HEALTH,
+                new BigDecimal("30"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Heart Health Hero", "/icons/health-heart.png",
+                "3 months smoke-free: Your heart health is significantly better!", Achievement.AchievementType.HEALTH,
+                new BigDecimal("90"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Complete Recovery", "/icons/health-recovery.png",
+                "1 year smoke-free: You've achieved major health recovery!", Achievement.AchievementType.HEALTH,
+                new BigDecimal("365"), LocalDateTime.now(), null));
+
+        // Social Achievements - Based on milestone sharing and community interaction
+        createAchievement(new Achievement(null, "First Share", "/icons/social-share.png",
+                "Share your first milestone with the community!", Achievement.AchievementType.SOCIAL,
+                new BigDecimal("1"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Community Member", "/icons/social-member.png",
+                "Active community participation for 7 days!", Achievement.AchievementType.SOCIAL,
+                new BigDecimal("7"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Support Hero", "/icons/social-support.png",
+                "Help others achieve their 30-day milestones!", Achievement.AchievementType.SOCIAL,
+                new BigDecimal("30"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Community Leader", "/icons/social-leader.png",
+                "Lead by example for 90 days in the community!", Achievement.AchievementType.SOCIAL,
+                new BigDecimal("90"), LocalDateTime.now(), null));
+
+        // Special Achievements - Based on perfect days and special milestones
+        createAchievement(new Achievement(null, "Perfect Week", "/icons/special-week.png",
+                "Complete a perfect week without any cigarettes!", Achievement.AchievementType.SPECIAL,
+                new BigDecimal("7"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Monthly Champion", "/icons/special-month.png",
+                "Achieve a perfect month - 30 days smoke-free!", Achievement.AchievementType.SPECIAL,
+                new BigDecimal("30"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Quarterly Master", "/icons/special-quarter.png",
+                "Complete a perfect quarter - 90 days smoke-free!", Achievement.AchievementType.SPECIAL,
+                new BigDecimal("90"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Annual Legend", "/icons/special-year.png",
+                "Achieve the ultimate goal - 365 days smoke-free!", Achievement.AchievementType.SPECIAL,
+                new BigDecimal("365"), LocalDateTime.now(), null));
     }
 
     // DTO trả về cho FE
@@ -560,6 +646,7 @@ public class AchievementService {
         BigDecimal currentDaysQuit = calculateDaysQuit(memberId);
         BigDecimal currentMoneySaved = calculateMoneySaved(memberId);
         BigDecimal currentCigarettesNotSmoked = calculateCigarettesNotSmoked(memberId);
+        BigDecimal currentResilienceScore = calculateResilienceCount(memberId);
         List<Achievement> allAchievements = achievementRepository.findAll();
         List<MemberAchievement> userAchievements = memberAchievementRepository.findByMember_MemberId(memberId);
         for (MemberAchievement ma : userAchievements) {
@@ -581,11 +668,23 @@ public class AchievementService {
                     case DAILY:
                         shouldStillUnlock = hasConsecutiveDailyAchievements(memberId, achievement.getMilestoneValue().intValue());
                         break;
+                    case RESILIENCE:
+                        shouldStillUnlock = currentResilienceScore.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case HEALTH:
+                        shouldStillUnlock = currentDaysQuit.compareTo(achievement.getMilestoneValue()) >= 0; // Health uses days quit
+                        break;
+                    case SOCIAL:
+                        shouldStillUnlock = currentDaysQuit.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
+                    case SPECIAL:
+                        shouldStillUnlock = currentDaysQuit.compareTo(achievement.getMilestoneValue()) >= 0;
+                        break;
                     default:
                         shouldStillUnlock = false;
                 }
                 if (!shouldStillUnlock) {
-                    System.out.println("[AchievementService] XÓA thành tựu không hợp lệ (cleanInvalidAchievements): " + achievement.getName() + " (" + achievement.getMilestoneValue() + ") cho memberId: " + memberId + ". Số liệu hiện tại: daysQuit=" + currentDaysQuit + ", moneySaved=" + currentMoneySaved + ", cigarettesNotSmoked=" + currentCigarettesNotSmoked);
+                    System.out.println("[AchievementService] XÓA thành tựu không hợp lệ (cleanInvalidAchievements): " + achievement.getName() + " (" + achievement.getMilestoneValue() + ") cho memberId: " + memberId + ". Số liệu hiện tại: daysQuit=" + currentDaysQuit + ", moneySaved=" + currentMoneySaved + ", cigarettesNotSmoked=" + currentCigarettesNotSmoked + ", resilience=" + currentResilienceScore);
                     memberAchievementRepository.delete(ma);
                     // Xóa notification liên quan đến achievement này
                     Member member = memberRepository.findById(memberId).orElse(null);
@@ -605,8 +704,8 @@ public class AchievementService {
         List<Achievement> allAchievements = achievementRepository.findAll();
         List<MemberAchievement> userAchievements = memberAchievementRepository.findByMember_MemberId(memberId);
         var unlockedIds = userAchievements.stream().map(MemberAchievement::getAchievementId).collect(Collectors.toSet());
-        // Ưu tiên DAYS_QUIT trước, sau đó MONEY_SAVED, CIGARETTES_NOT_SMOKED, rồi CRAVING_RESISTED
-        Achievement.AchievementType[] types = {Achievement.AchievementType.DAYS_QUIT, Achievement.AchievementType.MONEY_SAVED, Achievement.AchievementType.CIGARETTES_NOT_SMOKED, Achievement.AchievementType.CRAVING_RESISTED};
+        // Ưu tiên DAYS_QUIT trước, sau đó MONEY_SAVED, CIGARETTES_NOT_SMOKED, CRAVING_RESISTED, HEALTH, SOCIAL, SPECIAL, rồi RESILIENCE
+        Achievement.AchievementType[] types = {Achievement.AchievementType.DAYS_QUIT, Achievement.AchievementType.MONEY_SAVED, Achievement.AchievementType.CIGARETTES_NOT_SMOKED, Achievement.AchievementType.CRAVING_RESISTED, Achievement.AchievementType.HEALTH, Achievement.AchievementType.SOCIAL, Achievement.AchievementType.SPECIAL, Achievement.AchievementType.RESILIENCE};
         for (Achievement.AchievementType type : types) {
             var milestones = allAchievements.stream()
                 .filter(a -> a.getAchievementType() == type)
@@ -641,30 +740,4 @@ public class AchievementService {
         private String type;
         private BigDecimal milestoneValue;
     }
-
-    /**
-     * Calculate the number of weekly goals completed by a member
-     */
-    private BigDecimal calculateWeeklyGoalAchievements(UUID memberId) {
-        Optional<Member> memberOpt = memberRepository.findById(memberId);
-        if (memberOpt.isEmpty()) return BigDecimal.ZERO;
-        
-        List<WeeklyGoal> completedGoals = weeklyGoalRepository.findCompletedWeeklyGoalsByMember(memberOpt.get());
-        return BigDecimal.valueOf(completedGoals.size());
-    }
-
-    /**
-     * Calculate the current streak of consecutive weeks with completed goals
-     */
-    private BigDecimal calculateWeeklyGoalStreak(UUID memberId) {
-        Optional<Member> memberOpt = memberRepository.findById(memberId);
-        if (memberOpt.isEmpty()) return BigDecimal.ZERO;
-        
-        // Get active quit plan
-        Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
-        if (quitPlanOpt.isEmpty()) return BigDecimal.ZERO;
-        
-        Integer streak = weeklyGoalRepository.getCurrentStreak(quitPlanOpt.get().getQuitPlanId());
-        return BigDecimal.valueOf(streak != null ? streak : 0);
-    }
-}
+} 

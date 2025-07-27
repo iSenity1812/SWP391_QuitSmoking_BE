@@ -1,10 +1,8 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Option;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Quiz;
-import com.swp391project.SWP391_QuitSmoking_BE.entity.Task;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.User;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
-import com.swp391project.SWP391_QuitSmoking_BE.repository.TaskRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.UserRepository;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -19,13 +17,13 @@ import java.util.*;
 
 public class QuizExcelService {
     public static String TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    public static String[] HEADERs = { "Title", "Description", "ScorePossible", "Option1", "isCorrect1", "Option2", "isCorrect2", "Option3", "isCorrect3", "Option4", "isCorrect4" };
+    public static String[] HEADERs = { "Title", "Description", "Option1", "isCorrect1", "Option2", "isCorrect2", "Option3", "isCorrect3", "Option4", "isCorrect4" };
     public static String SHEET = "Quizzes";
     public static boolean hasExcelFormat(MultipartFile file) {
         return TYPE.equals(file.getContentType());
     }
 
-    public static List<Quiz> excelToQuizzes(InputStream is, UUID createdByUserId, UserRepository userRepository, TaskRepository taskRepository) {
+    public static List<Quiz> excelToQuizzes(InputStream is, UUID createdByUserId, UserRepository userRepository) {
         try {
             Workbook workbook = new XSSFWorkbook(is);
 
@@ -68,13 +66,9 @@ public class QuizExcelService {
                             break;
 
                         case 2:
-                            quiz.setScorePossible((int) currentCell.getNumericCellValue());
-                            break;
-
-                        case 3:
-                        case 5:
-                        case 7:
-                        case 9:
+                        case 4:
+                        case 6:
+                        case 8:
                             Option option = new Option();
                             option.setContent(currentCell.getStringCellValue());
                             option.setQuiz(quiz);
@@ -84,10 +78,10 @@ public class QuizExcelService {
                             options.add(option);
                             break;
 
-                        case 4:
-                        case 6:
-                        case 8:
-                        case 10:
+                        case 3:
+                        case 5:
+                        case 7:
+                        case 9:
                             ((Option) options.toArray()[options.size() - 1]).setIsCorrect(currentCell.getBooleanCellValue());
                             break;
 
@@ -98,16 +92,6 @@ public class QuizExcelService {
                     cellIdx++;
                 }
                 quiz.setOptions(options);
-
-                Task quizTask = new Task();
-                quizTask.setTypeId(1); // 1 for Quiz Task
-                quizTask.setCreatedAt(LocalDateTime.now());
-                quizTask.setUpdatedAt(LocalDateTime.now());
-                quizTask.setCreatedByUser(creator);
-                Set<Quiz> quizSet = new HashSet<>();
-                quizSet.add(quiz);
-                quizTask.setQuizzes(quizSet);
-                taskRepository.save(quizTask);
 
                 quizzes.add(quiz);
             }
