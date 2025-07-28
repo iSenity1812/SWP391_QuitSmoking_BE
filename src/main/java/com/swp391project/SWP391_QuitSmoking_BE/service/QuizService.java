@@ -228,15 +228,30 @@ public class QuizService {
 
     @Transactional
     public void importQuizzesFromExcel(MultipartFile file, UUID createdByUserId) {
+        System.out.println("Starting import with userId: " + createdByUserId);
+        
         if (!QuizExcelService.hasExcelFormat(file)) {
             throw new IllegalArgumentException("Please upload an excel file!");
         }
 
         try {
+            System.out.println("Parsing Excel file...");
             List<Quiz> quizzes = QuizExcelService.excelToQuizzes(file.getInputStream(), createdByUserId, userRepository);
+            
+            System.out.println("Parsed " + quizzes.size() + " quizzes from Excel");
+            
+            System.out.println("Saving quizzes to database...");
             quizRepository.saveAll(quizzes);
+            
+            System.out.println("Successfully saved all quizzes");
         } catch (IOException e) {
+            System.err.println("IO Error: " + e.getMessage());
+            e.printStackTrace();
             throw new RuntimeException("fail to store excel data: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Unexpected error during import: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Error importing quiz data: " + e.getMessage());
         }
     }
 }

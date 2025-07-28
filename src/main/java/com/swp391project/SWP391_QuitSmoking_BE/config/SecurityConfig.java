@@ -80,7 +80,6 @@ public class SecurityConfig {
         config.addAllowedOrigin("http://localhost:5173");
         config.addAllowedOrigin("http://localhost:5174");
         config.addAllowedOrigin("http://localhost:3000");
-        config.addAllowedOrigin("http://localhost:8080");
         config.addAllowedOrigin("https://*.ngrok-free.app");
 //        config.addAllowedOrigin("*");
         config.addAllowedHeader("*"); // Cho phép tất cả các header
@@ -118,7 +117,7 @@ public class SecurityConfig {
                             .requestMatchers("/api/auth/logout").authenticated()
                             .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
                             .requestMatchers("/api/coaches/**").authenticated()
-                            .requestMatchers("/api/task/admin/**").hasRole("CONTENT_ADMIN")
+                            .requestMatchers("/api/task/admin/**").hasAnyRole("SUPER_ADMIN", "CONTENT_ADMIN")
 
                         .anyRequest().authenticated()
                 )

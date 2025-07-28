@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List; // Đảm bảo có import List
 import java.util.UUID;
@@ -150,5 +151,18 @@ public class TaskController {
             Authentication authentication) {
         tipService.deleteTip(tipId);
         return ResponseEntity.ok(ApiResponse.success(null, "Tip đã được xóa thành công."));
+    }
+
+    // --- API IMPORT QUIZ TỪ EXCEL ---
+    @PostMapping("/admin/quizzes/import")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('CONTENT_ADMIN')")
+    public ResponseEntity<ApiResponse<String>> importQuizzes(
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication) {
+        User currentUser = (User) authentication.getPrincipal();
+        // log role của người dùng hiện tại
+        System.out.println("Current user role: " + currentUser.getRole());
+        quizService.importQuizzesFromExcel(file, currentUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Import quizzes từ Excel thành công."));
     }
 }

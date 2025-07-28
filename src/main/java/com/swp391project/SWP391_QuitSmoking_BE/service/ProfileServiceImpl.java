@@ -165,14 +165,13 @@ public class ProfileServiceImpl implements ProfileService{
         });
 
         // Quit Statistics
-        List<DailySummary> activePlanSummaries = dailySummaryRepository.findByQuitPlan(quitPlanRepository.findActiveQuitPlanByMember(member)
-                .orElseThrow(() -> new RuntimeException("No active quit plan found for member with ID " + member.getMemberId())));
-        long totalCigarettesSmoked = activePlanSummaries.stream().mapToLong(DailySummary::getTotalSmokedCount).sum();
-        builder.totalCigarettesSmokedSinceStart(totalCigarettesSmoked);
+        quitPlanRepository.findActiveQuitPlanByMember(member).ifPresentOrElse(quitPlan -> {
+            List<DailySummary> activePlanSummaries = dailySummaryRepository.findByQuitPlan(quitPlan);
+            long totalCigarettesSmoked = activePlanSummaries.stream().mapToLong(DailySummary::getTotalSmokedCount).sum();
+            builder.totalCigarettesSmokedSinceStart(totalCigarettesSmoked);
 
-         // Tính toán số thuốc lá đã tránh được: (init smoking amount * days from quit plan start to now) - totalCigarettesSmoked
-        // Tính số thuốc lá đã tránh được
-        quitPlanRepository.findActiveQuitPlanByMember(member).ifPresent(quitPlan -> {
+            // Tính toán số thuốc lá đã tránh được: (init smoking amount * days from quit plan start to now) - totalCigarettesSmoked
+            // Tính số thuốc lá đã tránh được
             // Tính số ngày từ khi bắt đầu quit plan đến hiện tại
             long daysSinceStart = ChronoUnit.DAYS.between(quitPlan.getStartDate().toLocalDate(), LocalDate.now()) + 1; // +1 để bao gồm ngày bắt đầu
             log.info("Days since start: {}", daysSinceStart);
@@ -277,6 +276,16 @@ public class ProfileServiceImpl implements ProfileService{
 
             builder.dailyChartData(chartData);
 
+        }, () -> {
+            // When no active quit plan exists, set default values
+            builder.totalCigarettesSmokedSinceStart(0L);
+            builder.daysWithoutSmoking(0L);
+            builder.cigarettesAvoided(0L);
+            builder.moneySaved(BigDecimal.ZERO);
+            builder.totalMoneySaved(BigDecimal.ZERO);
+            builder.totalCravings(0L);
+            builder.averageDailyCravings(0.0);
+            builder.dailyChartData(new ArrayList<>());
         });
 
 

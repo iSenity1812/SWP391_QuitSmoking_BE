@@ -1,7 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.*;
-import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.event.UserResistedCravingEvent;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.AchievementRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberAchievementRepository;
@@ -9,7 +8,6 @@ import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
 import lombok.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Service;
