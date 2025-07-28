@@ -72,7 +72,7 @@ public class QuitPlanService {
 
     //Lấy kế hoạch cai thuốc lá theo ID cho người dùng đã xác thực
     //Đảm bảo trạng thái của kế hoạch được cập nhật trước khi trả về
-    @Transactional(readOnly = true)
+    @Transactional
     public QuitPlanResponseDTO getQuitPlanById(Integer id, UUID memberId) {
         QuitPlan quitPlan = quitPlanRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy kế hoạch cai thuốc với ID: " + id));
@@ -89,7 +89,7 @@ public class QuitPlanService {
     }
 
     //ADMIN: Lấy tất cả các kế hoạch cai thuốc lá trong hệ thống
-    @Transactional(readOnly = true)
+    @Transactional
     public List<QuitPlanAdminResponseDTO> getAllQuitPlansForAdmin() {
         return quitPlanRepository.findAllWithMemberAndUser().stream()
                 .peek(this::ensureQuitPlanStatusIsCurrent)
@@ -107,7 +107,7 @@ public class QuitPlanService {
         return convertToAdminResponseDto(quitPlan);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<QuitPlanResponseDTO> getQuitPlansByMemberId(UUID memberId) {
         // Kiểm tra sự tồn tại của Member trước
         Member member = memberRepository.findById(memberId)
@@ -121,7 +121,7 @@ public class QuitPlanService {
     }
 
     //ADMIN: Lấy tất cả các kế hoạch cai thuốc lá của một thành viên theo ID của thành viên
-    @Transactional(readOnly = true)
+    @Transactional
     public List<QuitPlanAdminResponseDTO> getQuitPlansByMemberIdForAdmin(UUID memberId) {
         // Kiểm tra sự tồn tại của Member trước
         Member member = memberRepository.findById(memberId)
@@ -136,7 +136,7 @@ public class QuitPlanService {
 
     // Lấy quit plan hiện tại của một thành viên (chỉ có một kế hoạch cai thuốc đang hoạt động)
     //(đang IN_PROGRESS hoặc NOT_STARTED)
-    @Transactional(readOnly = true)
+    @Transactional
     public QuitPlanResponseDTO getCurrentQuitPlanByMemberId(UUID memberId) {
         // Kiểm tra sự tồn tại của Member trước
         Member member = memberRepository.findById(memberId)
@@ -148,9 +148,17 @@ public class QuitPlanService {
                 findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.IN_PROGRESS);
         QuitPlan currentPlan;
 
-        currentPlan = inProgressPlan.orElseGet(() -> quitPlanRepository.
+        currentPlan = inProgressPlan
+                .orElseGet(() -> quitPlanRepository. //tìm kiếm plan có status Not started
                 findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.NOT_STARTED)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kế hoạch cai thuốc đang hoạt động hoặc chưa bắt đầu cho thành viên với ID: " + memberId)));
+                .orElseGet(() -> quitPlanRepository. //tìm kiếm plan có status FAILED
+                findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.FAILED)
+                .orElseGet(() -> quitPlanRepository.
+                findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.COMPLETED)
+                        .orElseThrow(() -> new ResourceNotFoundException
+                                ("Không tìm thấy kế hoạch cai thuốc mới nhất cho thành viên")))));
+
+        log.info("status cua plan duoc lay {}", currentPlan.getStatus().toString());
 
         ensureQuitPlanStatusIsCurrent(currentPlan);
         return convertToResponseDto(currentPlan);
@@ -409,9 +417,9 @@ public class QuitPlanService {
                             newStatus = QuitPlanStatus.COMPLETED;
                             log.info("Kế hoạch ID {} đã hoàn thành COMPLETED.", plan.getQuitPlanId());
                             // Tự động tạo kế hoạch Dừng Hẳn sau khi hoàn thành kế hoạch giảm dần
-                            createImmediatePlanForMemberAfterCompletion(
-                                    plan.getMember(), currentDate,
-                                    plan.getInitialSmokingAmount(), plan.getCigarettesPerPack(), plan.getPricePerPack());
+//                            createImmediatePlanForMemberAfterCompletion(
+//                                    plan.getMember(), currentDate,
+//                                    plan.getInitialSmokingAmount(), plan.getCigarettesPerPack(), plan.getPricePerPack());
                         } else {
                             newStatus = QuitPlanStatus.FAILED;
                             log.info("Kế hoạch ID {} đã FAILED (không hoàn thành mục tiêu).", plan.getQuitPlanId());
@@ -430,37 +438,45 @@ public class QuitPlanService {
         }
     }
 
-    //Tạo một kế hoạch Dừng Hẳn (IMMEDIATE) mới cho thành viên sau khi hoàn thành kế hoạch giảm dần
+    //chuyển kế hoạch cuar người dùng thành loại Dừng Hẳn (IMMEDIATE) sau khi họ hoàn thành kế hoạch giảm dần
+    //kiểm tra plan mới nhất có trạng thái COMPLETED không và phải là không có kế hoạch nào khác đang hoạt động
     @Transactional
-    public void createImmediatePlanForMemberAfterCompletion(
-            Member member, LocalDateTime creationTime,
-            int initialSmokingAmount, int cigarettesPerPack, BigDecimal pricePerPack) {
+    public QuitPlanResponseDTO changePlanTypeForMemberAfterCompletion(UUID memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy thành viên với ID: " + memberId));
+
         List<QuitPlan> activePlans = quitPlanRepository.findByMemberAndStatusIn(
                 member, List.of(QuitPlanStatus.IN_PROGRESS, QuitPlanStatus.NOT_STARTED)
         );
 
         if (!activePlans.isEmpty()) {
-            log.warn("Thành viên {} đã có kế hoạch đang hoạt động. Không tạo thêm kế hoạch Dừng Hẳn tự động",
-                    member.getMemberId());
-            return;
+            log.warn("Thành viên đã có kế hoạch đang hoạt động. Không tạo thêm kế hoạch Dừng Hẳn tự động");
+            throw new IllegalArgumentException("Không thể chuyển đổi: Thành viên đã có kế hoạch đang hoạt động.");
         }
 
-        QuitPlan immediatePlan = new QuitPlan();
-        immediatePlan.setMember(member);
-        immediatePlan.setReductionType(ReductionQuitPlanType.IMMEDIATE);
-        immediatePlan.setCreatedAt(creationTime);
-        immediatePlan.setStartDate(creationTime);
-        immediatePlan.setGoalDate(MAX_GOAL_DATE); // Vô tận
-        immediatePlan.setStatus(QuitPlanStatus.IN_PROGRESS);
+        // Tìm kế hoạch gần nhất của thành viên (dựa trên thời gian tạo)
+        Optional<QuitPlan> latestPlanOptional = quitPlanRepository.findByMember_MemberIdOrderByCreatedAtDesc(memberId);
+        if (latestPlanOptional.isEmpty()) {
+            log.warn("Thành viên không có kế hoạch nào để chuyển đổi");
+            throw new ResourceNotFoundException("Không tìm thấy kế hoạch để chuyển đổi.");
+        }
+        QuitPlan planToModify = latestPlanOptional.get();
 
-        //Lấy từ COMPLETED plan trước đó
-        immediatePlan.setInitialSmokingAmount(initialSmokingAmount);
-        immediatePlan.setCigarettesPerPack(cigarettesPerPack);
-        immediatePlan.setPricePerPack(pricePerPack);
+        // Kiểm tra nếu kế hoạch gần nhất có trạng thái là COMPLETED
+        if (planToModify.getStatus() == QuitPlanStatus.COMPLETED) {
 
-        quitPlanRepository.save(immediatePlan);
-        log.info("Đã tạo kế hoạch Dừng Hẳn mới (ID: {}) cho thành viên {} sau khi hoàn thành kế hoạch trước đó",
-                immediatePlan.getQuitPlanId(), member.getMemberId());
+            planToModify.setReductionType(ReductionQuitPlanType.IMMEDIATE);
+            planToModify.setStartDate(LocalDateTime.now());
+            planToModify.setGoalDate(MAX_GOAL_DATE);
+            planToModify.setStatus(QuitPlanStatus.IN_PROGRESS);
+
+            QuitPlan updatedPlan = quitPlanRepository.save(planToModify);
+            log.info("Kế hoạch ID của thành viên đã được chuyển đổi thành Dừng Hẳn");
+            return convertToResponseDto(updatedPlan);
+        } else {
+            log.info("Kế hoạch gần nhất của thành viên không ở trạng thái COMPLETED. Không thực hiện chuyển đổi");
+            throw new IllegalArgumentException("Kế hoạch gần nhất không ở trạng thái COMPLETED để chuyển đổi.");
+        }
     }
 
     //Kiểm tra xem kế hoạch có được coi là COMPLETED hay không
@@ -531,6 +547,30 @@ public class QuitPlanService {
         }
 
         quitPlanRepository.updateQuitPlanStatus(quitPlanId, QuitPlanStatus.IN_PROGRESS);
+        log.info("Kế hoạch ID {} của thành viên {} đã được đặt lại từ FAILED sang IN_PROGRESS", quitPlanId, memberId);
+
+        Optional<QuitPlan> updatedPlan = quitPlanRepository.findById(quitPlanId);
+        if (updatedPlan.isEmpty()) {
+            throw new ResourceNotFoundException("Không tìm thấy kế hoạch đã cập nhật với ID: " + quitPlanId);
+        }
+        return convertToResponseDto(updatedPlan.get());
+    }
+
+    @Transactional
+    public QuitPlanResponseDTO resetQuitPlanToInProgressByChangeStartDate(Integer quitPlanId, UUID memberId) {
+        QuitPlan quitPlan = quitPlanRepository.findById(quitPlanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kế hoạch bỏ thuốc với ID: " + quitPlanId));
+
+        if (!quitPlan.getMember().getMemberId().equals(memberId)) {
+            throw new IllegalArgumentException("Kế hoạch này không thuộc về thành viên với ID: " + memberId);
+        }
+
+        if (quitPlan.getStatus() != QuitPlanStatus.FAILED) {
+            throw new IllegalArgumentException("Không thể đặt lại kế hoạch không ở trạng thái FAILED");
+        }
+
+        quitPlanRepository.updateQuitPlanStatus(quitPlanId, QuitPlanStatus.IN_PROGRESS);
+        quitPlanRepository.updateQuitPlanStartDate(quitPlanId, LocalDateTime.now());
         log.info("Kế hoạch ID {} của thành viên {} đã được đặt lại từ FAILED sang IN_PROGRESS", quitPlanId, memberId);
 
         Optional<QuitPlan> updatedPlan = quitPlanRepository.findById(quitPlanId);

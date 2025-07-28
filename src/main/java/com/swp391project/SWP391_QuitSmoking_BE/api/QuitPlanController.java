@@ -283,6 +283,7 @@ public class QuitPlanController {
     @Operation(summary = "Đặt lại trạng thái kế hoạch của thành viên",
             description = "Đặt lại trạng thái của một kế hoạch từ FAILED sang IN_PROGRESS " +
                     "(nếu người dùng chọn \"giữ kế hoạch hiện tại\" sau khi tái nghiện)")
+    @PatchMapping("/reset/{quitPlanId}")
     public ResponseEntity<ApiResponse<QuitPlanResponseDTO>> resetQuitPlanStatus(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Integer quitPlanId) {
@@ -309,6 +310,73 @@ public class QuitPlanController {
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
                             "Có lỗi xảy ra khi đặt lại trạng thái kế hoạch: " + e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Đặt lại trạng thái kế hoạch của thành viên dựa theo ngày",
+            description = "Đặt lại trạng thái của một kế hoạch từ FAILED sang IN_PROGRESS và chuyển ngày bắt đầu thành hiện tại" +
+                    "(nếu người dùng chọn \"giữ kế hoạch hiện tại\" sau khi tái nghiện)")
+    @PatchMapping("/resetByDate/{quitPlanId}")
+    public ResponseEntity<ApiResponse<QuitPlanResponseDTO>> resetQuitPlanStatusByChangeStartDate(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Integer quitPlanId) {
+        try {
+            UUID memberId = getAuthenticatedMemberId(userDetails);
+            QuitPlanResponseDTO response = quitPlanService.resetQuitPlanToInProgressByChangeStartDate(quitPlanId, memberId);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ApiResponse.success(response, "Kế hoạch đã được đặt lại trạng thái IN_PROGRESS."));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, e.getMessage()));
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(HttpStatus.NOT_FOUND, e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Có lỗi xảy ra khi đặt lại trạng thái kế hoạch: " + e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Chuyển kế hoạch gần nhất sang loại Dừng Hẳn (IMMEDIATE)",
+            description = "Hệ thống sẽ tìm kế hoạch gần nhất của thành viên. " +
+                    "Nếu kế hoạch đó có trạng thái COMPLETED và không có kế hoạch nào khác đang hoạt động, " +
+                    "nó sẽ được chuyển thành loại IMMEDIATE với ngày bắt đầu là hiện tại và trạng thái IN_PROGRESS.")
+    @PatchMapping("/update-to-immediate")
+    @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER')")
+    public ResponseEntity<ApiResponse<QuitPlanResponseDTO>> convertToImmediatePlan(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            UUID memberId = getAuthenticatedMemberId(userDetails);
+            QuitPlanResponseDTO updatedPlan = quitPlanService.changePlanTypeForMemberAfterCompletion(memberId);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ApiResponse.success(updatedPlan, "Kế hoạch đã được chuyển đổi thành Dừng Hẳn (IMMEDIATE) thành công."));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, e.getMessage()));
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error(HttpStatus.NOT_FOUND, e.getMessage()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(HttpStatus.BAD_REQUEST, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Có lỗi xảy ra khi chuyển đổi kế hoạch sang Dừng Hẳn: " + e.getMessage()));
         }
     }
 
