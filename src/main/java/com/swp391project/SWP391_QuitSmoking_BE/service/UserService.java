@@ -583,4 +583,82 @@ public class UserService {
         
         return response;
     }
+
+    /**
+     * This method illustrates how to create or update a User when logging in via Google OAuth.
+     * You will call this method from the Controller/Service handling the Google OAuth Callback.
+     *
+     * @param googleOAuthUserInfo Map containing user information from Google (e.g., email, name, picture)
+     * @return UserProfile of the created/updated user
+     */
+    @Transactional
+    public User createOrUpdateUserFromGoogleOAuth(Map<String, Object> googleOAuthUserInfo) {
+        String googleEmail = (String) googleOAuthUserInfo.get("email");
+        String googleName = (String) googleOAuthUserInfo.get("name"); // Full name from Google
+        String googlePictureUrl = (String) googleOAuthUserInfo.get("picture"); // Profile picture URL from Google
+
+        if (!StringUtils.hasText(googleEmail)) {
+            throw new IllegalArgumentException("Email from Google OAuth cannot be empty.");
+        }
+
+        // 1. Find User by email
+        Optional<User> existingUser = userRepository.findByEmail(googleEmail);
+
+        User user;
+        boolean isNewUser = false;
+
+        if (existingUser.isPresent()) {
+            user = existingUser.get();
+        } else {
+            // Create new user if not exists
+            isNewUser = true;
+            user = new User();
+            user.setEmail(googleEmail);
+            // Set a random password for OAuth accounts, as the user won't log in with this password
+            user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+            user.setRole(Role.NORMAL_MEMBER); // Default to NORMAL_MEMBER
+            user.setCreatedAt(LocalDateTime.now());
+            user.setNotificationSetting(new HashMap<>()); // Initialize notification settings
+            user.setActive(true);
+        }
+
+        // 2. Update Username: Prioritize name from Google, if not available, use from email
+        if (StringUtils.hasText(googleName)) {
+            user.setUsername(googleName);
+        } else {
+            // Fallback: If Google doesn't provide a name, create a username from the email prefix
+            String usernameFromEmail = extractUsernameFromEmail(googleEmail);
+            user.setUsername(usernameFromEmail);
+        }
+
+        // 3. Update Profile Picture: Directly save the URL from Google
+        if (StringUtils.hasText(googlePictureUrl)) {
+            // If the old picture is not from Google and exists, delete it
+            // (Only delete old pictures if they are stored on your S3 service, not Google's)
+            if (!isNewUser && user.getProfilePicture() != null && !user.getProfilePicture().isEmpty() && !user.getProfilePicture().contains("googleusercontent.com")) {
+                fileUploadService.deleteImage(user.getProfilePicture());
+            }
+            user.setProfilePicture(googlePictureUrl); // Save Google's URL directly
+        }
+        // If googlePictureUrl is null/empty, either keep the current picture or set to null as desired
+        // (e.g., if you want to clear the picture if Google doesn't return one). Currently, it's kept if no new URL.
+
+        user.setUpdatedAt(LocalDateTime.now());
+        User savedUser = userRepository.save(user);
+
+        // Create Member entity if it's a new user and has Member role
+        if (isNewUser && savedUser.getRole() == Role.NORMAL_MEMBER) {
+            memberService.createMemberForUser(savedUser);
+        }
+
+        return savedUser; // Return the saved User entity
+    }
+
+    // Helper method to extract username from email (can be used when googleName is empty)
+    private String extractUsernameFromEmail(String email) {
+        if (email != null && email.contains("@")) {
+            return email.substring(0, email.indexOf("@"));
+        }
+        return email; // Or throw an exception if email is invalid
+    }
 }

@@ -77,11 +77,16 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true); // Cho phép gửi cookies, authorization headers
+        
+        // Specific allowed origins (không dùng wildcard khi allowCredentials = true)
         config.addAllowedOrigin("http://localhost:5173");
         config.addAllowedOrigin("http://localhost:5174");
         config.addAllowedOrigin("http://localhost:3000");
-        config.addAllowedOrigin("https://*.ngrok-free.app");
-//        config.addAllowedOrigin("*");
+        
+        // Sử dụng allowedOriginPatterns cho ngrok domains
+        config.addAllowedOriginPattern("https://*.ngrok-free.app");
+        config.addAllowedOriginPattern("https://*.ngrok.io");
+        
         config.addAllowedHeader("*"); // Cho phép tất cả các header
         config.addAllowedMethod("*"); // Cho phép tất cả các phương thức HTTP (GET, POST, PUT, DELETE...)
         config.setMaxAge(3600L); // Thời gian cache CORS preflight request (1 giờ)
@@ -108,7 +113,10 @@ public class SecurityConfig {
                                             "/uploads/**",
                                             "/api/follows/{userId}/followers", // Cho phép xem danh sách người theo dõi
                                             "/api/follows/{userId}/following", // Cho phép xem danh sách người theo dõi và người đang theo dõi
-                                            "/api/follows/{userId}/stats" // Cho phép xem stats công khai
+                                            "/api/follows/{userId}/stats", // Cho phép xem stats công khai
+                                            "/api/users/{userId}/profile", // Cho phép xem thông tin người dùng công khai
+                                            "/api/auth/google/login", // Cho phép đăng nhập bằng Google OAuth
+                                            "/api/auth/**"// Cho phép liên kết tài khoản Google
                             ).permitAll()
 
                             .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll() // Swagger UI

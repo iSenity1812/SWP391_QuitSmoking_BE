@@ -27,7 +27,17 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns("*")
+                // Specific origins instead of wildcard when allowCredentials = true
+                .allowedOrigins(
+                    "http://localhost:5173",
+                    "http://localhost:5174", 
+                    "http://localhost:3000"
+                )
+                // Use allowedOriginPatterns for dynamic domains like ngrok
+                .allowedOriginPatterns(
+                    "https://*.ngrok-free.app",
+                    "https://*.ngrok.io"
+                )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);

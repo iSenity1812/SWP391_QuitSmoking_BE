@@ -1,6 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.Role;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
@@ -71,13 +72,13 @@ public class User implements UserDetails {
     @Column(name = "IsActive", nullable = false)
     private boolean isActive = true; //đặt giá trị mặc định
 
-    @Size(max = 255, message = "Đường dẫn ảnh đại diện không được vượt quá 255 ký tự")
+    @Size(max = 500, message = "Đường dẫn ảnh đại diện không được vượt quá 500 ký tự")
     @Pattern(
-            regexp = "^$|.*\\.(jpg|jpeg|png|gif|webp|bmp|svg)$",
+            regexp = "^$|.*\\.(jpg|jpeg|png|gif|webp|bmp|svg)$|^https://lh[3-6]\\.googleusercontent\\.com/.*$",
             message = "Tên file ảnh không hợp lệ hoặc định dạng không được hỗ trợ",
             flags = Pattern.Flag.CASE_INSENSITIVE
     )
-    @Column(name = "ProfilePicture", length = 255)
+    @Column(name = "ProfilePicture", length = 500)
     private String profilePicture;
 
     @JdbcTypeCode(SqlTypes.JSON) // Annotation của Hibernate để xử lý JSON
@@ -92,6 +93,10 @@ public class User implements UserDetails {
     // User sở hữu nhiều Transaction
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private Set<Transaction> transactions;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private Set<UserOauthAccount> oauthAccounts;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
