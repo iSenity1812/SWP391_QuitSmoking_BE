@@ -2,6 +2,7 @@ package com.swp391project.SWP391_QuitSmoking_BE.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -34,9 +35,16 @@ public class MemberAchievement {
     // Relationships for convenience
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "MemberID", insertable = false, updatable = false)
+    @JsonIgnore
     private Member member;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "AchievementID", insertable = false, updatable = false)
+    @JsonIgnore
     private Achievement achievement;
+    
+    // Manual setter for populating achievement
+    public void setAchievement(Achievement achievement) {
+        this.achievement = achievement;
+    }
 } 

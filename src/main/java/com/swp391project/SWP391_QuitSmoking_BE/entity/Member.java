@@ -40,8 +40,10 @@ public class Member {
 //    private List<MemberSubscription> memberSubscriptions; // Danh sách các gói đăng ký của thành viên
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<QuitPlan> quitPlans; // Danh sách các kế hoạch bỏ thuốc lá của thành viên
 
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private Set<Appointment> bookings = new HashSet<>(); // Member có nhiều Bookings
 }

@@ -1,6 +1,7 @@
 package com.swp391project.SWP391_QuitSmoking_BE.service;
 
 import com.swp391project.SWP391_QuitSmoking_BE.entity.*;
+import com.swp391project.SWP391_QuitSmoking_BE.dto.MemberAchievementDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.event.UserResistedCravingEvent;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.AchievementRepository;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.MemberAchievementRepository;
@@ -82,8 +83,28 @@ public class AchievementService {
     }
 
     // MemberAchievement
-    public List<MemberAchievement> getMemberAchievements(UUID memberId) {
-        return memberAchievementRepository.findByMember_MemberId(memberId);
+    public List<MemberAchievementDTO> getMemberAchievements(UUID memberId) {
+        List<MemberAchievement> memberAchievements = memberAchievementRepository.findByMember_MemberId(memberId);
+        // Convert to DTO
+        List<MemberAchievementDTO> result = new ArrayList<>();
+        for (MemberAchievement ma : memberAchievements) {
+            Achievement achievement = achievementRepository.findById(ma.getAchievementId()).orElse(null);
+            if (achievement != null) {
+                MemberAchievementDTO dto = MemberAchievementDTO.builder()
+                    .memberAchievementId(ma.getMemberAchievementId())
+                    .memberId(ma.getMemberId())
+                    .achievementId(ma.getAchievementId())
+                    .isShared(ma.isShared())
+                    .dateAchieved(ma.getDateAchieved())
+                    .name(achievement.getName())
+                    .description(achievement.getDescription())
+                    .iconUrl(achievement.getIconUrl())
+                    .achievementType(achievement.getAchievementType().name())
+                    .build();
+                result.add(dto);
+            }
+        }
+        return result;
     }
 
     public List<Achievement> getUnlockedAchievements(UUID memberId) {
@@ -95,7 +116,7 @@ public class AchievementService {
     }
 
     // Method for backward compatibility
-    public List<MemberAchievement> getAchievementsOfMember(UUID memberId) {
+    public List<MemberAchievementDTO> getAchievementsOfMember(UUID memberId) {
         return getMemberAchievements(memberId);
     }
 
@@ -112,7 +133,7 @@ public class AchievementService {
     @Transactional
     public void checkAndUnlockAchievements(UUID memberId) {
         System.out.println("[AchievementService] Starting achievement check for memberId: " + memberId);
-        
+
         // Tính toán các mốc hiện tại của member
         BigDecimal currentDaysQuit = calculateDaysQuit(memberId);
         BigDecimal currentMoneySaved = calculateMoneySaved(memberId);
@@ -121,9 +142,9 @@ public class AchievementService {
         BigDecimal currentResilienceScore = calculateResilienceCount(memberId);
         BigDecimal currentHealthScore = calculateDaysQuit(memberId); // Health = days quit
 
-        System.out.println("[AchievementService] Current progress - Days: " + currentDaysQuit + 
-                         ", Money: " + currentMoneySaved + 
-                         ", Cigarettes: " + currentCigarettesNotSmoked + 
+        System.out.println("[AchievementService] Current progress - Days: " + currentDaysQuit +
+                         ", Money: " + currentMoneySaved +
+                         ", Cigarettes: " + currentCigarettesNotSmoked +
                          ", Cravings: " + currentCravingResisted +
                          ", Resilience: " + currentResilienceScore +
                          ", Health: " + currentHealthScore);
@@ -218,7 +239,7 @@ public class AchievementService {
                 }
             }
         }
-        
+
         System.out.println("[AchievementService] Completed achievement check for memberId: " + memberId);
     }
 
@@ -254,7 +275,7 @@ public class AchievementService {
             notification.setNotificationType("ACHIEVEMENT");
             notification.setFromUserId(null); // Hệ thống
             notificationService.createNotification(notification);
-            
+
             // Gửi WebSocket notification real-time cho achievement
             try {
                 notificationService.sendAchievementNotification(member.getUser().getUserId(), achievement);
@@ -269,7 +290,7 @@ public class AchievementService {
     public BigDecimal calculateDaysQuit(UUID memberId) {
         // Lấy quit plan hiện tại của member
         Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
-        
+
         if (quitPlanOpt.isEmpty()) {
             return BigDecimal.ZERO;
         }
@@ -312,7 +333,7 @@ public class AchievementService {
     public BigDecimal calculateCigarettesNotSmoked(UUID memberId) {
         // Lấy quit plan hiện tại
         Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
-        
+
         if (quitPlanOpt.isEmpty()) {
             return BigDecimal.ZERO;
         }
@@ -322,7 +343,7 @@ public class AchievementService {
 
         // Tính tổng số điếu đã hút từ daily summaries
         List<DailySummary> dailySummaries = dailySummaryRepository.findByQuitPlan_QuitPlanId(quitPlan.getQuitPlanId());
-        
+
         int totalSmoked = 0;
         for (DailySummary summary : dailySummaries) {
             totalSmoked += summary.getTotalSmokedCount();
@@ -339,16 +360,16 @@ public class AchievementService {
     public BigDecimal calculateCravingResisted(UUID memberId) {
         // Lấy quit plan hiện tại
         Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
-        
+
         if (quitPlanOpt.isEmpty()) {
             return BigDecimal.ZERO;
         }
 
         QuitPlan quitPlan = quitPlanOpt.get();
-        
+
         // Tính tổng số lần thèm thuốc từ daily summaries
         List<DailySummary> dailySummaries = dailySummaryRepository.findByQuitPlan_QuitPlanId(quitPlan.getQuitPlanId());
-        
+
         int totalCravingCount = 0;
         for (DailySummary summary : dailySummaries) {
             totalCravingCount += summary.getTotalCravingCount();
@@ -360,20 +381,20 @@ public class AchievementService {
     public BigDecimal calculateResilienceCount(UUID memberId) {
         // RESILIENCE  Chỉ đếm số lần attempts
         // Loại bỏ logic score phức tạp, chỉ dựa trên số lần thử lại
-        
+
         Member member = memberRepository.findById(memberId).orElse(null);
         if (member == null) {
             return BigDecimal.ZERO;
         }
-        
+
         List<QuitPlan> allQuitPlans = quitPlanRepository.findByMemberOrderByCreatedAtDesc(member);
-        
+
         // Resilience = số lần attempts (ít nhất phải có 2 lần mới có resilience)
         int totalAttempts = allQuitPlans.size();
         if (totalAttempts <= 1) {
             return BigDecimal.ZERO;
         }
-        
+
         // Đơn giản: mỗi lần attempt sau lần đầu = +1 điểm resilience
         return BigDecimal.valueOf(totalAttempts - 1);
     }
@@ -410,54 +431,54 @@ public class AchievementService {
         }
 
         // Days Quit Achievements
-        createAchievement(new Achievement(null, "3 Days Strong", "/icons/3days.png", 
-            "You've been smoke-free for 3 days!", Achievement.AchievementType.DAYS_QUIT, 
+        createAchievement(new Achievement(null, "3 Days Strong", "/icons/3days.png",
+            "You've been smoke-free for 3 days!", Achievement.AchievementType.DAYS_QUIT,
             new BigDecimal("3"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "1 Week Warrior", "/icons/1week.png", 
-            "A full week without smoking!", Achievement.AchievementType.DAYS_QUIT, 
+
+        createAchievement(new Achievement(null, "1 Week Warrior", "/icons/1week.png",
+            "A full week without smoking!", Achievement.AchievementType.DAYS_QUIT,
             new BigDecimal("7"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "3 Weeks Champion", "/icons/3weeks.png", 
-            "Three weeks of determination!", Achievement.AchievementType.DAYS_QUIT, 
+
+        createAchievement(new Achievement(null, "3 Weeks Champion", "/icons/3weeks.png",
+            "Three weeks of determination!", Achievement.AchievementType.DAYS_QUIT,
             new BigDecimal("21"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "1 Month Hero", "/icons/1month.png", 
-            "One month smoke-free!", Achievement.AchievementType.DAYS_QUIT, 
+
+        createAchievement(new Achievement(null, "1 Month Hero", "/icons/1month.png",
+            "One month smoke-free!", Achievement.AchievementType.DAYS_QUIT,
             new BigDecimal("30"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "3 Months Legend", "/icons/3months.png", 
-            "Three months of freedom!", Achievement.AchievementType.DAYS_QUIT, 
+
+        createAchievement(new Achievement(null, "3 Months Legend", "/icons/3months.png",
+            "Three months of freedom!", Achievement.AchievementType.DAYS_QUIT,
             new BigDecimal("90"), LocalDateTime.now(), null));
 
         // Money Saved Achievements
-        createAchievement(new Achievement(null, "100K Saver", "/icons/100k.png", 
-            "Saved 100,000 VND!", Achievement.AchievementType.MONEY_SAVED, 
+        createAchievement(new Achievement(null, "100K Saver", "/icons/100k.png",
+            "Saved 100,000 VND!", Achievement.AchievementType.MONEY_SAVED,
             new BigDecimal("100000"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "500K Master", "/icons/500k.png", 
-            "Saved 500,000 VND!", Achievement.AchievementType.MONEY_SAVED, 
+
+        createAchievement(new Achievement(null, "500K Master", "/icons/500k.png",
+            "Saved 500,000 VND!", Achievement.AchievementType.MONEY_SAVED,
             new BigDecimal("500000"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "1M Millionaire", "/icons/1m.png", 
-            "Saved 1,000,000 VND!", Achievement.AchievementType.MONEY_SAVED, 
+
+        createAchievement(new Achievement(null, "1M Millionaire", "/icons/1m.png",
+            "Saved 1,000,000 VND!", Achievement.AchievementType.MONEY_SAVED,
             new BigDecimal("1000000"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "5M Tycoon", "/icons/5m.png", 
-            "Saved 5,000,000 VND!", Achievement.AchievementType.MONEY_SAVED, 
+
+        createAchievement(new Achievement(null, "5M Tycoon", "/icons/5m.png",
+            "Saved 5,000,000 VND!", Achievement.AchievementType.MONEY_SAVED,
             new BigDecimal("5000000"), LocalDateTime.now(), null));
 
         // Cigarettes Not Smoked Achievements
-        createAchievement(new Achievement(null, "10 Cigarettes Free", "/icons/10cigs.png", 
-            "Avoided 10 cigarettes!", Achievement.AchievementType.CIGARETTES_NOT_SMOKED, 
+        createAchievement(new Achievement(null, "10 Cigarettes Free", "/icons/10cigs.png",
+            "Avoided 10 cigarettes!", Achievement.AchievementType.CIGARETTES_NOT_SMOKED,
             new BigDecimal("10"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "50 Cigarettes Free", "/icons/50cigs.png", 
-            "Avoided 50 cigarettes!", Achievement.AchievementType.CIGARETTES_NOT_SMOKED, 
+
+        createAchievement(new Achievement(null, "50 Cigarettes Free", "/icons/50cigs.png",
+            "Avoided 50 cigarettes!", Achievement.AchievementType.CIGARETTES_NOT_SMOKED,
             new BigDecimal("50"), LocalDateTime.now(), null));
-        
-        createAchievement(new Achievement(null, "200 Cigarettes Free", "/icons/200cigs.png", 
-            "Avoided 200 cigarettes!", Achievement.AchievementType.CIGARETTES_NOT_SMOKED, 
+
+        createAchievement(new Achievement(null, "200 Cigarettes Free", "/icons/200cigs.png",
+            "Avoided 200 cigarettes!", Achievement.AchievementType.CIGARETTES_NOT_SMOKED,
             new BigDecimal("200"), LocalDateTime.now(), null));
 
 
@@ -578,9 +599,11 @@ public class AchievementService {
         private boolean completed;
     }
 
-    // Trả về tất cả achievement + trạng thái completed cho user
+    // Trả về tất cả achievement + trạng thái completed cho user (exclude SOCIAL achievements)
     public List<AchievementDTO> getAllAchievementsForUser(UUID memberId) {
-        List<Achievement> allAchievements = achievementRepository.findAll();
+        List<Achievement> allAchievements = achievementRepository.findAll().stream()
+                .filter(achievement -> achievement.getAchievementType() != Achievement.AchievementType.SOCIAL)
+                .collect(Collectors.toList());
         List<MemberAchievement> userAchievements = memberAchievementRepository.findByMember_MemberId(memberId);
         Map<Long, MemberAchievement> userAchMap = userAchievements.stream()
             .collect(Collectors.toMap(MemberAchievement::getAchievementId, ma -> ma));
@@ -737,5 +760,43 @@ public class AchievementService {
         private String reward;
         private String type;
         private BigDecimal milestoneValue;
+    }
+
+    // Update isShared status của MemberAchievement
+    @Transactional
+    public MemberAchievementDTO updateAchievementShareStatus(UUID memberId, Long achievementId, boolean isShared) {
+        // First, get the existing data to build DTO
+        MemberAchievement existing = memberAchievementRepository
+            .findByMember_MemberIdAndAchievementId(memberId, achievementId)
+            .orElseThrow(() -> new RuntimeException("Member achievement not found"));
+
+        // Store primitive values to avoid proxy issues
+        Long memberAchievementId = existing.getMemberAchievementId();
+        LocalDateTime dateAchieved = existing.getDateAchieved();
+
+        // Update using custom query to avoid entity loading
+        int updated = memberAchievementRepository.updateShareStatus(memberId, achievementId, isShared);
+        if (updated == 0) {
+            throw new RuntimeException("Failed to update share status");
+        }
+
+        // Load achievement details separately
+        Achievement achievement = achievementRepository.findById(achievementId).orElse(null);
+        if (achievement == null) {
+            throw new RuntimeException("Achievement not found");
+        }
+
+        // Build DTO from primitive values only
+        return MemberAchievementDTO.builder()
+            .memberAchievementId(memberAchievementId)
+            .memberId(memberId)
+            .achievementId(achievementId)
+            .isShared(isShared)
+            .dateAchieved(dateAchieved)
+            .name(achievement.getName())
+            .description(achievement.getDescription())
+            .iconUrl(achievement.getIconUrl())
+            .achievementType(achievement.getAchievementType().name())
+            .build();
     }
 } 

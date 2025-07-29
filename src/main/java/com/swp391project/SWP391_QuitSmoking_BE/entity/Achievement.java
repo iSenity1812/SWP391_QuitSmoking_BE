@@ -49,7 +49,7 @@ public class Achievement {
         GOAL_STREAK,         // Thành tựu chuỗi goal liên tiếp
         RESILIENCE,          // Thành tựu kiên trì/quay lại
         HEALTH,              // Thành tựu sức khỏe
-        SOCIAL,              // Thành tựu cộng đồng
-        SPECIAL              // Thành tựu đặc biệt
+        SPECIAL,              // Thành tựu đặc biệt
+        SOCIAL
     }
 } 

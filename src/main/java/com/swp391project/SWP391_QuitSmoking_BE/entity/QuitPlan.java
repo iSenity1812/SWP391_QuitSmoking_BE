@@ -3,6 +3,7 @@ package com.swp391project.SWP391_QuitSmoking_BE.entity;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.QuitPlanStatus;
 import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import com.swp391project.SWP391_QuitSmoking_BE.validation.quitplan.ValidQuitPlanDates;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -28,6 +29,7 @@ public class QuitPlan {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "MemberID", referencedColumnName = "MemberID", nullable = false)
     @NotNull(message = "Thông tin thành viên không được để trống")
+    @JsonIgnore
     private Member member;
 
     @NotNull(message = "Loại kế hoạch giảm dần không được để trống")

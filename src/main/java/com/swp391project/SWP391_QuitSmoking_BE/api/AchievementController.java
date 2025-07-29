@@ -1,5 +1,6 @@
 package com.swp391project.SWP391_QuitSmoking_BE.api;
 
+import com.swp391project.SWP391_QuitSmoking_BE.dto.MemberAchievementDTO;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.Achievement;
 import com.swp391project.SWP391_QuitSmoking_BE.entity.MemberAchievement;
 import com.swp391project.SWP391_QuitSmoking_BE.response.ApiResponse;
@@ -89,9 +90,9 @@ public class AchievementController {
 
     // Lấy achievements của member
     @GetMapping("/member/{memberId}")
-    public ResponseEntity<ApiResponse<List<MemberAchievement>>> getAchievementsOfMember(@PathVariable UUID memberId) {
+    public ResponseEntity<ApiResponse<List<MemberAchievementDTO>>> getAchievementsOfMember(@PathVariable UUID memberId) {
         try {
-            List<MemberAchievement> achievements = achievementService.getAchievementsOfMember(memberId);
+            List<MemberAchievementDTO> achievements = achievementService.getAchievementsOfMember(memberId);
             return ResponseEntity.ok(ApiResponse.success(achievements));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Error fetching member achievements: " + e.getMessage()));
@@ -300,6 +301,20 @@ public class AchievementController {
             return ResponseEntity.ok(ApiResponse.success(response));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Error checking achievements by type: " + e.getMessage()));
+        }
+    }
+
+    // API để update isShared status của achievement
+    @PutMapping("/member/{memberId}/achievement/{achievementId}/share")
+    public ResponseEntity<ApiResponse<MemberAchievementDTO>> updateAchievementShareStatus(
+            @PathVariable UUID memberId,
+            @PathVariable Long achievementId,
+            @RequestParam boolean isShared) {
+        try {
+            MemberAchievementDTO updated = achievementService.updateAchievementShareStatus(memberId, achievementId, isShared);
+            return ResponseEntity.ok(ApiResponse.success(updated));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(HttpStatus.BAD_REQUEST, "Error updating achievement share status: " + e.getMessage()));
         }
     }
 }
