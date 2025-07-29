@@ -280,12 +280,25 @@ public class DailySummaryService {
         List<DailySummary> dailySummaryList = dailySummaryRepository.findByQuitPlan_Member_MemberIdAndTrackDateBetween(
                 memberId, startDate, endDate
         );
-
         // Thay vì ném ResourceNotFoundException nếu danh sách rỗng
         // trả về danh sách rỗng để DataVisualizationService có thể xử lý điền giá trị 0
         if(dailySummaryList.isEmpty()) {
             return List.of(); // Trả về danh sách rỗng immutable
         }
+
+        // Lay quitplan co status IN_PROGRESS
+        Optional<QuitPlan> quitPlanOptional = quitPlanService.getProgressQuitPlansByMemberId(memberId);
+        if (quitPlanOptional.isEmpty()) {
+            throw new ResourceNotFoundException("Không tìm thấy kế hoạch cai thuốc nào cho thành viên với ID: " + memberId);
+        }
+
+        int quitPlanId = quitPlanOptional.get().getQuitPlanId();
+
+        // Duyet mang lay bang ghi co id = quitPlanId
+        dailySummaryList = dailySummaryList.stream()
+                .filter(ds -> ds.getQuitPlan().getQuitPlanId() == quitPlanId)
+                .toList();
+
 
         return dailySummaryList.stream()
                 .map(this::convertToResponseDto)
@@ -477,10 +490,10 @@ public class DailySummaryService {
         dailySummaryRepository.deleteById(id);
 
         // Kiểm tra status/tái nghiện sau khi DailySummary bị xóa
-        if (quitPlan != null) {
-            quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlan);
-            quitPlanService.handleDailySummaryUpdateForRelapse(dailySummary);
-        }
+//        if (quitPlan != null) {
+//            quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlan);
+//            quitPlanService.handleDailySummaryUpdateForRelapse(dailySummary);
+//        }
     }
 
     @Transactional(readOnly = true)
@@ -565,7 +578,7 @@ public class DailySummaryService {
             throw new IllegalArgumentException
                     ("DailySummary không có QuitPlan liên kết. Không thể tính toán tiền đã tiết kiệm");
         } else {
-            quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlan);
+//            quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlan);
 
             BigDecimal oldMoneySaved = dailySummary.getMoneySaved();
             BigDecimal newMoneySaved = caculateMoneySaved(quitPlan, dailySummary.getTotalSmokedCount());
@@ -584,7 +597,7 @@ public class DailySummaryService {
             // Kiểm tra đảm bảo dailySummary đang muốn xóa là một bản ghi đang tồn tại trong DB
             if (dailySummaryRepository.existsById(dailySummary.getDailySummaryId())) {
                 dailySummaryRepository.delete(dailySummary);
-                quitPlanService.handleDailySummaryUpdateForRelapse(dailySummary);
+//                quitPlanService.handleDailySummaryUpdateForRelapse(dailySummary);
                 log.warn("DailySummaryID {} đã bị xóa (không còn dữ liệu liên quan)", dailySummary.getDailySummaryId());
                 return; // Thoát khỏi phương thức sau khi xóa
             }
@@ -592,7 +605,7 @@ public class DailySummaryService {
 
         if (changed) {
             DailySummary savedDailySummary = dailySummaryRepository.save(dailySummary);
-            quitPlanService.handleDailySummaryUpdateForRelapse(savedDailySummary);
+//            quitPlanService.handleDailySummaryUpdateForRelapse(savedDailySummary);
         } else {
             log.info("DailySummary ID {}: Không có thay đổi tổng số liệu", dailySummary.getDailySummaryId());
         }
@@ -619,7 +632,8 @@ public class DailySummaryService {
                 dailySummaryRepository.save(dailySummary);
             }
         }
-        quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlan);
+//        quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlan);
+
     }
 
     //Kiểm tra xem kế hoạch có được coi là COMPLETED hay không

@@ -4,17 +4,16 @@ import com.swp391project.SWP391_QuitSmoking_BE.dto.craving.CravingTrackingRespon
 import com.swp391project.SWP391_QuitSmoking_BE.dto.craving.HourlyChartDataResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.dailysummary.DailyChartDataResponse;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.dailysummary.DailySummaryResponse;
+import com.swp391project.SWP391_QuitSmoking_BE.entity.QuitPlan;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.DailySummaryRepository;
+import com.swp391project.SWP391_QuitSmoking_BE.repository.QuitPlanRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,6 +22,7 @@ public class DataVisualizationService {
     private final CravingTrackingService cravingTrackingService;
     private final DailySummaryRepository dailySummaryRepository;
     private final DailySummaryService dailySummaryService;
+    private final QuitPlanRepository quitPlanRepository;
 
     //Lấy dữ liệu theo giờ trong một ngày cụ thể của người dùng
     //Nếu một giờ không có bản ghi, nó sẽ được điền với giá trị 0
@@ -64,6 +64,7 @@ public class DataVisualizationService {
     public List<DailyChartDataResponse> getDailyDataForPeriod(UUID memberId, LocalDate startDate, LocalDate endDate) {
         // Lấy tất cả các bản ghi DailySummary cho khoảng thời gian và thành viên này
         List<DailySummaryResponse> dailySummaries = dailySummaryService.getDailySummariesByDateBetween(memberId, startDate, endDate);
+
 
         // Tạo một Map để dễ dàng tra cứu dữ liệu theo ngày
         Map<LocalDate, DailySummaryResponse> dailyMap = dailySummaries.stream()

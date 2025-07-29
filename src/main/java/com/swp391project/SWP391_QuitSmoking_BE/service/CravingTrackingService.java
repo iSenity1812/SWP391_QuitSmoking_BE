@@ -44,7 +44,6 @@ public class CravingTrackingService {
         }
         return modelMapper.map(cravingTracking, CravingTrackingResponse.class);
     }
-
 //    @Transactional
 //    public CravingTracking createCravingTracking(DailySummary dailySummary, CravingTracking cravingTracking) {
 //        // Kiểm tra xem cravingTracking đã có trong danh sách của dailySummary chưa
