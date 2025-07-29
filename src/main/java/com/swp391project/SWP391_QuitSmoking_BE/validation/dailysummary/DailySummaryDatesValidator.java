@@ -47,7 +47,7 @@ public class DailySummaryDatesValidator implements ConstraintValidator<ValidDail
         //TrackDate phải nằm giữa QuitPlan.StartDate và QuitPlan.GoalDate.
         if (quitPlanStartDate != null && quitPlanGoalDate != null) {
             LocalDate planStartDateAsDate = quitPlanStartDate.toLocalDate();
-            if (trackDate.isBefore(planStartDateAsDate) || trackDate.isAfter(quitPlanGoalDate)) {
+            if (trackDate.isAfter(quitPlanGoalDate)) {
                 context.buildConstraintViolationWithTemplate("Ngày theo dõi phải nằm trong khoảng thời gian của kế hoạch cai thuốc (từ ngày bắt đầu đến ngày mục tiêu)")
                         .addPropertyNode("trackDate")
                         .addConstraintViolation();

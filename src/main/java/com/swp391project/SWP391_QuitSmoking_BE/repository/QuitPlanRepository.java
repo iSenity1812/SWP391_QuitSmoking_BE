@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,6 +50,10 @@ public interface QuitPlanRepository extends JpaRepository<QuitPlan, Integer> {
     @Modifying
     @Query("UPDATE QuitPlan q SET q.status = :status WHERE q.quitPlanId = :quitPlanId")
     void updateQuitPlanStatus(Integer quitPlanId, QuitPlanStatus status);
+
+    @Modifying
+    @Query("UPDATE QuitPlan q SET q.startDate = :startDate WHERE q.quitPlanId = :quitPlanId")
+    void updateQuitPlanStartDate(@Param("quitPlanId") Integer quitPlanId, @Param("startDate") LocalDateTime startDate);
 
     @Query("SELECT qp FROM QuitPlan qp JOIN FETCH qp.member m JOIN FETCH m.user u")
     List<QuitPlan> findAllWithMemberAndUser();

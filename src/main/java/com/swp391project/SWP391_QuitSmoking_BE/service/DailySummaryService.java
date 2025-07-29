@@ -338,6 +338,7 @@ public class DailySummaryService {
         int sumCravingsFromCraving = associatedCravingTrackings.stream().mapToInt(CravingTracking::getCravingsCount).sum();
 
         boolean changed = false;
+        boolean updateSmokeCount = false;
 
         // Cập nhật totalSmokedCount và manualSmokedCount dựa trên request
         if (request.getUpdateSmokedCount() != null) {
@@ -353,6 +354,7 @@ public class DailySummaryService {
                 // Đảm bảo manualSmokedCount không âm
                 existingSummary.setManualSmokedCount(Math.max(0, request.getUpdateSmokedCount() - sumSmokedFromCraving));
                 changed = true;
+                updateSmokeCount = true;
             }
         } else {
             // Nếu không có updateSmokedCount, totalSmokedCount sẽ dựa trên manualSmokedCount hiện tại và trackedSmokedCount
@@ -360,6 +362,7 @@ public class DailySummaryService {
             if (existingSummary.getTotalSmokedCount() != newTotalSmoked) {
                 existingSummary.setTotalSmokedCount(newTotalSmoked);
                 changed = true;
+                updateSmokeCount = true;
             }
         }
 
@@ -433,7 +436,9 @@ public class DailySummaryService {
                     existingSummary.getDailySummaryId());
 
             quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlan);
-            quitPlanService.handleDailySummaryUpdateForRelapse(existingSummary);
+            if (existingSummary.getTrackDate().isEqual(LocalDate.now()) && updateSmokeCount) {
+                quitPlanService.handleDailySummaryUpdateForRelapse(existingSummary);
+            }
 
             throw new DailySummaryDeletedException
                     ("Nhật ký ID " + dailySummaryId + " đã bị xóa do trở nên rỗng (không còn dữ liệu theo dõi)");
@@ -444,7 +449,9 @@ public class DailySummaryService {
             DailySummary savedDailySummary = dailySummaryRepository.save(existingSummary);
 
             quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlan);
-            quitPlanService.handleDailySummaryUpdateForRelapse(savedDailySummary);
+            if (savedDailySummary.getTrackDate().isEqual(LocalDate.now()) && updateSmokeCount) {
+                quitPlanService.handleDailySummaryUpdateForRelapse(savedDailySummary);
+            }
 
             // Trigger achievement check khi cập nhật daily summary
             try {
