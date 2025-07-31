@@ -134,9 +134,11 @@ public class CravingTrackingController {
                     .status(HttpStatus.OK)
                     .body(ApiResponse.success(response, "Lấy danh sách bản ghi thành công"));
         } catch (ResourceNotFoundException e) {
+            // Nếu daily summary không tồn tại, trả về empty list thay vì 404
+            // Điều này giúp frontend không bị crash khi daily summary chưa có data
             return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error(HttpStatus.NOT_FOUND, e.getMessage()));
+                    .status(HttpStatus.OK)
+                    .body(ApiResponse.success(List.of(), "Không có dữ liệu tracking cho daily summary này"));
         } catch (AccessDeniedException e) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)

@@ -312,7 +312,9 @@ public class CravingTrackingService {
         List<CravingTracking> cravingTrackingList = cravingTrackingRepository.
                 findByDailySummary_DailySummaryId(dailySummaryId);
         if (cravingTrackingList.isEmpty()) {
-            throw new ResourceNotFoundException("Không tìm thấy bản ghi nào cho daily summary: " + dailySummaryId);
+            // Thay vì throw exception, trả về empty list để frontend có thể xử lý
+            // Điều này giúp tránh 404 error khi daily summary chưa có craving tracking data
+            return List.of(); // Trả về danh sách rỗng immutable
         }
         return cravingTrackingList.stream()
                 .map(this::convertToResponseDto)
