@@ -33,6 +33,7 @@ public class QuitPlanService {
     private final MemberRepository memberRepository;
     private final ModelMapper modelMapper;
     private final DailySummaryService dailySummaryService;
+    private final HealthMetricService healthMetricService;
 
     private static final LocalDate MAX_GOAL_DATE = LocalDate.of(2999, 12, 31);
 
@@ -41,8 +42,10 @@ public class QuitPlanService {
             QuitPlanRepository quitPlanRepository,
             MemberRepository memberRepository,
             @Lazy DailySummaryService dailySummaryService, //@Lazy to break potential cycles
+            @Lazy HealthMetricService healthMetricService, //@Lazy to break potential cycles
             ModelMapper modelMapper) {
         this.dailySummaryService = dailySummaryService;
+        this.healthMetricService = healthMetricService;
         this.quitPlanRepository = quitPlanRepository;
         this.memberRepository = memberRepository;
         this.modelMapper = modelMapper;
@@ -285,6 +288,15 @@ public class QuitPlanService {
         log.info("Lưu kế hoạch cai thuốc cho thành viên: {}", memberId);
         QuitPlan savedPlan = quitPlanRepository.save(quitPlan);
         log.info("Kế hoạch cai thuốc đã được lưu với ID: {}", savedPlan.getQuitPlanId());
+
+        // Khởi tạo health metrics cho user
+        try {
+            healthMetricService.initializeHealthMetrics(member.getUser());
+            log.info("Health metrics đã được khởi tạo cho user: {}", memberId);
+        } catch (Exception e) {
+            log.error("Lỗi khi khởi tạo health metrics cho user {}: {}", memberId, e.getMessage());
+            // Không throw exception vì đây không phải lỗi nghiêm trọng
+        }
 
         // Kiểm tra và cập nhật trạng thái ngay lập tức sau khi lưu
         ensureQuitPlanStatusIsCurrent(savedPlan);

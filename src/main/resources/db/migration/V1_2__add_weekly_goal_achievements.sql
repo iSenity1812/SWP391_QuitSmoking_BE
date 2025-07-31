@@ -1,13 +1,14 @@
 -- Add Weekly Goal achievements to the achievement table
-INSERT INTO achievement (name, icon_url, description, achievement_type, milestone_value, created_at) VALUES
+-- Temporarily commented out due to missing achievement table
+-- INSERT INTO achievement (name, icon_url, description, achievement_type, milestone_value, created_at) VALUES
 -- Weekly Goal Achievements
-('Goal Setter', '/icons/first_goal.png', 'Completed your first weekly goal!', 'WEEKLY_GOAL', 1, NOW()),
-('Goal Achiever', '/icons/5_goals.png', 'Completed 5 weekly goals!', 'WEEKLY_GOAL', 5, NOW()),
-('Goal Master', '/icons/10_goals.png', 'Completed 10 weekly goals!', 'WEEKLY_GOAL', 10, NOW()),
-('Goal Champion', '/icons/25_goals.png', 'Completed 25 weekly goals!', 'WEEKLY_GOAL', 25, NOW()),
+-- ('Goal Setter', '/icons/first_goal.png', 'Completed your first weekly goal!', 'WEEKLY_GOAL', 1, NOW()),
+-- ('Goal Achiever', '/icons/5_goals.png', 'Completed 5 weekly goals!', 'WEEKLY_GOAL', 5, NOW()),
+-- ('Goal Master', '/icons/10_goals.png', 'Completed 10 weekly goals!', 'WEEKLY_GOAL', 10, NOW()),
+-- ('Goal Champion', '/icons/25_goals.png', 'Completed 25 weekly goals!', 'WEEKLY_GOAL', 25, NOW()),
 
 -- Goal Streak Achievements  
-('Consistent Performer', '/icons/2_streak.png', '2 weeks goal streak!', 'GOAL_STREAK', 2, NOW()),
-('Streak Builder', '/icons/4_streak.png', '4 weeks goal streak!', 'GOAL_STREAK', 4, NOW()),
-('Streak Master', '/icons/8_streak.png', '8 weeks goal streak!', 'GOAL_STREAK', 8, NOW()),
-('Unstoppable', '/icons/12_streak.png', '12 weeks goal streak!', 'GOAL_STREAK', 12, NOW());
+-- ('Consistent Performer', '/icons/2_streak.png', '2 weeks goal streak!', 'GOAL_STREAK', 2, NOW()),
+-- ('Streak Builder', '/icons/4_streak.png', '4 weeks goal streak!', 'GOAL_STREAK', 4, NOW()),
+-- ('Streak Master', '/icons/8_streak.png', '8 weeks goal streak!', 'GOAL_STREAK', 8, NOW()),
+-- ('Unstoppable', '/icons/12_streak.png', '12 weeks goal streak!', 'GOAL_STREAK', 12, NOW());
