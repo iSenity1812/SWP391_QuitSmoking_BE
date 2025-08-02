@@ -42,6 +42,7 @@ public class DailySummaryService {
     private final QuitPlanService quitPlanService;
     private final QuitPlanRepository quitPlanRepository;
     private final AchievementTriggerService achievementTriggerService;
+    private final HealthMetricService healthMetricService;
 
     private static final int RELAPSE_CONSECUTIVE_DAYS_THRESHOLD = 3;
     private static final double RELAPSE_PERCENTAGE_OVER_TARGET_THRESHOLD = 0.20; // 20%
@@ -85,6 +86,14 @@ public class DailySummaryService {
             log.info("[DailySummaryService] Triggered achievement check for memberId: {}", quitPlan.getMember().getMemberId());
         } catch (Exception e) {
             log.error("[DailySummaryService] Error triggering achievement check: {}", e.getMessage());
+        }
+
+        // Trigger health metrics update khi có daily summary mới
+        try {
+            healthMetricService.triggerHealthMetricsUpdate(quitPlan.getMember().getUser());
+            log.info("[DailySummaryService] Triggered health metrics update for memberId: {}", quitPlan.getMember().getMemberId());
+        } catch (Exception e) {
+            log.error("[DailySummaryService] Error triggering health metrics update: {}", e.getMessage());
         }
 
         return savedSummary;
@@ -219,18 +228,38 @@ public class DailySummaryService {
 
         if (inProgressPlan.isPresent()) {
             quitPlan = inProgressPlan.get();
-            log.debug("Tìm thấy kế hoạch IN_PROGRESS (ID: {}) cho memberId: {}", quitPlan.getQuitPlanId(), memberId);
+            log.debug("Tìm thấy kế hoạch IN_PROGRESS (ID: {}, Type: {}) cho memberId: {}", 
+                     quitPlan.getQuitPlanId(), quitPlan.getReductionType(), memberId);
         } else {
             log.debug("Không tìm thấy kế hoạch IN_PROGRESS cho memberId: {}. Đang tìm kế hoạch NOT_STARTED.", memberId);
             // Nếu không có kế hoạch IN_PROGRESS, tìm kế hoạch NOT_STARTED
             Optional<QuitPlan> notStartedPlan = quitPlanRepository.findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.NOT_STARTED);
             if (notStartedPlan.isPresent()) {
                 quitPlan = notStartedPlan.get();
-                log.debug("Tìm thấy kế hoạch NOT_STARTED (ID: {}) cho memberId: {}", quitPlan.getQuitPlanId(), memberId);
+                log.debug("Tìm thấy kế hoạch NOT_STARTED (ID: {}, Type: {}) cho memberId: {}", 
+                         quitPlan.getQuitPlanId(), quitPlan.getReductionType(), memberId);
             } else {
-                // Nếu không tìm thấy cả hai, ném lỗi
-                log.warn("Không tìm thấy kế hoạch cai thuốc nào đang hoạt động hoặc chưa bắt đầu cho memberId: {}", memberId);
-                throw new ResourceNotFoundException("Không tìm thấy kế hoạch cai thuốc nào đang hoạt động hoặc chưa bắt đầu cho thành viên này.");
+                log.debug("Không tìm thấy kế hoạch NOT_STARTED cho memberId: {}. Đang tìm kế hoạch FAILED.", memberId);
+                // Nếu không có kế hoạch NOT_STARTED, tìm kế hoạch FAILED (có thể restart)
+                Optional<QuitPlan> failedPlan = quitPlanRepository.findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.FAILED);
+                if (failedPlan.isPresent()) {
+                    quitPlan = failedPlan.get();
+                    log.debug("Tìm thấy kế hoạch FAILED (ID: {}, Type: {}) cho memberId: {}. Có thể restart.", 
+                             quitPlan.getQuitPlanId(), quitPlan.getReductionType(), memberId);
+                } else {
+                    log.debug("Không tìm thấy kế hoạch FAILED cho memberId: {}. Đang tìm kế hoạch COMPLETED.", memberId);
+                    // Cuối cùng, tìm kế hoạch COMPLETED
+                    Optional<QuitPlan> completedPlan = quitPlanRepository.findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.COMPLETED);
+                    if (completedPlan.isPresent()) {
+                        quitPlan = completedPlan.get();
+                        log.debug("Tìm thấy kế hoạch COMPLETED (ID: {}, Type: {}) cho memberId: {}", 
+                                 quitPlan.getQuitPlanId(), quitPlan.getReductionType(), memberId);
+                    } else {
+                        // Nếu không tìm thấy bất kỳ kế hoạch nào, ném lỗi
+                        log.warn("Không tìm thấy kế hoạch cai thuốc nào cho memberId: {}", memberId);
+                        throw new ResourceNotFoundException("Không tìm thấy kế hoạch cai thuốc nào cho thành viên này.");
+                    }
+                }
             }
         }
 
@@ -238,11 +267,13 @@ public class DailySummaryService {
         Optional<DailySummary> dailySummaryOptional = dailySummaryRepository.findByQuitPlanAndTrackDate(quitPlan, trackDate);
 
         if (dailySummaryOptional.isPresent()) {
-            log.debug("Tìm thấy DailySummary (ID: {}) cho ngày {} và QuitPlan ID {}", dailySummaryOptional.get().getDailySummaryId(), trackDate, quitPlan.getQuitPlanId());
+            log.debug("Tìm thấy DailySummary (ID: {}) cho ngày {} và QuitPlan ID {}", 
+                     dailySummaryOptional.get().getDailySummaryId(), trackDate, quitPlan.getQuitPlanId());
             return Optional.of(convertToResponseDto(dailySummaryOptional.get()));
         } else {
             // Nếu không tìm thấy DailySummary, trả về Optional.empty()
-            log.debug("Không tìm thấy DailySummary cho ngày {} và QuitPlan ID {}. Trả về Optional.empty().", trackDate, quitPlan.getQuitPlanId());
+            log.debug("Không tìm thấy DailySummary cho ngày {} và QuitPlan ID {}. Trả về Optional.empty().", 
+                     trackDate, quitPlan.getQuitPlanId());
             return Optional.empty();
         }
     }
@@ -459,22 +490,31 @@ public class DailySummaryService {
 
         if (changed) {
             existingSummary.setUpdatedAt(LocalDateTime.now()); // Cập nhật thời gian sửa đổi
-            DailySummary savedDailySummary = dailySummaryRepository.save(existingSummary);
-
-            quitPlanService.ensureQuitPlanStatusIsCurrent(quitPlan);
-            if (savedDailySummary.getTrackDate().isEqual(LocalDate.now()) && updateSmokeCount) {
-                quitPlanService.handleDailySummaryUpdateForRelapse(savedDailySummary);
+            DailySummary updatedSummary = dailySummaryRepository.save(existingSummary);
+            
+            // Xử lý quit plan status và relapse check
+            quitPlanService.ensureQuitPlanStatusIsCurrent(existingSummary.getQuitPlan());
+            if (updatedSummary.getTrackDate().isEqual(LocalDate.now()) && updateSmokeCount) {
+                quitPlanService.handleDailySummaryUpdateForRelapse(updatedSummary);
             }
-
+            
             // Trigger achievement check khi cập nhật daily summary
             try {
-                achievementTriggerService.onDailySummaryAdded(quitPlan.getMember().getMemberId());
-                log.info("[DailySummaryService] Triggered achievement check after update for memberId: {}", quitPlan.getMember().getMemberId());
+                achievementTriggerService.onDailySummaryAdded(existingSummary.getQuitPlan().getMember().getMemberId());
+                log.info("[DailySummaryService] Triggered achievement check for memberId: {}", existingSummary.getQuitPlan().getMember().getMemberId());
             } catch (Exception e) {
-                log.error("[DailySummaryService] Error triggering achievement check after update: {}", e.getMessage());
+                log.error("[DailySummaryService] Error triggering achievement check: {}", e.getMessage());
             }
 
-            return convertToResponseDto(savedDailySummary);
+            // Trigger health metrics update khi cập nhật daily summary
+            try {
+                healthMetricService.triggerHealthMetricsUpdate(existingSummary.getQuitPlan().getMember().getUser());
+                log.info("[DailySummaryService] Triggered health metrics update for memberId: {}", existingSummary.getQuitPlan().getMember().getMemberId());
+            } catch (Exception e) {
+                log.error("[DailySummaryService] Error triggering health metrics update: {}", e.getMessage());
+            }
+
+            return convertToResponseDto(updatedSummary);
         } else {
             throw new IllegalArgumentException
                     ("Không có thay đổi nào để cập nhật cho nhật ký với ID: " + dailySummaryId);

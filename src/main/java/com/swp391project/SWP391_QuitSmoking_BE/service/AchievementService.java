@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import com.swp391project.SWP391_QuitSmoking_BE.service.EmailService;
 import com.swp391project.SWP391_QuitSmoking_BE.dto.email.EmailDetail;
 import com.swp391project.SWP391_QuitSmoking_BE.service.NotificationService;
+import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 
 @Service
 @RequiredArgsConstructor
@@ -51,9 +52,9 @@ public class AchievementService {
 
     @Transactional
     public void checkTimeBasedAchievements() {
-        List<User> users = memberRepository.findAll().stream().map(Member::getUser).toList();
-        for (User user : users) {
-            checkAndUnlockAchievements(user.getUserId());
+        List<Member> members = memberRepository.findAll();
+        for (Member member : members) {
+            checkAndUnlockAchievements(member.getMemberId());
         }
     }
 
@@ -132,7 +133,8 @@ public class AchievementService {
     // Auto-unlock logic
     @Transactional
     public void checkAndUnlockAchievements(UUID memberId) {
-        System.out.println("[AchievementService] Starting achievement check for memberId: " + memberId);
+        // Giảm spam log - chỉ log khi cần thiết
+        // System.out.println("[AchievementService] Starting achievement check for memberId: " + memberId);
 
         // Tính toán các mốc hiện tại của member
         BigDecimal currentDaysQuit = calculateDaysQuit(memberId);
@@ -142,12 +144,12 @@ public class AchievementService {
         BigDecimal currentResilienceScore = calculateResilienceCount(memberId);
         BigDecimal currentHealthScore = calculateDaysQuit(memberId); // Health = days quit
 
-        System.out.println("[AchievementService] Current progress - Days: " + currentDaysQuit +
-                         ", Money: " + currentMoneySaved +
-                         ", Cigarettes: " + currentCigarettesNotSmoked +
-                         ", Cravings: " + currentCravingResisted +
-                         ", Resilience: " + currentResilienceScore +
-                         ", Health: " + currentHealthScore);
+        // System.out.println("[AchievementService] Current progress - Days: " + currentDaysQuit +
+        //                  ", Money: " + currentMoneySaved +
+        //                  ", Cigarettes: " + currentCigarettesNotSmoked +
+        //                  ", Cravings: " + currentCravingResisted +
+        //                  ", Resilience: " + currentResilienceScore +
+        //                  ", Health: " + currentHealthScore);
 
         // Lấy tất cả achievements
         List<Achievement> allAchievements = achievementRepository.findAll();
@@ -192,8 +194,9 @@ public class AchievementService {
                         shouldStillUnlock = false;
                 }
                 if (!shouldStillUnlock) {
-                    System.out.println("[AchievementService] XÓA thành tựu không hợp lệ: " + achievement.getName() + " (" + achievement.getMilestoneValue() + ") cho memberId: " + memberId + ". Số liệu hiện tại: daysQuit=" + currentDaysQuit + ", moneySaved=" + currentMoneySaved + ", cigarettesNotSmoked=" + currentCigarettesNotSmoked + ", cravingResisted=" + currentCravingResisted);
-                    memberAchievementRepository.delete(ma);
+                    // Chỉ log, không xóa achievements đã đạt được để tránh confusion
+                    System.out.println("[AchievementService] WARNING: Achievement không còn đủ điều kiện nhưng giữ lại: " + achievement.getName() + " (" + achievement.getMilestoneValue() + ") cho memberId: " + memberId + ". Số liệu hiện tại: daysQuit=" + currentDaysQuit + ", moneySaved=" + currentMoneySaved + ", cigarettesNotSmoked=" + currentCigarettesNotSmoked + ", cravingResisted=" + currentCravingResisted + ", healthScore=" + currentHealthScore);
+                    // Không xóa: memberAchievementRepository.delete(ma);
                 }
             }
         }
@@ -234,13 +237,13 @@ public class AchievementService {
                         shouldUnlock = false;
                 }
                 if (shouldUnlock) {
-                    System.out.println("[AchievementService] Unlocking achievement: " + achievement.getName() + " for memberId: " + memberId);
+                    System.out.println("[AchievementService] 🎉 UNLOCKING ACHIEVEMENT: " + achievement.getName() + " for memberId: " + memberId);
                     unlockAchievement(memberId, achievement);
                 }
             }
         }
 
-        System.out.println("[AchievementService] Completed achievement check for memberId: " + memberId);
+        // System.out.println("[AchievementService] Completed achievement check for memberId: " + memberId);
     }
 
     private boolean isAchievementUnlocked(UUID memberId, Long achievementId) {
@@ -248,40 +251,55 @@ public class AchievementService {
     }
 
     private void unlockAchievement(UUID memberId, Achievement achievement) {
+        // Check if achievement is already unlocked to prevent duplicate notifications
+        if (isAchievementUnlocked(memberId, achievement.getAchievementId())) {
+            System.out.println("[AchievementService] Achievement already unlocked: " + achievement.getName() + " for memberId: " + memberId);
+            return;
+        }
+        
         MemberAchievement memberAchievement = new MemberAchievement();
         memberAchievement.setMemberId(memberId);
         memberAchievement.setAchievementId(achievement.getAchievementId());
         memberAchievement.setDateAchieved(LocalDateTime.now());
         memberAchievementRepository.save(memberAchievement);
-        // Gửi email chúc mừng
+        
+        // Gửi email chúc mừng - Wrap in try-catch to prevent transaction rollback
         Member member = memberRepository.findById(memberId).orElse(null);
         if (member != null && member.getUser() != null && member.getUser().getEmail() != null) {
-            String email = member.getUser().getEmail();
-            String subject = "Chúc mừng bạn đã đạt thành tựu mới!";
-            // Chuẩn bị biến động cho template
-            Map<String, Object> templateVars = new java.util.HashMap<>();
-            templateVars.put("username", member.getUser().getUsername());
-            templateVars.put("achievementName", achievement.getName());
-            templateVars.put("achievementDescription", achievement.getDescription());
-            EmailDetail emailDetail = new EmailDetail(email, subject, null, "achievementTemplate.html", templateVars);
-            emailService.sendEmail(emailDetail);
+            try {
+                String email = member.getUser().getEmail();
+                String subject = "Chúc mừng bạn đã đạt thành tựu mới!";
+                // Chuẩn bị biến động cho template
+                Map<String, Object> templateVars = new java.util.HashMap<>();
+                templateVars.put("username", member.getUser().getUsername());
+                templateVars.put("achievementName", achievement.getName());
+                templateVars.put("achievementDescription", achievement.getDescription());
+                EmailDetail emailDetail = new EmailDetail(email, subject, null, "achievementTemplate.html", templateVars);
+                emailService.sendEmail(emailDetail);
+                System.out.println("[AchievementService] Email sent successfully for achievement: " + achievement.getName());
+            } catch (Exception e) {
+                System.err.println("[AchievementService] Email sending failed for achievement: " + achievement.getName() + " - Error: " + e.getMessage());
+                // Don't throw exception to prevent transaction rollback
+            }
         }
+        
         // Tạo notification achievement và gửi WebSocket real-time
         if (member != null && member.getUser() != null) {
-            Notification notification = new Notification();
-            notification.setUserId(member.getUser().getUserId());
-            notification.setTitle("Chúc mừng!");
-            notification.setContent("Bạn vừa đạt được thành tựu: " + achievement.getName());
-            notification.setNotificationType("ACHIEVEMENT");
-            notification.setFromUserId(null); // Hệ thống
-            notificationService.createNotification(notification);
-
-            // Gửi WebSocket notification real-time cho achievement
             try {
+                Notification notification = new Notification();
+                notification.setUserId(member.getUser().getUserId());
+                notification.setTitle("Chúc mừng!");
+                notification.setContent("Bạn vừa đạt được thành tựu: " + achievement.getName());
+                notification.setNotificationType("ACHIEVEMENT");
+                notification.setFromUserId(null); // Hệ thống
+                notificationService.createNotification(notification);
+
+                // Gửi WebSocket notification real-time cho achievement
                 notificationService.sendAchievementNotification(member.getUser().getUserId(), achievement);
                 System.out.println("[AchievementService] Đã gửi WebSocket notification cho achievement: " + achievement.getName() + " tới user: " + member.getUser().getUserId());
             } catch (Exception e) {
-                System.err.println("[AchievementService] Lỗi khi gửi WebSocket notification: " + e.getMessage());
+                System.err.println("[AchievementService] Lỗi khi gửi notification: " + e.getMessage());
+                // Don't throw exception to prevent transaction rollback
             }
         }
     }
@@ -292,11 +310,19 @@ public class AchievementService {
         Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
 
         if (quitPlanOpt.isEmpty()) {
+            System.out.println("[AchievementService] No active quit plan found for memberId: " + memberId);
             return BigDecimal.ZERO;
         }
 
         QuitPlan quitPlan = quitPlanOpt.get();
         LocalDateTime startDate = quitPlan.getStartDate();
+        
+        // Fix: Add null check for startDate
+        if (startDate == null) {
+            System.out.println("[AchievementService] StartDate is null for memberId: " + memberId);
+            return BigDecimal.ZERO;
+        }
+        
         LocalDate today = LocalDate.now();
 
         // Tính số ngày từ ngày bắt đầu đến hôm nay
@@ -313,8 +339,22 @@ public class AchievementService {
         QuitPlan plan = quitPlanOpt.get();
         LocalDate startDate = plan.getStartDate().toLocalDate();
         int cigarettesPerDay = plan.getInitialSmokingAmount();
+        
+        // Fix: Add null checks and validation
+        if (plan.getPricePerPack() == null) {
+            System.out.println("[AchievementService] PricePerPack is null for memberId: " + memberId);
+            return BigDecimal.ZERO;
+        }
+        
         int pricePerPack = plan.getPricePerPack().intValue();
         int cigarettesPerPack = plan.getCigarettesPerPack();
+        
+        // Fix: Prevent division by zero
+        if (cigarettesPerPack <= 0) {
+            System.out.println("[AchievementService] CigarettesPerPack is invalid (" + cigarettesPerPack + ") for memberId: " + memberId);
+            return BigDecimal.ZERO;
+        }
+        
         int pricePerCigarette = pricePerPack / cigarettesPerPack;
 
         long days = ChronoUnit.DAYS.between(startDate, LocalDate.now());
@@ -349,9 +389,21 @@ public class AchievementService {
             totalSmoked += summary.getTotalSmokedCount();
         }
 
-        // Tính số điếu không hút = số điếu ban đầu * số ngày - số điếu đã hút
+        // Fix: Use a more accurate calculation
+        // Instead of just initialSmokingAmount * daysQuit, consider the actual smoking pattern
         long daysQuit = ChronoUnit.DAYS.between(quitPlan.getStartDate().toLocalDate(), LocalDate.now());
-        int expectedSmoked = (int) (initialSmokingAmount * daysQuit);
+        
+        // Calculate expected cigarettes based on the quit plan type
+        int expectedSmoked;
+        if (quitPlan.getReductionType() == ReductionQuitPlanType.IMMEDIATE) {
+            // For immediate quit, expected is 0
+            expectedSmoked = 0;
+        } else {
+            // For gradual reduction, use a more conservative estimate
+            // Assume average of initial and target (which is usually 0)
+            expectedSmoked = (int) (initialSmokingAmount * daysQuit / 2);
+        }
+        
         int cigarettesNotSmoked = Math.max(0, expectedSmoked - totalSmoked);
 
         return BigDecimal.valueOf(cigarettesNotSmoked);
@@ -362,6 +414,7 @@ public class AchievementService {
         Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
 
         if (quitPlanOpt.isEmpty()) {
+            System.out.println("[AchievementService] No active quit plan found for memberId: " + memberId);
             return BigDecimal.ZERO;
         }
 
@@ -372,7 +425,10 @@ public class AchievementService {
 
         int totalCravingCount = 0;
         for (DailySummary summary : dailySummaries) {
-            totalCravingCount += summary.getTotalCravingCount();
+            // Fix: Add null check for summary
+            if (summary != null) {
+                totalCravingCount += summary.getTotalCravingCount();
+            }
         }
 
         return BigDecimal.valueOf(totalCravingCount);
@@ -524,6 +580,31 @@ public class AchievementService {
                 "Six attempts or more - you have an unbreakable spirit!", Achievement.AchievementType.RESILIENCE,
                 new BigDecimal("5"), LocalDateTime.now(), null));
 
+        // DAILY Achievements - Consecutive days with goal achieved
+        createAchievement(new Achievement(null, "Good Start", "/icons/daily-1.png",
+                "Không hút thuốc 1 ngày", Achievement.AchievementType.DAILY,
+                new BigDecimal("1"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Tuần Đầu Tiên", "/icons/daily-7.png",
+                "Hoàn thành 7 ngày không hút thuốc", Achievement.AchievementType.DAILY,
+                new BigDecimal("7"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "First Month", "/icons/daily-30.png",
+                "Kiên trì không hút thuốc trong 1 tháng", Achievement.AchievementType.DAILY,
+                new BigDecimal("30"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Quý Đầu Tiên", "/icons/daily-90.png",
+                "3 tháng không hút thuốc - thói quen mới!", Achievement.AchievementType.DAILY,
+                new BigDecimal("90"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "Nửa Năm Chiến Thắng", "/icons/daily-180.png",
+                "6 tháng không hút thuốc", Achievement.AchievementType.DAILY,
+                new BigDecimal("180"), LocalDateTime.now(), null));
+
+        createAchievement(new Achievement(null, "365 Days Warrior", "/icons/daily-365.png",
+                "Không hút thuốc trong vòng 1 năm", Achievement.AchievementType.DAILY,
+                new BigDecimal("365"), LocalDateTime.now(), null));
+
         // Health Achievements - Based on days quit (health improvement milestones)
         createAchievement(new Achievement(null, "Fresh Breath", "/icons/health-breath.png",
                 "3 days smoke-free: Your breath is getting fresher!", Achievement.AchievementType.HEALTH,
@@ -590,13 +671,14 @@ public class AchievementService {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class AchievementDTO {
-        private Long id;
+        private Long id; // Use consistent field name
         private String name;
         private String description;
         private String iconUrl;
         private String achievementType;
         private BigDecimal milestoneValue;
         private boolean completed;
+        private String completedAt; // Add field for completion date
     }
 
     // Trả về tất cả achievement + trạng thái completed cho user (exclude SOCIAL achievements)
@@ -610,14 +692,19 @@ public class AchievementService {
         List<AchievementDTO> result = new ArrayList<>();
         for (Achievement ach : allAchievements) {
             MemberAchievement ma = userAchMap.get(ach.getAchievementId());
+            String completedAt = null;
+            if (ma != null && ma.getDateAchieved() != null) {
+                completedAt = ma.getDateAchieved().toString();
+            }
             result.add(new AchievementDTO(
-                ach.getAchievementId(),
+                ach.getAchievementId(), // Use achievementId as id
                 ach.getName(),
                 ach.getDescription(),
                 ach.getIconUrl(),
                 ach.getAchievementType().name(),
                 ach.getMilestoneValue(),
-                ma != null
+                ma != null,
+                completedAt
             ));
         }
         return result;
@@ -630,32 +717,64 @@ public class AchievementService {
     private boolean hasConsecutiveDailyAchievements(UUID memberId, int requiredDays) {
         // Lấy quit plan hiện tại
         Optional<QuitPlan> quitPlanOpt = quitPlanRepository.findActiveQuitPlanByMemberId(memberId);
-        if (quitPlanOpt.isEmpty()) return false;
+        if (quitPlanOpt.isEmpty()) {
+            System.out.println("[AchievementService] No active quit plan found for memberId: " + memberId);
+            return false;
+        }
         QuitPlan quitPlan = quitPlanOpt.get();
-        // Lấy toàn bộ daily summary của quit plan này, sắp xếp giảm dần theo ngày
+        
+        // Lấy toàn bộ daily summary của quit plan này, sắp xếp tăng dần theo ngày (cũ nhất trước)
         List<DailySummary> summaries = dailySummaryRepository.findByQuitPlanOrderByTrackDateDesc(quitPlan);
-        if (summaries.isEmpty()) return false;
+        if (summaries.isEmpty()) {
+            System.out.println("[AchievementService] No daily summaries found for memberId: " + memberId);
+            return false;
+        }
+        
+        // Fix: Sort in ascending order (oldest first) for proper consecutive counting
+        summaries.sort((a, b) -> a.getTrackDate().compareTo(b.getTrackDate()));
+        
+        // System.out.println("[AchievementService] Checking consecutive daily achievements for memberId: " + memberId + ", required: " + requiredDays + ", total summaries: " + summaries.size());
+        
         int count = 0;
         LocalDate prevDate = null;
+        
         for (DailySummary summary : summaries) {
-            if (!summary.isGoalAchievedToday()) {
+            boolean goalAchieved = summary.isGoalAchievedToday();
+            // System.out.println("[AchievementService] Date: " + summary.getTrackDate() + ", goalAchieved: " + goalAchieved + ", smokedCount: " + summary.getTotalSmokedCount());
+            
+            if (!goalAchieved) {
+                // Reset count nếu ngày này không đạt mục tiêu
+                // System.out.println("[AchievementService] Goal not achieved, resetting count from " + count + " to 0");
                 count = 0;
                 prevDate = null;
                 continue;
             }
+            
             if (prevDate == null) {
+                // Ngày đầu tiên đạt mục tiêu
                 count = 1;
+                // System.out.println("[AchievementService] First achieved day, count = 1");
             } else {
-                // Kiểm tra ngày có liên tiếp không
-                if (summary.getTrackDate().plusDays(1).equals(prevDate)) {
+                // Fix: Check if current date is consecutive to previous date
+                if (summary.getTrackDate().equals(prevDate.plusDays(1))) {
                     count++;
+                    // System.out.println("[AchievementService] Consecutive day, count = " + count);
                 } else {
+                    // Không liên tiếp, reset về 1
                     count = 1;
+                    // System.out.println("[AchievementService] Non-consecutive day, resetting count to 1");
                 }
             }
+            
             prevDate = summary.getTrackDate();
-            if (count >= requiredDays) return true;
+            
+            if (count >= requiredDays) {
+                // System.out.println("[AchievementService] Required consecutive days reached: " + count + " >= " + requiredDays);
+                return true;
+            }
         }
+        
+        // System.out.println("[AchievementService] Consecutive days not reached. Final count: " + count + " < " + requiredDays);
         return false;
     }
 

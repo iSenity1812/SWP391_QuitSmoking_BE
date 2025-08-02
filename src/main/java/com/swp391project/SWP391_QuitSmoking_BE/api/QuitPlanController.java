@@ -281,18 +281,18 @@ public class QuitPlanController {
 
     // -- RESET QUIT PLAN STATUS --
     @Operation(summary = "Đặt lại trạng thái kế hoạch của thành viên",
-            description = "Đặt lại trạng thái của một kế hoạch từ FAILED sang IN_PROGRESS " +
-                    "(nếu người dùng chọn \"giữ kế hoạch hiện tại\" sau khi tái nghiện)")
+            description = "Cho phép thành viên đặt lại trạng thái kế hoạch từ FAILED về IN_PROGRESS")
     @PatchMapping("/reset/{quitPlanId}")
+    @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER')")
     public ResponseEntity<ApiResponse<QuitPlanResponseDTO>> resetQuitPlanStatus(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Integer quitPlanId) {
         try {
             UUID memberId = getAuthenticatedMemberId(userDetails);
-            QuitPlanResponseDTO response = quitPlanService.resetQuitPlanToInProgress(quitPlanId, memberId);
+            QuitPlanResponseDTO updatedQuitPlan = quitPlanService.resetQuitPlanToInProgress(quitPlanId, memberId);
             return ResponseEntity
                     .status(HttpStatus.OK)
-                    .body(ApiResponse.success(response, "Kế hoạch đã được đặt lại trạng thái IN_PROGRESS."));
+                    .body(ApiResponse.success(updatedQuitPlan, "Đặt lại trạng thái kế hoạch bỏ thuốc lá thành công"));
         } catch (AccessDeniedException e) {
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
@@ -309,7 +309,32 @@ public class QuitPlanController {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
-                            "Có lỗi xảy ra khi đặt lại trạng thái kế hoạch: " + e.getMessage()));
+                            "Có lỗi xảy ra khi đặt lại trạng thái kế hoạch bỏ thuốc lá: " + e.getMessage()));
+        }
+    }
+
+    // -- REPAIR IMMEDIATE PLANS --
+    @Operation(summary = "Sửa chữa IMMEDIATE plans bị lỗi",
+            description = "Kiểm tra và sửa chữa các IMMEDIATE plan bị lỗi trong database")
+    @PostMapping("/repair-immediate-plans")
+    @PreAuthorize("hasRole('NORMAL_MEMBER') or hasRole('PREMIUM_MEMBER')")
+    public ResponseEntity<ApiResponse<String>> repairImmediatePlans(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            UUID memberId = getAuthenticatedMemberId(userDetails);
+            quitPlanService.repairImmediatePlans(memberId);
+            return ResponseEntity
+                    .status(HttpStatus.OK)
+                    .body(ApiResponse.success("Đã kiểm tra và sửa chữa IMMEDIATE plans", "Sửa chữa IMMEDIATE plans thành công"));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error(HttpStatus.UNAUTHORIZED, e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Có lỗi xảy ra khi sửa chữa IMMEDIATE plans: " + e.getMessage()));
         }
     }
 

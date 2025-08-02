@@ -25,13 +25,17 @@ public class NotificationService {
     public void createNotification(Notification notification) {
         notification.setCreatedAt(LocalDateTime.now());
         notification.setIsRead(false);
-//        notificationRepository.save(notification);
         Notification savedNotification = notificationRepository.save(notification);
-        messagingTemplate.convertAndSendToUser(
-                notification.getUserId().toString(),
-                "/topic/notifications",
-                savedNotification
-        );
+        
+        // Chỉ gửi WebSocket notification cho non-achievement notifications
+        // Achievement notifications sẽ được gửi riêng qua sendAchievementNotification
+        if (!"ACHIEVEMENT".equals(notification.getNotificationType())) {
+            messagingTemplate.convertAndSendToUser(
+                    notification.getUserId().toString(),
+                    "/topic/notifications",
+                    savedNotification
+            );
+        }
     }
 
     public List<Notification> getNotificationsByUser(UUID userId) {

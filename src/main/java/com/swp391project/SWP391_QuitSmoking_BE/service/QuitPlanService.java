@@ -151,17 +151,46 @@ public class QuitPlanService {
                 findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.IN_PROGRESS);
         QuitPlan currentPlan;
 
-        currentPlan = inProgressPlan
-                .orElseGet(() -> quitPlanRepository. //tìm kiếm plan có status Not started
-                findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.NOT_STARTED)
-                .orElseGet(() -> quitPlanRepository. //tìm kiếm plan có status FAILED
-                findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.FAILED)
-                .orElseGet(() -> quitPlanRepository.
-                findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.COMPLETED)
-                        .orElseThrow(() -> new ResourceNotFoundException
-                                ("Không tìm thấy kế hoạch cai thuốc mới nhất cho thành viên")))));
+        if (inProgressPlan.isPresent()) {
+            currentPlan = inProgressPlan.get();
+            log.info("Tìm thấy kế hoạch IN_PROGRESS (ID: {}, Type: {}) cho memberId: {}", 
+                     currentPlan.getQuitPlanId(), currentPlan.getReductionType(), memberId);
+        } else {
+            log.debug("Không tìm thấy kế hoạch IN_PROGRESS cho memberId: {}. Đang tìm kế hoạch NOT_STARTED.", memberId);
+            Optional<QuitPlan> notStartedPlan = quitPlanRepository.
+                    findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.NOT_STARTED);
+            
+            if (notStartedPlan.isPresent()) {
+                currentPlan = notStartedPlan.get();
+                log.info("Tìm thấy kế hoạch NOT_STARTED (ID: {}, Type: {}) cho memberId: {}", 
+                         currentPlan.getQuitPlanId(), currentPlan.getReductionType(), memberId);
+            } else {
+                log.debug("Không tìm thấy kế hoạch NOT_STARTED cho memberId: {}. Đang tìm kế hoạch FAILED.", memberId);
+                Optional<QuitPlan> failedPlan = quitPlanRepository.
+                        findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.FAILED);
+                
+                if (failedPlan.isPresent()) {
+                    currentPlan = failedPlan.get();
+                    log.info("Tìm thấy kế hoạch FAILED (ID: {}, Type: {}) cho memberId: {}. Có thể restart.", 
+                             currentPlan.getQuitPlanId(), currentPlan.getReductionType(), memberId);
+                } else {
+                    log.debug("Không tìm thấy kế hoạch FAILED cho memberId: {}. Đang tìm kế hoạch COMPLETED.", memberId);
+                    Optional<QuitPlan> completedPlan = quitPlanRepository.
+                            findFirstByMember_MemberIdAndStatusOrderByCreatedAtDesc(memberId, QuitPlanStatus.COMPLETED);
+                    
+                    if (completedPlan.isPresent()) {
+                        currentPlan = completedPlan.get();
+                        log.info("Tìm thấy kế hoạch COMPLETED (ID: {}, Type: {}) cho memberId: {}", 
+                                 currentPlan.getQuitPlanId(), currentPlan.getReductionType(), memberId);
+                    } else {
+                        log.error("Không tìm thấy kế hoạch cai thuốc nào cho memberId: {}", memberId);
+                        throw new ResourceNotFoundException("Không tìm thấy kế hoạch cai thuốc mới nhất cho thành viên");
+                    }
+                }
+            }
+        }
 
-        log.info("status cua plan duoc lay {}", currentPlan.getStatus().toString());
+        log.info("Trạng thái hiện tại của plan {}: {}", currentPlan.getQuitPlanId(), currentPlan.getStatus().toString());
 
         ensureQuitPlanStatusIsCurrent(currentPlan);
         return convertToResponseDto(currentPlan);
@@ -383,7 +412,27 @@ public class QuitPlanService {
     //Nếu trạng thái thay đổi, nó sẽ được lưu vào cơ sở dữ liệu
     @Transactional
     public void ensureQuitPlanStatusIsCurrent(QuitPlan plan) {
-        updateQuitPlanStatus(plan, LocalDateTime.now());
+        LocalDateTime currentDate = LocalDateTime.now();
+        QuitPlanStatus currentStatus = plan.getStatus();
+        
+        log.debug("Kiểm tra trạng thái plan ID {}: hiện tại = {}, startDate = {}, goalDate = {}", 
+                 plan.getQuitPlanId(), currentStatus, plan.getStartDate(), plan.getGoalDate());
+        
+        // Đối với IMMEDIATE plan, luôn giữ status IN_PROGRESS nếu đang IN_PROGRESS
+        if (plan.getReductionType() == ReductionQuitPlanType.IMMEDIATE) {
+            if (currentStatus == QuitPlanStatus.IN_PROGRESS) {
+                log.debug("Plan IMMEDIATE ID {} đang IN_PROGRESS, không cần thay đổi", plan.getQuitPlanId());
+                return;
+            } else if (currentStatus == QuitPlanStatus.NOT_STARTED) {
+                // Nếu IMMEDIATE plan đang NOT_STARTED, chuyển sang IN_PROGRESS
+                quitPlanRepository.updateQuitPlanStatus(plan.getQuitPlanId(), QuitPlanStatus.IN_PROGRESS);
+                log.info("Plan IMMEDIATE ID {} chuyển từ NOT_STARTED sang IN_PROGRESS", plan.getQuitPlanId());
+            }
+            return;
+        }
+        
+        // Đối với các plan khác, sử dụng logic cũ
+        updateQuitPlanStatus(plan, currentDate);
     }
 
     //Tác vụ chạy định kỳ để cập nhật trạng thái của tất cả các kế hoạch cai thuốc
@@ -558,13 +607,28 @@ public class QuitPlanService {
             throw new IllegalArgumentException("Không thể đặt lại kế hoạch không ở trạng thái FAILED");
         }
 
+        // Cập nhật trạng thái sang IN_PROGRESS
         quitPlanRepository.updateQuitPlanStatus(quitPlanId, QuitPlanStatus.IN_PROGRESS);
-        log.info("Kế hoạch ID {} của thành viên {} đã được đặt lại từ FAILED sang IN_PROGRESS", quitPlanId, memberId);
+        
+        // Đối với IMMEDIATE plan, cần cập nhật startDate về thời điểm hiện tại
+        if (quitPlan.getReductionType() == ReductionQuitPlanType.IMMEDIATE) {
+            LocalDateTime newStartDate = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).plusSeconds(1);
+            quitPlanRepository.updateQuitPlanStartDate(quitPlanId, newStartDate);
+            log.info("Kế hoạch IMMEDIATE ID {} của thành viên {} đã được đặt lại từ FAILED sang IN_PROGRESS với startDate mới: {}", 
+                     quitPlanId, memberId, newStartDate);
+        } else {
+            log.info("Kế hoạch ID {} của thành viên {} đã được đặt lại từ FAILED sang IN_PROGRESS", quitPlanId, memberId);
+        }
 
+        // Lấy plan đã cập nhật từ database
         Optional<QuitPlan> updatedPlan = quitPlanRepository.findById(quitPlanId);
         if (updatedPlan.isEmpty()) {
             throw new ResourceNotFoundException("Không tìm thấy kế hoạch đã cập nhật với ID: " + quitPlanId);
         }
+        
+        // Đảm bảo trạng thái được cập nhật đúng
+        ensureQuitPlanStatusIsCurrent(updatedPlan.get());
+        
         return convertToResponseDto(updatedPlan.get());
     }
 
@@ -581,14 +645,25 @@ public class QuitPlanService {
             throw new IllegalArgumentException("Không thể đặt lại kế hoạch không ở trạng thái FAILED");
         }
 
+        // Cập nhật trạng thái sang IN_PROGRESS
         quitPlanRepository.updateQuitPlanStatus(quitPlanId, QuitPlanStatus.IN_PROGRESS);
-        quitPlanRepository.updateQuitPlanStartDate(quitPlanId, LocalDateTime.now());
-        log.info("Kế hoạch ID {} của thành viên {} đã được đặt lại từ FAILED sang IN_PROGRESS", quitPlanId, memberId);
+        
+        // Cập nhật startDate về thời điểm hiện tại
+        LocalDateTime newStartDate = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS).plusSeconds(1);
+        quitPlanRepository.updateQuitPlanStartDate(quitPlanId, newStartDate);
+        
+        log.info("Kế hoạch ID {} (Type: {}) của thành viên {} đã được đặt lại từ FAILED sang IN_PROGRESS với startDate mới: {}", 
+                 quitPlanId, quitPlan.getReductionType(), memberId, newStartDate);
 
+        // Lấy plan đã cập nhật từ database
         Optional<QuitPlan> updatedPlan = quitPlanRepository.findById(quitPlanId);
         if (updatedPlan.isEmpty()) {
             throw new ResourceNotFoundException("Không tìm thấy kế hoạch đã cập nhật với ID: " + quitPlanId);
         }
+        
+        // Đảm bảo trạng thái được cập nhật đúng
+        ensureQuitPlanStatusIsCurrent(updatedPlan.get());
+        
         return convertToResponseDto(updatedPlan.get());
     }
 
@@ -618,5 +693,39 @@ public class QuitPlanService {
                 quitPlanId, memberId);
 
         return modelMapper.map(currentPlan, QuitPlanResponseDTO.class);
+    }
+
+    /**
+     * Kiểm tra và sửa chữa các IMMEDIATE plan bị lỗi trong database
+     * Method này sẽ được gọi khi có vấn đề với IMMEDIATE plan
+     */
+    @Transactional
+    public void repairImmediatePlans(UUID memberId) {
+        log.info("Bắt đầu kiểm tra và sửa chữa IMMEDIATE plans cho memberId: {}", memberId);
+        
+        List<QuitPlan> allPlans = quitPlanRepository.findByMember_MemberId(memberId);
+        List<QuitPlan> immediatePlans = allPlans.stream()
+                .filter(plan -> plan.getReductionType() == ReductionQuitPlanType.IMMEDIATE)
+                .toList();
+        
+        if (immediatePlans.isEmpty()) {
+            log.info("Không tìm thấy IMMEDIATE plan nào cho memberId: {}", memberId);
+            return;
+        }
+        
+        for (QuitPlan plan : immediatePlans) {
+            log.info("Kiểm tra IMMEDIATE plan ID {}: status = {}, startDate = {}", 
+                     plan.getQuitPlanId(), plan.getStatus(), plan.getStartDate());
+            
+            // Nếu IMMEDIATE plan đang FAILED, thử reset về IN_PROGRESS
+            if (plan.getStatus() == QuitPlanStatus.FAILED) {
+                try {
+                    resetQuitPlanToInProgress(plan.getQuitPlanId(), memberId);
+                    log.info("Đã sửa chữa IMMEDIATE plan ID {} từ FAILED sang IN_PROGRESS", plan.getQuitPlanId());
+                } catch (Exception e) {
+                    log.error("Không thể sửa chữa IMMEDIATE plan ID {}: {}", plan.getQuitPlanId(), e.getMessage());
+                }
+            }
+        }
     }
 }

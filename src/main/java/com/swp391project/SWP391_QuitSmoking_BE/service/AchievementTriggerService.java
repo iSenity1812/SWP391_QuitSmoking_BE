@@ -50,4 +50,32 @@ public class AchievementTriggerService {
     public void onDailySummaryAdded(UUID memberId) {
         triggerAchievementCheck(memberId, "DAILY_SUMMARY_ADDED");
     }
+
+    /**
+     * Trigger khi user login
+     */
+    public void onUserLogin(UUID memberId) {
+        triggerAchievementCheck(memberId, "USER_LOGIN");
+    }
+
+    /**
+     * Trigger khi user refresh trang achievements
+     */
+    public void onAchievementPageRefresh(UUID memberId) {
+        triggerAchievementCheck(memberId, "ACHIEVEMENT_PAGE_REFRESH");
+    }
+
+    /**
+     * Trigger khi user update profile
+     */
+    public void onProfileUpdate(UUID memberId) {
+        triggerAchievementCheck(memberId, "PROFILE_UPDATE");
+    }
+
+    /**
+     * Trigger khi user thay đổi quit plan
+     */
+    public void onQuitPlanChange(UUID memberId) {
+        triggerAchievementCheck(memberId, "QUIT_PLAN_CHANGE");
+    }
 }

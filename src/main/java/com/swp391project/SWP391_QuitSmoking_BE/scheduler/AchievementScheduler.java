@@ -11,8 +11,8 @@ import java.util.UUID;
 public class AchievementScheduler {
     private final AchievementService achievementService;
 
-    // Giảm tần suất check scheduler xuống 5 phút một lần vì giờ có real-time trigger
-    @Scheduled(cron = "0 */5 * * * *") // Run every 5 minutes
+    // ⚠️ DISABLED: Auto achievement check to prevent spam notifications
+    // @Scheduled(cron = "*/5 * * * * *") // Run every 5 seconds
     public void checkTimeBasedAchievements() {
         System.out.println("[AchievementScheduler] Đang kiểm tra achievement định kỳ...");
         achievementService.checkTimeBasedAchievements();

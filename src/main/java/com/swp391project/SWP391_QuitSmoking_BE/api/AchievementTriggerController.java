@@ -61,4 +61,44 @@ public class AchievementTriggerController {
             return ResponseEntity.badRequest().body("Error triggering daily summary added: " + e.getMessage());
         }
     }
+
+    @PostMapping("/user-login/{memberId}")
+    public ResponseEntity<String> triggerUserLogin(@PathVariable UUID memberId) {
+        try {
+            achievementTriggerService.onUserLogin(memberId);
+            return ResponseEntity.ok("User login trigger sent for memberId: " + memberId);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error triggering user login: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/achievement-page-refresh/{memberId}")
+    public ResponseEntity<String> triggerAchievementPageRefresh(@PathVariable UUID memberId) {
+        try {
+            achievementTriggerService.onAchievementPageRefresh(memberId);
+            return ResponseEntity.ok("Achievement page refresh trigger sent for memberId: " + memberId);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error triggering achievement page refresh: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/profile-update/{memberId}")
+    public ResponseEntity<String> triggerProfileUpdate(@PathVariable UUID memberId) {
+        try {
+            achievementTriggerService.onProfileUpdate(memberId);
+            return ResponseEntity.ok("Profile update trigger sent for memberId: " + memberId);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error triggering profile update: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/quit-plan-change/{memberId}")
+    public ResponseEntity<String> triggerQuitPlanChange(@PathVariable UUID memberId) {
+        try {
+            achievementTriggerService.onQuitPlanChange(memberId);
+            return ResponseEntity.ok("Quit plan change trigger sent for memberId: " + memberId);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error triggering quit plan change: " + e.getMessage());
+        }
+    }
 }

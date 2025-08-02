@@ -48,7 +48,7 @@ public class HealthMetric {
     private String description;
     
     @Column(name = "time_remaining_hours")
-    private Long timeRemainingHours;
+    private Double timeRemainingHours;
     
     @Column(name = "has_regressed", nullable = false)
     private Boolean hasRegressed = false; // Đánh dấu đã từng tụt xuống dưới 100% sau khi hoàn thành

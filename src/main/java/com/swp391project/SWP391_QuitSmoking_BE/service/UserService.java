@@ -181,7 +181,7 @@ public class UserService {
         return modelMapper.map(user, UserProfile.class);
     }
 
-    private User getUserEntity(UUID userId) {
+    public User getUserEntity(UUID userId) {
         return userRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
     }

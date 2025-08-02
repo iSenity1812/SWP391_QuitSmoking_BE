@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -32,9 +33,6 @@ public class HealthMetricService {
     private final HealthMetricRepository healthMetricRepository;
     private final QuitPlanRepository quitPlanRepository;
     private final DailySummaryRepository dailySummaryRepository;
-    
-    // Penalty factor configuration - hệ số phạt khi hút thuốc
-    private static final double PENALTY_PER_DAY = 0.2; // Giảm 20% mỗi ngày hút thuốc
     
     /**
      * Khởi tạo health metrics cho user mới
@@ -97,97 +95,220 @@ public class HealthMetricService {
                 .mapToInt(summary -> summary.getTotalSmokedCount())
                 .sum();
         
-        // Tính số ngày KHÔNG hút thuốc (totalSmokedCount = 0)
-        int nonSmokingDays = (int) allDailySummaries.stream()
-                .filter(summary -> summary.getTotalSmokedCount() == 0)
-                .count();
-        
-        // Tính số ngày hút thuốc
-        int smokingDays = (int) allDailySummaries.stream()
-                .filter(summary -> summary.getTotalSmokedCount() > 0)
-                .count();
-        
-        log.info("User {} - Non-smoking days: {}, Smoking days: {}, Total cigarettes: {}", 
-                user.getUserId(), nonSmokingDays, smokingDays, totalCigarettesSmoked);
+        log.info("User {} - Total cigarettes smoked: {}, quitDate: {}, now: {}", 
+                user.getUserId(), totalCigarettesSmoked, quitDate, now);
         
         List<HealthMetric> userMetrics = healthMetricRepository.findByUserOrderByMetricType(user);
         
         for (HealthMetric metric : userMetrics) {
             double targetHours = metric.getMetricType().getTargetHours();
             
-            // Tính giờ phục hồi từ số ngày không hút
-            // Mỗi ngày không hút = 24 giờ phục hồi
-            double recoveryHours = nonSmokingDays * 24.0;
-            
-            // Tính giờ bị mất do hút thuốc
-            // 1 điếu = giảm 2 giờ phục hồi
-            double lostHours = totalCigarettesSmoked * 2.0;
-            
-            // Tính giờ phục hồi thực tế (có thể âm nếu hút nhiều)
-            double netRecoveryHours = Math.max(0, recoveryHours - lostHours);
-            
-            // Tính progress dựa trên giờ phục hồi thực tế
-            double timeProgress = Math.min(100.0, (netRecoveryHours / targetHours) * 100.0);
-            
-            // Progress không thể âm
-            double finalProgress = Math.max(0, timeProgress);
-            
-            // Lưu progress cũ để so sánh
-            double oldProgress = metric.getCurrentProgress();
+            // Lưu trạng thái cũ để so sánh
             boolean wasCompleted = metric.getIsCompleted();
             
-            metric.setCurrentProgress(finalProgress);
-            metric.setTimeRemainingHours(Math.max(0, (long) (targetHours - netRecoveryHours)));
+            log.debug("Processing metric {} for user {}: targetHours={}, currentProgress={}, isCompleted={}, hasRegressed={}", 
+                    metric.getMetricType(), user.getUserId(), targetHours, metric.getCurrentProgress(), 
+                    metric.getIsCompleted(), metric.getHasRegressed());
             
-            // Kiểm tra nếu đã hoàn thành
-            if (finalProgress >= 100.0 && !metric.getIsCompleted()) {
-                metric.setIsCompleted(true);
-                metric.setAchievedDate(now);
-                metric.setCurrentProgress(100.0);
-                metric.setTimeRemainingHours(0L);
+            // LOGIC PENALTY MỚI: 1 điếu = +1 giờ vào thời gian cần thiết
+            LocalDateTime targetDate;
+            double finalProgress;
+            double timeRemainingHours;
+            
+            if (totalCigarettesSmoked > 0) {
+                // Có hút thuốc: áp dụng penalty
+                double penaltyHours = totalCigarettesSmoked * 1.0; // 1 điếu = 1 giờ
                 
-                log.info("Health metric completed for user {}: {} (non-smoking days: {}, cigarettes: {})", 
-                        user.getUserId(), metric.getMetricType(), nonSmokingDays, totalCigarettesSmoked);
-            }
-            
-            // Kiểm tra nếu đã hoàn thành trước đó nhưng bây giờ tụt xuống dưới 100%
-            if (wasCompleted && finalProgress < 100.0) {
-                metric.setIsCompleted(false);
-                metric.setAchievedDate(null);
-                metric.setHasRegressed(true);
-                log.info("Health metric regressed for user {}: {} (progress: {} -> {})", 
-                        user.getUserId(), metric.getMetricType(), oldProgress, finalProgress);
-            }
-            
-            // Kiểm tra nếu đã từng tụt xuống và bây giờ đạt 100% trở lại
-            if (metric.getHasRegressed() && finalProgress >= 100.0) {
-                metric.setIsCompleted(true);
-                metric.setAchievedDate(now);
-                metric.setCurrentProgress(100.0);
-                metric.setTimeRemainingHours(0L);
-                metric.setHasRegressed(false); // Reset regression flag
+                if (metric.getIsCompleted() && !metric.getHasRegressed()) {
+                    // Trường hợp 2: Health đã hoàn thành 100% - reset về now() + penalty (có giới hạn)
+                    // Giới hạn penalty không vượt quá thời gian gốc
+                    double maxPenaltyHours = targetHours;
+                    double actualPenaltyHours = Math.min(penaltyHours, maxPenaltyHours);
+                    
+                    // Sử dụng minutes cho penalty < 1 giờ để tránh mất phần thập phân
+                    if (actualPenaltyHours < 1.0) {
+                        long penaltyMinutes = Math.round(actualPenaltyHours * 60.0);
+                        targetDate = now.plusMinutes(penaltyMinutes);
+                    } else {
+                        targetDate = now.plusHours((long) actualPenaltyHours);
+                    }
+                    finalProgress = 0.0; // Reset về 0% để tính lại
+                    metric.setIsCompleted(false);
+                    metric.setAchievedDate(null);
+                    metric.setHasRegressed(true);
+                    
+                    log.info("Health metric regressed due to smoking for user {}: {} (cigarettes: {}, penalty: {} hours, max allowed: {} hours)", 
+                            user.getUserId(), metric.getMetricType(), totalCigarettesSmoked, actualPenaltyHours, maxPenaltyHours);
+                } else {
+                    // Trường hợp 1: Health chưa hoàn thành hoặc đã regressed
+                    // Sử dụng minutes cho metric < 1 giờ để tránh mất phần thập phân
+                    LocalDateTime originalTargetDate;
+                    if (targetHours < 1.0) {
+                        long targetMinutes = Math.round(targetHours * 60.0);
+                        originalTargetDate = quitDate.plusMinutes(targetMinutes);
+                    } else {
+                        originalTargetDate = quitDate.plusHours((long) targetHours);
+                    }
+                    
+                    // Giới hạn penalty không vượt quá thời gian gốc
+                    double maxPenaltyHours = targetHours;
+                    double actualPenaltyHours = Math.min(penaltyHours, maxPenaltyHours);
+                    
+                    // Tính targetDate mới với penalty
+                    // Sử dụng minutes cho penalty < 1 giờ để tránh mất phần thập phân
+                    if (actualPenaltyHours < 1.0) {
+                        long penaltyMinutes = Math.round(actualPenaltyHours * 60.0);
+                        targetDate = originalTargetDate.plusMinutes(penaltyMinutes);
+                    } else {
+                        targetDate = originalTargetDate.plusHours((long) actualPenaltyHours);
+                    }
+                    
+                    // Tính progress dựa trên thời gian đã trôi qua so với targetDate mới
+                    double timeProgress;
+                    if (targetHours < 1.0) {
+                        // Sử dụng minutes cho metric < 1 giờ
+                        long minutesSinceQuit = Duration.between(quitDate, now).toMinutes();
+                        double totalRequiredMinutes = (targetHours + actualPenaltyHours) * 60.0;
+                        // Đảm bảo không vượt quá 100% do lỗi làm tròn
+                        timeProgress = Math.min(100.0, Math.max(0.0, (minutesSinceQuit / totalRequiredMinutes) * 100.0));
+                    } else {
+                        // Sử dụng hours cho metric >= 1 giờ
+                        long hoursSinceQuit = Duration.between(quitDate, now).toHours();
+                        double totalRequiredHours = targetHours + actualPenaltyHours;
+                        timeProgress = Math.min(100.0, Math.max(0.0, (hoursSinceQuit / totalRequiredHours) * 100.0));
+                    }
+                    finalProgress = Math.max(0, timeProgress);
+                    
+                    log.info("Health metric penalty applied for user {}: {} (cigarettes: {}, penalty: {} hours, progress: {}%)", 
+                            user.getUserId(), metric.getMetricType(), totalCigarettesSmoked, actualPenaltyHours, finalProgress);
+                    
+                    log.debug("User {} - Metric {} with penalty: targetHours={}, timeProgress={}%, finalProgress={}%", 
+                            user.getUserId(), metric.getMetricType(), targetHours, timeProgress, finalProgress);
+                }
+            } else {
+                // Không hút thuốc: tính toán bình thường
+                // Sử dụng minutes cho metric < 1 giờ để tránh mất phần thập phân
+                if (targetHours < 1.0) {
+                    long targetMinutes = Math.round(targetHours * 60.0);
+                    targetDate = quitDate.plusMinutes(targetMinutes);
+                } else {
+                    targetDate = quitDate.plusHours((long) targetHours);
+                }
                 
-                log.info("Health metric recovered and completed again for user {}: {}", 
-                        user.getUserId(), metric.getMetricType());
+                // Tính progress dựa trên thời gian đã trôi qua
+                // Sử dụng minutes cho các metric ngắn (< 1 giờ) để tránh tính sai
+                double timeProgress;
+                if (targetHours < 1.0) {
+                    // Sử dụng minutes cho metric < 1 giờ
+                    long minutesSinceQuit = Duration.between(quitDate, now).toMinutes();
+                    double targetMinutes = targetHours * 60.0;
+                    // Đảm bảo không vượt quá 100% do lỗi làm tròn
+                    timeProgress = Math.min(100.0, Math.max(0.0, (minutesSinceQuit / targetMinutes) * 100.0));
+                } else {
+                    // Sử dụng hours cho metric >= 1 giờ
+                    long hoursSinceQuit = Duration.between(quitDate, now).toHours();
+                    timeProgress = Math.min(100.0, Math.max(0.0, (hoursSinceQuit / targetHours) * 100.0));
+                }
+                finalProgress = Math.max(0, timeProgress);
+                
+                log.debug("User {} - Metric {}: targetHours={}, timeProgress={}%, finalProgress={}%", 
+                        user.getUserId(), metric.getMetricType(), targetHours, timeProgress, finalProgress);
             }
             
-            // Cập nhật target date - tính từ quitDate + target hours
-            LocalDateTime targetDate = quitDate.plusHours((long) targetHours);
+            // Cập nhật targetDate và timeRemainingHours
             metric.setTargetDate(targetDate);
             
+            // Tính timeRemainingHours với validation
+            if (targetDate != null && now != null) {
+                timeRemainingHours = Math.max(0, (targetDate.toInstant(ZoneOffset.UTC).toEpochMilli() - now.toInstant(ZoneOffset.UTC).toEpochMilli()) / (1000 * 60 * 60));
+            } else {
+                timeRemainingHours = 0.0;
+                log.warn("Invalid targetDate or now for user {} metric {}: targetDate={}, now={}", 
+                        user.getUserId(), metric.getMetricType(), targetDate, now);
+            }
+            
+            metric.setTimeRemainingHours(timeRemainingHours);
+            metric.setCurrentProgress(finalProgress);
+            
+            // Kiểm tra nếu đã hoàn thành (chỉ khi không có penalty)
+            if (finalProgress >= 100.0 && !metric.getIsCompleted() && !metric.getHasRegressed()) {
+                metric.setIsCompleted(true);
+                metric.setAchievedDate(now);
+                metric.setCurrentProgress(100.0); // Đảm bảo consistency
+                metric.setTimeRemainingHours(0.0);
+                
+                log.info("Health metric completed for user {}: {} (cigarettes: {}, achieved at: {})", 
+                        user.getUserId(), metric.getMetricType(), totalCigarettesSmoked, now);
+            }
+            
+            // Kiểm tra nếu đã từng tụt xuống và bây giờ đạt 100% trở lại (chỉ khi không có penalty)
+            if (metric.getHasRegressed() && finalProgress >= 100.0 && totalCigarettesSmoked == 0) {
+                // CHỈ set isCompleted = true nếu thực sự đã đạt được mục tiêu
+                // Không set achievedDate = now vì có thể gây nhầm lẫn
+                // Chỉ set khi thực sự đạt được lần đầu và chưa có achievedDate
+                if (metric.getAchievedDate() == null) {
+                    // Chỉ set achievedDate nếu thời gian hiện tại đã vượt quá thời gian hoàn thành dự kiến
+                    LocalDateTime expectedCompletionTime;
+                    if (targetHours < 1.0) {
+                        long targetMinutes = Math.round(targetHours * 60.0);
+                        expectedCompletionTime = quitDate.plusMinutes(targetMinutes);
+                    } else {
+                        expectedCompletionTime = quitDate.plusHours((long) targetHours);
+                    }
+                    
+                    // Chỉ set achievedDate nếu thời gian hiện tại đã vượt quá thời gian hoàn thành dự kiến
+                    if (now.isAfter(expectedCompletionTime)) {
+                        metric.setAchievedDate(expectedCompletionTime); // Set đúng thời gian hoàn thành, không phải now()
+                    }
+                }
+                
+                metric.setIsCompleted(true);
+                metric.setCurrentProgress(100.0);
+                metric.setTimeRemainingHours(0.0);
+                metric.setHasRegressed(false); // Reset regression flag
+                
+                log.info("Health metric recovered and completed again for user {}: {} (achieved at: {})", 
+                        user.getUserId(), metric.getMetricType(), metric.getAchievedDate());
+            }
+            
             healthMetricRepository.save(metric);
+            
+            log.debug("Final result for metric {}: progress={}%, completed={}, regressed={}, targetDate={}, timeRemaining={} hours", 
+                    metric.getMetricType(), metric.getCurrentProgress(), metric.getIsCompleted(), 
+                    metric.getHasRegressed(), metric.getTargetDate(), metric.getTimeRemainingHours());
         }
         
-        log.info("Health metrics progress updated for user: {} (non-smoking days: {}, cigarettes: {})", 
-                user.getUserId(), nonSmokingDays, totalCigarettesSmoked);
+        log.info("Health metrics progress updated for user: {} (cigarettes: {}, penalty applied: {} hours)", 
+                user.getUserId(), totalCigarettesSmoked, totalCigarettesSmoked > 0 ? totalCigarettesSmoked : 0);
+    }
+
+    /**
+     * Trigger update health metrics khi có daily summary mới
+     * Method này sẽ được gọi từ DailySummaryService
+     */
+    public void triggerHealthMetricsUpdate(User user) {
+        log.info("Triggering health metrics update for user: {}", user.getUserId());
+        updateHealthMetricsProgress(user);
     }
     
     /**
      * Lấy tất cả health metrics của user
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public List<HealthMetricDTO> getUserHealthMetrics(User user) {
         List<HealthMetric> metrics = healthMetricRepository.findByUserOrderByMetricType(user);
+        
+        // Debug logging để kiểm tra data
+        log.info("Retrieved {} health metrics for user: {}", metrics.size(), user.getUserId());
+        for (HealthMetric metric : metrics) {
+            log.debug("Metric {}: progress={}%, completed={}, regressed={}, targetDate={}", 
+                    metric.getMetricType(), 
+                    metric.getCurrentProgress(), 
+                    metric.getIsCompleted(), 
+                    metric.getHasRegressed(),
+                    metric.getTargetDate());
+        }
+        
         return metrics.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -298,22 +419,39 @@ public class HealthMetricService {
     /**
      * Format time remaining thành string dễ đọc
      */
-    private String formatTimeRemaining(Long hours) {
+    private String formatTimeRemaining(Double hours) {
         if (hours == null || hours <= 0) {
             return "Đã hoàn thành";
         }
         
-        long days = hours / 24;
-        long remainingHours = hours % 24;
+        long days = (long) (hours / 24);
+        double remainingHours = hours % 24;
         
         if (days > 0) {
             if (remainingHours > 0) {
-                return String.format("%d ngày và %d giờ", days, remainingHours);
+                return String.format("%d ngày và %.1f giờ", days, remainingHours);
             } else {
                 return String.format("%d ngày", days);
             }
         } else {
-            return String.format("%d giờ", remainingHours);
+            // Hiển thị chi tiết hơn cho thời gian < 24 giờ
+            if (remainingHours >= 1) {
+                long wholeHours = (long) remainingHours;
+                double minutes = (remainingHours - wholeHours) * 60;
+                if (minutes > 0) {
+                    return String.format("%d giờ %.0f phút", wholeHours, minutes);
+                } else {
+                    return String.format("%d giờ", wholeHours);
+                }
+            } else {
+                double minutes = remainingHours * 60;
+                if (minutes >= 1) {
+                    return String.format("%.0f phút", minutes);
+                } else {
+                    double seconds = minutes * 60;
+                    return String.format("%.0f giây", seconds);
+                }
+            }
         }
     }
 } 

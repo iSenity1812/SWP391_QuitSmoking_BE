@@ -24,7 +24,7 @@ public class HealthMetricDTO {
     private LocalDateTime targetDate;
     private LocalDateTime achievedDate;
     private Boolean isCompleted;
-    private Long timeRemainingHours;
+    private Double timeRemainingHours;
     private String timeRemainingFormatted;
     private Boolean hasRegressed;
     private LocalDateTime createdAt;

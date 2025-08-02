@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,10 +49,12 @@ public interface QuitPlanRepository extends JpaRepository<QuitPlan, Integer> {
     List<QuitPlan> findByMemberAndStatusIn(Member member, List<QuitPlanStatus> statuses);
 
     @Modifying
+    @Transactional
     @Query("UPDATE QuitPlan q SET q.status = :status WHERE q.quitPlanId = :quitPlanId")
     void updateQuitPlanStatus(Integer quitPlanId, QuitPlanStatus status);
 
     @Modifying
+    @Transactional
     @Query("UPDATE QuitPlan q SET q.startDate = :startDate WHERE q.quitPlanId = :quitPlanId")
     void updateQuitPlanStartDate(@Param("quitPlanId") Integer quitPlanId, @Param("startDate") LocalDateTime startDate);
 
