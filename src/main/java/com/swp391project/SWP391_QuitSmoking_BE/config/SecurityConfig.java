@@ -126,6 +126,7 @@ public class SecurityConfig {
                             .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
                             .requestMatchers("/api/coaches/**").authenticated()
                             .requestMatchers("/api/task/admin/**").hasAnyRole("SUPER_ADMIN", "CONTENT_ADMIN")
+                            .requestMatchers("/health/test/**").permitAll() // Cho phép test endpoints không cần auth
 
                         .anyRequest().authenticated()
                 )
