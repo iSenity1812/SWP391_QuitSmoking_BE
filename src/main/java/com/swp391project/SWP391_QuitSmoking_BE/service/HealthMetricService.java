@@ -165,18 +165,10 @@ public class HealthMetricService {
         log.info("Updating metric: {}, target: {} minutes, penalty: {} minutes, fixed remaining: {} hours", 
                 metricType, targetMinutes, penaltyMinutes, fixedRemainingHours);
         
-        // ✅ FIX: Giới hạn targetDate(mới) <= now() + remainingHour
-        LocalDateTime targetDateOriginal = quitDate.plusMinutes((long) targetMinutes);
-        LocalDateTime targetDateWithPenalty = targetDateOriginal.plusMinutes((long) penaltyMinutes);
-        LocalDateTime maxAllowedTargetDate = now.plusHours((long) fixedRemainingHours);
+        // ✅ FIX: TargetDate cố định từ quitDate, penalty chỉ ảnh hưởng progress
+        LocalDateTime targetDate = quitDate.plusMinutes((long) targetMinutes);
         
-        // Giới hạn targetDate không vượt quá now() + remainingHour
-        LocalDateTime targetDate = targetDateWithPenalty.isAfter(maxAllowedTargetDate) 
-            ? maxAllowedTargetDate 
-            : targetDateWithPenalty;
-        
-        log.info("Target date calculation: original={}, with penalty={}, max allowed={}, final={}", 
-                targetDateOriginal, targetDateWithPenalty, maxAllowedTargetDate, targetDate);
+        log.info("Target date calculation: fixed targetDate={}", targetDate);
         
         double progress;
         
@@ -186,15 +178,15 @@ public class HealthMetricService {
             progress = calculateCompletedProgress(latestDailySummaryDate, penaltyMinutes, now, fixedRemainingHours);
             log.info("COMPLETED: progress = {:.2f}% (using latest daily summary)", progress);
         } else {
-            // INCOMPLETED: Sử dụng targetDate đã được giới hạn
+            // INCOMPLETED: Sử dụng targetDate cố định, penalty ảnh hưởng progress
             progress = calculateIncompleteProgress(targetDate, penaltyMinutes, now, fixedRemainingHours);
-            log.info("INCOMPLETED: progress = {:.2f}% (using limited target date)", progress);
+            log.info("INCOMPLETED: progress = {:.2f}% (using fixed target date)", progress);
         }
         
-        log.info("Final target date: {}, fixed remaining hours: {:.2f}", targetDate, fixedRemainingHours);
+        log.info("Fixed target date: {}, fixed remaining hours: {:.2f}", targetDate, fixedRemainingHours);
         log.info("Progress calculation: progress = {:.2f}%", progress);
         
-        // Cập nhật target date đã được giới hạn
+        // Cập nhật target date cố định
         metric.setTargetDate(targetDate);
         
         // Cập nhật progress và trạng thái
@@ -213,7 +205,7 @@ public class HealthMetricService {
             metric.setAchievedDate(null);
         }
         
-        updateTimeRemainingHours(metric, now);
+                 updateTimeRemainingHours(metric, now, penaltyMinutes, fixedRemainingHours);
         
         log.info("Final result: targetDate={}, progress={:.2f}%, completed={}", 
                 targetDate, progress, metric.getIsCompleted());
@@ -273,16 +265,15 @@ public class HealthMetricService {
      */
     private double calculateIncompleteProgress(LocalDateTime targetDate, double penaltyMinutes, 
                                              LocalDateTime now, double remainingHours) {
-        // ✅ FIX: targetDate đã được giới hạn từ updateSingleMetric, nên chỉ cần tính (targetDate - now())
-        // Không cần cộng thêm penalty vì đã được tính trong targetDate
-        long timeDiffMinutes = ChronoUnit.MINUTES.between(now, targetDate);
+        // ✅ FIX: Progress = 1 - ((targetDate + penalty - now()) / remainingHour)
+        long timeDiffMinutes = ChronoUnit.MINUTES.between(now, targetDate.plusMinutes((long) penaltyMinutes));
         double timeDiffHours = timeDiffMinutes / 60.0;
         
         // Đảm bảo không vượt quá remainingHours
         double adjustedTimeDiff = Math.min(timeDiffHours, remainingHours);
         
-        log.info("Incomplete progress calculation: targetDate={}, now={}, timeDiff={:.2f}h, remainingHours={:.2f}, adjusted={:.2f}h", 
-                targetDate, now, timeDiffHours, remainingHours, adjustedTimeDiff);
+        log.info("Incomplete progress calculation: targetDate={}, penalty={}min, now={}, timeDiff={:.2f}h, remainingHours={:.2f}, adjusted={:.2f}h", 
+                targetDate, penaltyMinutes, now, timeDiffHours, remainingHours, adjustedTimeDiff);
         
         // Công thức: 1 - (adjustedTimeDiff / remainingHours)
         if (remainingHours <= 0) {
@@ -293,31 +284,43 @@ public class HealthMetricService {
         return progress * 100.0; // Chuyển thành phần trăm
     }
     
-    /**
-     * Cập nhật time remaining hours với giá trị thực tế (có giới hạn)
-     */
-    private void updateTimeRemainingHours(HealthMetric metric, LocalDateTime now) {
-        if (metric.getIsCompleted()) {
-            metric.setTimeRemainingHours(0.0);
-        } else {
-            // ✅ FIX: Tính time remaining thực tế từ targetDate, có giới hạn
-            LocalDateTime targetDate = metric.getTargetDate();
-            long timeDiffMinutes = ChronoUnit.MINUTES.between(now, targetDate);
-            double timeDiffHours = timeDiffMinutes / 60.0;
-            
-            // Giới hạn không vượt quá remainingHour cố định
-            double fixedRemainingHours = getFixedTimeRemainingHours(metric.getMetricType());
-            double actualTimeRemaining = Math.min(timeDiffHours, fixedRemainingHours);
-            
-            // Đảm bảo không âm
-            actualTimeRemaining = Math.max(0.0, actualTimeRemaining);
-            
-            metric.setTimeRemainingHours(actualTimeRemaining);
-            
-            log.info("Time remaining calculation: targetDate={}, now={}, timeDiff={:.2f}h, fixed={:.2f}h, actual={:.2f}h", 
-                    targetDate, now, timeDiffHours, fixedRemainingHours, actualTimeRemaining);
-        }
-    }
+         /**
+      * Cập nhật time remaining hours với giá trị thực tế (có giới hạn)
+      */
+     private void updateTimeRemainingHours(HealthMetric metric, LocalDateTime now, double penaltyMinutes, double fixedRemainingHours) {
+         if (metric.getIsCompleted()) {
+             metric.setTimeRemainingHours(0.0);
+         } else {
+             // ✅ FIX: Countdown = penalty + max(0, targetDate - now()) có giới hạn
+             LocalDateTime targetDate = metric.getTargetDate();
+             long baseTimeDiffMinutes = ChronoUnit.MINUTES.between(now, targetDate);
+             long totalTimeDiffMinutes = Math.max(0, baseTimeDiffMinutes) + (long) penaltyMinutes;
+             double timeDiffHours = totalTimeDiffMinutes / 60.0;
+             
+             // Giới hạn không vượt quá remainingHour cố định
+             double actualTimeRemaining = Math.min(timeDiffHours, fixedRemainingHours);
+             
+             // Đảm bảo không âm
+             actualTimeRemaining = Math.max(0.0, actualTimeRemaining);
+             
+             metric.setTimeRemainingHours(actualTimeRemaining);
+             
+             log.info("Time remaining calculation: targetDate={}, penalty={}min, now={}, baseTimeDiff={}min, totalTimeDiff={}min, timeDiff={:.2f}h, fixed={:.2f}h, actual={:.2f}h", 
+                     targetDate, penaltyMinutes, now, baseTimeDiffMinutes, totalTimeDiffMinutes, timeDiffHours, fixedRemainingHours, actualTimeRemaining);
+             
+             // ✅ DEBUG: Kiểm tra chi tiết
+             log.info("=== COUNTDOWN DEBUG ===");
+             log.info("targetDate: {}", targetDate);
+             log.info("penaltyMinutes: {}", penaltyMinutes);
+             log.info("now: {}", now);
+             log.info("baseTimeDiffMinutes: {}", baseTimeDiffMinutes);
+             log.info("totalTimeDiffMinutes: {}", totalTimeDiffMinutes);
+             log.info("timeDiffHours: {}", timeDiffHours);
+             log.info("fixedRemainingHours: {}", fixedRemainingHours);
+             log.info("actualTimeRemaining: {}", actualTimeRemaining);
+             log.info("=== END COUNTDOWN DEBUG ===");
+         }
+     }
 
     /**
      * Lấy target minutes từ metric type
