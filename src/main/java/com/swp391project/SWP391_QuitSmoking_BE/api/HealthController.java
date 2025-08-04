@@ -83,55 +83,18 @@ public class HealthController {
     }
 
     /**
-     * Test endpoint để lấy sample health metrics
+     * Test endpoint để kiểm tra health metrics
      */
-    @GetMapping("/test/sample-metrics")
-    @Operation(summary = "Test sample metrics", description = "Lấy sample health metrics để test")
-    public ResponseEntity<ApiResponse<List<HealthMetricDTO>>> getSampleHealthMetrics() {
+    @GetMapping("/test/health-status")
+    @Operation(summary = "Test health status", description = "Kiểm tra trạng thái health metrics")
+    public ResponseEntity<ApiResponse<String>> testHealthStatus() {
         try {
-            List<HealthMetricDTO> sampleMetrics = healthMetricService.createSampleHealthMetrics();
-            
-            log.info("Sample health metrics generated for testing");
-            return ResponseEntity.ok(ApiResponse.success(sampleMetrics, "Lấy sample health metrics thành công"));
+            log.info("Health status test completed");
+            return ResponseEntity.ok(ApiResponse.success("Health metrics đang hoạt động bình thường", "Test health status thành công"));
         } catch (Exception e) {
-            log.error("Error getting sample health metrics: {}", e.getMessage(), e);
+            log.error("Error testing health status: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi khi lấy sample health metrics: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * Test endpoint để kiểm tra logic penalty và progress calculation
-     */
-    @GetMapping("/test/penalty-logic")
-    @Operation(summary = "Test penalty logic", description = "Kiểm tra logic penalty và progress calculation")
-    public ResponseEntity<ApiResponse<String>> testPenaltyLogic() {
-        try {
-            healthMetricService.testPenaltyAndProgressLogic();
-            
-            log.info("Penalty logic test completed");
-            return ResponseEntity.ok(ApiResponse.success("Test penalty logic thành công. Xem log để biết chi tiết.", "Test penalty logic thành công"));
-        } catch (Exception e) {
-            log.error("Error testing penalty logic: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi khi test penalty logic: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * Test endpoint để kiểm tra thời gian bỏ thuốc
-     */
-    @GetMapping("/test/quit-time")
-    @Operation(summary = "Test quit time calculation", description = "Kiểm tra tính toán thời gian bỏ thuốc")
-    public ResponseEntity<ApiResponse<String>> testQuitTime() {
-        try {
-            String result = healthMetricService.testQuitTimeCalculation();
-            log.info("Quit time test completed: {}", result);
-            return ResponseEntity.ok(ApiResponse.success(result, "Test quit time thành công"));
-        } catch (Exception e) {
-            log.error("Error testing quit time: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi khi test quit time: " + e.getMessage()));
+                    .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi khi test health status: " + e.getMessage()));
         }
     }
 } 

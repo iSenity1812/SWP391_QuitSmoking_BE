@@ -36,20 +36,31 @@ public class BlogService {
     private BlogResponseDTO convertToBlogResponseDTO(Blog blog) {
         if (blog == null) return null;
 
-        BlogResponseDTO dto = modelMapper.map(blog, BlogResponseDTO.class);
+        try {
+            BlogResponseDTO dto = modelMapper.map(blog, BlogResponseDTO.class);
 
-        // BỔ SUNG QUAN TRỌNG: Ánh xạ comments vào BlogResponseDTO
-        if (blog.getComments() != null && !blog.getComments().isEmpty()) {
-            // Đảm bảo convertToDtoWithReplies trong CommentService là public và KHÔNG static
-            List<CommentResponseDTO> commentDTOs = blog.getComments().stream()
-                    .map(commentService::convertToDtoWithReplies)
-                    .collect(Collectors.toList());
-            dto.setComments(commentDTOs);
-        } else {
-            dto.setComments(Collections.emptyList());
+            // BỔ SUNG QUAN TRỌNG: Ánh xạ comments vào BlogResponseDTO
+            if (blog.getComments() != null && !blog.getComments().isEmpty()) {
+                try {
+                    // Đảm bảo convertToDtoWithReplies trong CommentService là public và KHÔNG static
+                    List<CommentResponseDTO> commentDTOs = blog.getComments().stream()
+                            .map(commentService::convertToDtoWithReplies)
+                            .collect(Collectors.toList());
+                    dto.setComments(commentDTOs);
+                } catch (Exception e) {
+                    // Nếu có lỗi khi xử lý comments, set empty list
+                    dto.setComments(Collections.emptyList());
+                }
+            } else {
+                dto.setComments(Collections.emptyList());
+            }
+
+            return dto;
+        } catch (Exception e) {
+            // Log lỗi và trả về null
+            System.err.println("Error converting blog to DTO: " + e.getMessage());
+            return null;
         }
-
-        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -78,8 +89,13 @@ public class BlogService {
     @Transactional(readOnly = true)
     public BlogResponseDTO getBlogById(Integer blogId) {
         Blog blog = blogRepository.findById(blogId)
-                .filter(b -> b.getStatus() == BlogStatus.PUBLISHED)
                 .orElseThrow(() -> new AppException(ErrorCode.BLOG_NOT_FOUND));
+        
+        // Kiểm tra status sau khi tìm thấy blog
+        if (blog.getStatus() != BlogStatus.PUBLISHED) {
+            throw new AppException(ErrorCode.BLOG_NOT_FOUND);
+        }
+        
         return convertToBlogResponseDTO(blog);
     }
 

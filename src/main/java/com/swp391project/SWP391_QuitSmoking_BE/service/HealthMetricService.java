@@ -141,12 +141,7 @@ public class HealthMetricService {
         
         List<HealthMetric> metrics = healthMetricRepository.findByUserOrderByMetricType(user);
         
-        // XỬ LÝ COMPLETED METRICS TRƯỚC (nếu có penalty)
-        if (totalCigarettesSmoked > 0) {
-            handleCompletedMetricsWithPenalty(metrics, quitDate, now, penaltyMinutes, totalCigarettesSmoked, dailySummaries);
-        }
-        
-        // Sau đó cập nhật tất cả metrics
+        // CẬP NHẬT TẤT CẢ METRICS VỚI PENALTY (bao gồm cả completed và non-completed)
         for (HealthMetric metric : metrics) {
             updateSingleMetric(metric, quitDate, now, penaltyMinutes, totalCigarettesSmoked);
         }
@@ -155,67 +150,10 @@ public class HealthMetricService {
         log.info("Updated {} health metrics for user: {}", metrics.size(), user.getUserId());
     }
 
-    /**
-     * Xử lý completed metrics có penalty
-     */
-    private void handleCompletedMetricsWithPenalty(List<HealthMetric> metrics, LocalDateTime quitDate, 
-                                                 LocalDateTime now, double penaltyMinutes, int totalCigarettesSmoked,
-                                                 List<DailySummary> dailySummaries) {
-        log.info("Handling completed metrics with penalty");
-        
-        // Xử lý từng completed metric với công thức mới
-        for (HealthMetric metric : metrics) {
-            if (metric.getIsCompleted()) {
-                String metricType = metric.getMetricType();
-                double targetMinutes = getTargetMinutesFromMetricType(metricType);
-                
-                log.info("Processing completed metric: {}", metricType);
-                
-                // CÔNG THỨC MỚI: Progress dựa trên thời gian thực tế + penalty
-                long elapsedMinutes = ChronoUnit.MINUTES.between(quitDate, now);
-                double effectiveElapsedMinutes = Math.max(0, elapsedMinutes - penaltyMinutes);
-                double newProgress;
-                LocalDateTime newTargetDate;
-                
-                if (effectiveElapsedMinutes >= targetMinutes) {
-                    // COMPLETED: Đã đủ thời gian
-                    newProgress = 100.0;
-                    newTargetDate = quitDate.plusMinutes((long) targetMinutes);
-                    log.info("COMPLETED: effective elapsed time >= target time");
-                } else if (effectiveElapsedMinutes <= 0) {
-                    // NOT STARTED: Penalty >= elapsed time
-                    newProgress = 0.0;
-                    newTargetDate = now.plusMinutes((long) targetMinutes);
-                    log.info("NOT STARTED: penalty >= elapsed time, reset to 0%");
-                } else {
-                    // IN PROGRESS: Tính progress theo tỷ lệ thời gian
-                    newProgress = (effectiveElapsedMinutes / targetMinutes) * 100.0;
-                    newTargetDate = quitDate.plusMinutes((long) targetMinutes);
-                    log.info("IN PROGRESS: progress = {:.2f}%", newProgress);
-                }
-                
-                // Cập nhật metric
-                metric.setTargetDate(newTargetDate);
-                metric.setCurrentProgress(newProgress);
-                metric.setHasRegressed(true);
-                
-                // Set completed = false nếu progress < 100%
-                if (newProgress < COMPLETION_THRESHOLD) {
-                    metric.setIsCompleted(false);
-                    metric.setAchievedDate(null);
-                    log.info("Set {} to incomplete, progress: {:.2f}%", metricType, newProgress);
-                } else {
-                    log.info("Keep {} as completed, progress: {:.2f}%", metricType, newProgress);
-                }
-                
-                log.info("Updated {}: targetDate={}, progress={:.2f}%, completed={}", 
-                        metricType, newTargetDate, newProgress, metric.getIsCompleted());
-            }
-        }
-    }
+
 
     /**
-     * Cập nhật single metric với logic đơn giản hơn
+     * Cập nhật single metric với penalty logic thống nhất
      */
     private void updateSingleMetric(HealthMetric metric, LocalDateTime quitDate, LocalDateTime now, 
                                    double penaltyMinutes, int totalCigarettesSmoked) {
@@ -229,7 +167,7 @@ public class HealthMetricService {
         LocalDateTime targetDate;
         double progress;
         
-        // CÔNG THỨC MỚI: Progress dựa trên thời gian thực tế + penalty
+        // CÔNG THỨC THỐNG NHẤT: Progress dựa trên thời gian thực tế + penalty
         long elapsedMinutes = ChronoUnit.MINUTES.between(quitDate, now);
         double effectiveElapsedMinutes = Math.max(0, elapsedMinutes - penaltyMinutes);
         
@@ -241,7 +179,7 @@ public class HealthMetricService {
         } else if (effectiveElapsedMinutes <= 0) {
             // NOT STARTED: Penalty >= elapsed time
             progress = 0.0;
-            targetDate = now.plusMinutes((long) targetMinutes);
+            targetDate = quitDate.plusMinutes((long) targetMinutes);
             log.info("NOT STARTED: penalty >= elapsed time, reset to 0%");
         } else {
             // IN PROGRESS: Tính progress theo tỷ lệ thời gian
@@ -279,26 +217,7 @@ public class HealthMetricService {
 
 
 
-    /**
-     * Tính progress từ target date - SỬA LẠI LOGIC
-     * Progress = ((target_time - time_remaining) / target_time) * 100%
-     */
-    private double calculateProgressFromTargetDate(LocalDateTime targetDate, LocalDateTime now, double targetMinutes) {
-        if (now.isAfter(targetDate) || now.isEqual(targetDate)) {
-            return MAX_PROGRESS;
-        }
-        
-        // Tính thời gian còn lại (time_remaining)
-        long remainingMinutes = ChronoUnit.MINUTES.between(now, targetDate);
-        
-        // Tính thời gian đã trôi qua
-        double elapsedMinutes = targetMinutes - remainingMinutes;
-        
-        // Progress = (elapsed_time / target_time) * 100%
-        double progress = (elapsedMinutes / targetMinutes) * 100.0;
-        
-        return Math.max(MIN_PROGRESS, Math.min(MAX_PROGRESS, progress));
-    }
+
 
     /**
      * Cập nhật time remaining hours với độ chính xác phút (không tính giây)
@@ -348,8 +267,21 @@ public class HealthMetricService {
         List<HealthMetric> metrics = healthMetricRepository.findByUserOrderByMetricType(user);
         
         if (metrics.isEmpty()) {
-            // Tạo sample data nếu không có metrics
-            return createSampleHealthOverview();
+            // Trả về empty overview nếu không có metrics
+            return HealthOverviewDTO.builder()
+                    .totalMetrics(0L)
+                    .completedMetrics(0L)
+                    .inProgressMetrics(0L)
+                    .regressedMetrics(0L)
+                    .overallProgress(0.0)
+                    .topProgressMetrics(List.of())
+                    .upcomingMilestones(List.of())
+                    .recentAchievements(List.of())
+                    .nextMilestone("Chưa có dữ liệu")
+                    .daysSinceQuit(0L)
+                    .hoursSinceQuit(0L)
+                    .metrics(List.of())
+                    .build();
         }
         
         Long totalMetrics = (long) metrics.size();
@@ -428,7 +360,7 @@ public class HealthMetricService {
         List<HealthMetric> metrics = healthMetricRepository.findByUserOrderByMetricType(user);
         
         if (metrics.isEmpty()) {
-            return createSampleHealthMetrics();
+            return List.of();
         }
         
         return metrics.stream()
@@ -509,193 +441,7 @@ public class HealthMetricService {
         };
     }
 
-    /**
-     * Tạo sample health overview
-     */
-    private HealthOverviewDTO createSampleHealthOverview() {
-        List<HealthMetricDTO> sampleMetrics = createSampleHealthMetrics();
-        
-        return HealthOverviewDTO.builder()
-                .totalMetrics((long) sampleMetrics.size())
-                .completedMetrics(0L)
-                .inProgressMetrics((long) sampleMetrics.size())
-                .regressedMetrics(0L)
-                .overallProgress(0.0)
-                .topProgressMetrics(sampleMetrics.stream().limit(5).toList())
-                .upcomingMilestones(sampleMetrics.stream().limit(3).toList())
-                .recentAchievements(List.of())
-                .nextMilestone("Bắt đầu hành trình bỏ thuốc")
-                .daysSinceQuit(0L)
-                .hoursSinceQuit(0L)
-                .metrics(sampleMetrics)
-                .build();
-    }
 
-    /**
-     * Tạo sample health metrics
-     */
-    public List<HealthMetricDTO> createSampleHealthMetrics() {
-        // Sử dụng thời gian hiện tại làm quit date cho sample data
-        LocalDateTime quitDate = LocalDateTime.now();
-        
-        return List.of(
-            createSampleMetric("PULSE_RATE", quitDate, 20, 0.0, false),
-            createSampleMetric("OXYGEN_LEVELS", quitDate, 480, 0.0, false),
-            createSampleMetric("CARBON_MONOXIDE", quitDate, 1440, 0.0, false),
-            createSampleMetric("NICOTINE_EXPELLED", quitDate, 4320, 0.0, false),
-            createSampleMetric("TASTE_SMELL", quitDate, 2880, 0.0, false),
-            createSampleMetric("BREATHING", quitDate, 4320, 0.0, false),
-            createSampleMetric("ENERGY_LEVELS", quitDate, 4320, 0.0, false),
-            createSampleMetric("BAD_BREATH_GONE", quitDate, 4320, 0.0, false),
-            createSampleMetric("GUMS_TEETH", quitDate, 10080, 0.0, false),
-            createSampleMetric("TEETH_BRIGHTNESS", quitDate, 20160, 0.0, false),
-            createSampleMetric("CIRCULATION", quitDate, 20160, 0.0, false),
-            createSampleMetric("GUM_TEXTURE", quitDate, 43200, 0.0, false),
-            createSampleMetric("IMMUNITY_LUNG_FUNCTION", quitDate, 43200, 0.0, false),
-            createSampleMetric("HEART_DISEASE_RISK", quitDate, 525600, 0.0, false),
-            createSampleMetric("LUNG_CANCER_RISK", quitDate, 5256000, 0.0, false),
-            createSampleMetric("HEART_ATTACK_RISK", quitDate, 525600, 0.0, false)
-        );
-    }
 
-    /**
-     * Tạo sample metric
-     */
-    private HealthMetricDTO createSampleMetric(String metricType, LocalDateTime quitDate, long targetMinutes, 
-                                              double progress, boolean isCompleted) {
-        LocalDateTime targetDate = quitDate.plusMinutes(targetMinutes);
-        double remainingHours = Math.max(0.0, targetMinutes / 60.0);
-        
-        return HealthMetricDTO.builder()
-                .id(java.util.UUID.randomUUID().toString())
-                .metricType(metricType)
-                .currentProgress(progress)
-                .isCompleted(isCompleted)
-                .hasRegressed(false)
-                .description(getDescriptionFromMetricType(metricType))
-                .targetDate(targetDate)
-                .achievedDate(isCompleted ? quitDate.plusMinutes(targetMinutes) : null)
-                .timeRemainingHours(remainingHours)
-                .timeRemainingFormatted(formatTimeRemaining(remainingHours))
-                .displayName(getDisplayNameFromMetricType(metricType))
-                .build();
-    }
 
-    /**
-     * Lấy description từ metric type
-     */
-    private String getDescriptionFromMetricType(String metricType) {
-        return switch (metricType) {
-            case "PULSE_RATE" -> "Sau 20 phút, nhịp tim của bạn sẽ trở về bình thường";
-            case "OXYGEN_LEVELS" -> "Sau 8 giờ, nồng độ oxy trong máu sẽ trở về bình thường";
-            case "CARBON_MONOXIDE" -> "Sau 24 giờ, carbon monoxide sẽ được loại bỏ khỏi cơ thể";
-            case "NICOTINE_EXPELLED" -> "Sau 72 giờ, nicotine sẽ được loại bỏ khỏi cơ thể";
-            case "TASTE_SMELL" -> "Sau 48 giờ, vị giác và khứu giác của bạn sẽ được cải thiện";
-            case "BREATHING" -> "Sau 72 giờ, hơi thở của bạn sẽ dễ dàng hơn";
-            case "ENERGY_LEVELS" -> "Sau 72 giờ, mức năng lượng của bạn sẽ tăng";
-            case "BAD_BREATH_GONE" -> "Sau 72 giờ, hơi thở hôi sẽ biến mất";
-            case "GUMS_TEETH" -> "Sau 1 tuần, nướu và răng sẽ được cải thiện";
-            case "TEETH_BRIGHTNESS" -> "Sau 2 tuần, răng sẽ sáng hơn";
-            case "CIRCULATION" -> "Sau 2 tuần, tuần hoàn máu sẽ được cải thiện";
-            case "GUM_TEXTURE" -> "Sau 1 tháng, kết cấu nướu sẽ được cải thiện";
-            case "IMMUNITY_LUNG_FUNCTION" -> "Sau 1 tháng, chức năng phổi và miễn dịch sẽ được cải thiện";
-            case "HEART_DISEASE_RISK" -> "Sau 1 năm, nguy cơ bệnh tim sẽ giảm một nửa";
-            case "LUNG_CANCER_RISK" -> "Sau 10 năm, nguy cơ ung thư phổi sẽ giảm một nửa";
-            case "HEART_ATTACK_RISK" -> "Sau 1 năm, nguy cơ đau tim sẽ giảm một nửa";
-            default -> "Cải thiện sức khỏe";
-        };
-    }
-
-    /**
-     * Test method để kiểm tra logic penalty và progress calculation
-     */
-    public void testPenaltyAndProgressLogic() {
-        log.info("=== TESTING PENALTY AND PROGRESS LOGIC ===");
-        
-        try {
-            LocalDateTime quitDate = LocalDateTime.now().minusDays(1); // Quit 1 ngày trước
-            LocalDateTime now = LocalDateTime.now();
-            
-            log.info("Quit date: {}", quitDate);
-            log.info("Current time: {}", now);
-            
-            // Test case 1: PULSE_RATE (20 phút) - không có penalty
-            testMetricLogic("PULSE_RATE", quitDate, now, 0, "Test 1: PULSE_RATE không penalty");
-            
-            // Test case 2: PULSE_RATE (20 phút) - có 1 điếu thuốc (60 phút penalty)
-            testMetricLogic("PULSE_RATE", quitDate, now, 1, "Test 2: PULSE_RATE có 1 điếu penalty");
-            
-            // Test case 3: PULSE_RATE (20 phút) - có 5 điếu thuốc (300 phút penalty > 20 phút target)
-            testMetricLogic("PULSE_RATE", quitDate, now, 5, "Test 3: PULSE_RATE có 5 điếu (reset case)");
-            
-            // Test case 4: OXYGEN_LEVELS (480 phút) - có 2 điếu thuốc (120 phút penalty < 480 phút target)
-            testMetricLogic("OXYGEN_LEVELS", quitDate, now, 2, "Test 4: OXYGEN_LEVELS có 2 điếu penalty");
-            
-            log.info("=== END TESTING ===");
-        } catch (Exception e) {
-            log.error("Error in testPenaltyAndProgressLogic: {}", e.getMessage(), e);
-            throw e;
-        }
-    }
-    
-    private void testMetricLogic(String metricType, LocalDateTime quitDate, LocalDateTime now, int cigarettes, String testName) {
-        try {
-            double targetMinutes = getTargetMinutesFromMetricType(metricType);
-            double penaltyMinutes = cigarettes * PENALTY_PER_CIGARETTE;
-            
-            log.info("{}", testName);
-            log.info("  Metric: {} ({} phút)", metricType, targetMinutes);
-            log.info("  Cigarettes: {} ({} phút penalty)", cigarettes, penaltyMinutes);
-            
-            // CÔNG THỨC MỚI: Progress = ((targetMinutes - penaltyMinutes) / targetMinutes) * 100%
-            if (penaltyMinutes >= targetMinutes) {
-                // Reset case
-                double newProgress = 0.0; // Reset về 0%
-                log.info("  RESET CASE: penalty >= target");
-                log.info("  New progress: {:.2f}% (reset to 0%)", newProgress);
-            } else {
-                // Normal case
-                double newProgress = ((targetMinutes - penaltyMinutes) / targetMinutes) * 100.0;
-                log.info("  NORMAL CASE: penalty < target");
-                log.info("  New progress: {:.2f}%", newProgress);
-            }
-            
-            log.info("  ---");
-        } catch (Exception e) {
-            log.error("Error in testMetricLogic for {}: {}", testName, e.getMessage(), e);
-            throw e;
-        }
-    }
-
-    /**
-     * Test method để kiểm tra tính toán thời gian bỏ thuốc
-     */
-    public String testQuitTimeCalculation() {
-        try {
-            // Giả sử có một user test
-            // Trong thực tế, bạn cần lấy user thực từ database
-            log.info("=== TESTING QUIT TIME CALCULATION ===");
-            
-            // Tạo quit date giả lập (1 giờ trước)
-            LocalDateTime quitDate = LocalDateTime.now().minusHours(1);
-            LocalDateTime now = LocalDateTime.now();
-            
-            long totalMinutes = ChronoUnit.MINUTES.between(quitDate, now);
-            long daysSinceQuit = totalMinutes / 1440; // 1440 = 24 * 60
-            long hoursSinceQuit = totalMinutes / 60; // Tổng giờ
-            
-            String result = String.format(
-                "Quit date: %s\nCurrent time: %s\nTotal minutes: %d\nDays: %d\nHours: %d",
-                quitDate, now, totalMinutes, daysSinceQuit, hoursSinceQuit
-            );
-            
-            log.info("Quit time calculation result: {}", result);
-            log.info("=== END QUIT TIME TEST ===");
-            
-            return result;
-        } catch (Exception e) {
-            log.error("Error in testQuitTimeCalculation: {}", e.getMessage(), e);
-            throw e;
-        }
-    }
 } 
