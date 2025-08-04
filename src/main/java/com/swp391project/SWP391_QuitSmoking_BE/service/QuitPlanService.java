@@ -7,6 +7,7 @@ import com.swp391project.SWP391_QuitSmoking_BE.enums.ReductionQuitPlanType;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.QuitPlanChangedTypeException;
 import com.swp391project.SWP391_QuitSmoking_BE.exception.ResourceNotFoundException;
 import com.swp391project.SWP391_QuitSmoking_BE.repository.*;
+import com.swp391project.SWP391_QuitSmoking_BE.service.HealthMetricService;
 import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ public class QuitPlanService {
     private final MemberRepository memberRepository;
     private final ModelMapper modelMapper;
     private final DailySummaryService dailySummaryService;
+    private final HealthMetricService healthMetricService;
 
     private static final LocalDate MAX_GOAL_DATE = LocalDate.of(2999, 12, 31);
 
@@ -41,11 +43,13 @@ public class QuitPlanService {
             QuitPlanRepository quitPlanRepository,
             MemberRepository memberRepository,
             @Lazy DailySummaryService dailySummaryService, //@Lazy to break potential cycles
-            ModelMapper modelMapper) {
+            ModelMapper modelMapper,
+            HealthMetricService healthMetricService) {
         this.dailySummaryService = dailySummaryService;
         this.quitPlanRepository = quitPlanRepository;
         this.memberRepository = memberRepository;
         this.modelMapper = modelMapper;
+        this.healthMetricService = healthMetricService;
     }
 
     // Chuyển đổi QuitPlan entity sang DTO
@@ -285,6 +289,15 @@ public class QuitPlanService {
         log.info("Lưu kế hoạch cai thuốc cho thành viên: {}", memberId);
         QuitPlan savedPlan = quitPlanRepository.save(quitPlan);
         log.info("Kế hoạch cai thuốc đã được lưu với ID: {}", savedPlan.getQuitPlanId());
+
+        // Khởi tạo health metrics cho user
+        try {
+            healthMetricService.initializeHealthMetrics(member.getUser());
+            log.info("Health metrics đã được khởi tạo cho user: {}", memberId);
+        } catch (Exception e) {
+            log.error("Lỗi khi khởi tạo health metrics cho user {}: {}", memberId, e.getMessage(), e);
+            // Không throw exception vì đây không phải lỗi nghiêm trọng
+        }
 
         // Kiểm tra và cập nhật trạng thái ngay lập tức sau khi lưu
         ensureQuitPlanStatusIsCurrent(savedPlan);

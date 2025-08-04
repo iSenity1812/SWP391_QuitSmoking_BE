@@ -14,6 +14,7 @@ import java.util.UUID;
 public class UserResponseDTO {
     private UUID userId;
     private String username; // hoặc firstName, lastName
+    private String name; // Thêm field name để tương thích với frontend
     private String email;
     // Thêm các trường khác mà bạn muốn hiển thị public
     // private String avatarUrl;

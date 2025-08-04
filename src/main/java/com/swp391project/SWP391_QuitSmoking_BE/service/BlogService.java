@@ -36,20 +36,67 @@ public class BlogService {
     private BlogResponseDTO convertToBlogResponseDTO(Blog blog) {
         if (blog == null) return null;
 
-        BlogResponseDTO dto = modelMapper.map(blog, BlogResponseDTO.class);
+        try {
+            // Tạo DTO thủ công để đảm bảo mapping chính xác
+            BlogResponseDTO dto = new BlogResponseDTO();
+            
+            // Map các field cơ bản
+            dto.setBlogId(blog.getBlogId());
+            dto.setTitle(blog.getTitle());
+            dto.setContent(blog.getContent());
+            dto.setImageUrl(blog.getImageUrl());
+            dto.setStatus(blog.getStatus() != null ? blog.getStatus().toString() : null);
+            dto.setCreatedAt(blog.getCreatedAt());
+            dto.setLastUpdated(blog.getLastUpdated());
+            dto.setApprovedAt(blog.getApprovedAt());
+            
+            // Map author information
+            if (blog.getAuthor() != null) {
+                dto.setAuthor(new com.swp391project.SWP391_QuitSmoking_BE.dto.user.UserResponseDTO());
+                dto.getAuthor().setUserId(blog.getAuthor().getUserId());
+                dto.getAuthor().setUsername(blog.getAuthor().getUsername());
+                dto.getAuthor().setName(blog.getAuthor().getUsername()); // Use username as name since User doesn't have name field
+                dto.getAuthor().setEmail(blog.getAuthor().getEmail());
+            }
+            
+            // Map approvedBy information
+            if (blog.getApprovedBy() != null) {
+                dto.setApprovedBy(new com.swp391project.SWP391_QuitSmoking_BE.dto.user.UserResponseDTO());
+                dto.getApprovedBy().setUserId(blog.getApprovedBy().getUserId());
+                dto.getApprovedBy().setUsername(blog.getApprovedBy().getUsername());
+                dto.getApprovedBy().setName(blog.getApprovedBy().getUsername()); // Use username as name since User doesn't have name field
+            }
 
-        // BỔ SUNG QUAN TRỌNG: Ánh xạ comments vào BlogResponseDTO
-        if (blog.getComments() != null && !blog.getComments().isEmpty()) {
-            // Đảm bảo convertToDtoWithReplies trong CommentService là public và KHÔNG static
-            List<CommentResponseDTO> commentDTOs = blog.getComments().stream()
-                    .map(commentService::convertToDtoWithReplies)
-                    .collect(Collectors.toList());
-            dto.setComments(commentDTOs);
-        } else {
-            dto.setComments(Collections.emptyList());
+            // BỔ SUNG QUAN TRỌNG: Ánh xạ comments vào BlogResponseDTO
+            if (blog.getComments() != null && !blog.getComments().isEmpty()) {
+                try {
+                    // Đảm bảo convertToDtoWithReplies trong CommentService là public và KHÔNG static
+                    List<CommentResponseDTO> commentDTOs = blog.getComments().stream()
+                            .map(commentService::convertToDtoWithReplies)
+                            .collect(Collectors.toList());
+                    dto.setComments(commentDTOs);
+                    dto.setCommentCount(commentDTOs.size());
+                } catch (Exception e) {
+                    // Nếu có lỗi khi xử lý comments, set empty list
+                    System.err.println("Error processing comments for blog " + blog.getBlogId() + ": " + e.getMessage());
+                    dto.setComments(Collections.emptyList());
+                    dto.setCommentCount(0);
+                }
+            } else {
+                dto.setComments(Collections.emptyList());
+                dto.setCommentCount(0);
+            }
+
+            // Debug logging
+            System.out.println("Successfully converted Blog entity to DTO: blogId=" + dto.getBlogId() + ", title=" + dto.getTitle());
+            
+            return dto;
+        } catch (Exception e) {
+            // Log lỗi và trả về null
+            System.err.println("Error converting blog to DTO: " + e.getMessage());
+            e.printStackTrace();
+            return null;
         }
-
-        return dto;
     }
 
     @Transactional(readOnly = true)
@@ -78,8 +125,13 @@ public class BlogService {
     @Transactional(readOnly = true)
     public BlogResponseDTO getBlogById(Integer blogId) {
         Blog blog = blogRepository.findById(blogId)
-                .filter(b -> b.getStatus() == BlogStatus.PUBLISHED)
                 .orElseThrow(() -> new AppException(ErrorCode.BLOG_NOT_FOUND));
+        
+        // Kiểm tra status sau khi tìm thấy blog
+        if (blog.getStatus() != BlogStatus.PUBLISHED) {
+            throw new AppException(ErrorCode.BLOG_NOT_FOUND);
+        }
+        
         return convertToBlogResponseDTO(blog);
     }
 
