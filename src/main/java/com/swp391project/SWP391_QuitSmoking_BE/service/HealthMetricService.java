@@ -90,7 +90,7 @@ public class HealthMetricService {
                     healthMetric.setIsCompleted(false);
                     healthMetric.setHasRegressed(false);
                     healthMetric.setDescription(description);
-                    healthMetric.setTimeRemainingHours(targetMinutes / 60.0);
+                    healthMetric.setTimeRemainingHours(getFixedTimeRemainingHours(metricType));
                     // createdAt và updatedAt sẽ được set tự động bởi @PrePersist
                     
                     healthMetricRepository.save(healthMetric);
@@ -153,58 +153,59 @@ public class HealthMetricService {
 
 
     /**
-     * Cập nhật single metric với penalty logic thống nhất
+     * Cập nhật single metric với logic mới
      */
     private void updateSingleMetric(HealthMetric metric, LocalDateTime quitDate, LocalDateTime now, 
                                    double penaltyMinutes, int totalCigarettesSmoked) {
         
         String metricType = metric.getMetricType();
         double targetMinutes = getTargetMinutesFromMetricType(metricType);
+        double fixedRemainingHours = getFixedTimeRemainingHours(metricType);
         
-        log.info("Updating metric: {}, target: {} minutes, penalty: {} minutes", 
-                metricType, targetMinutes, penaltyMinutes);
+        log.info("Updating metric: {}, target: {} minutes, penalty: {} minutes, fixed remaining: {} hours", 
+                metricType, targetMinutes, penaltyMinutes, fixedRemainingHours);
         
-        LocalDateTime targetDate;
+        // Tính targetDate bao gồm penalty
+        LocalDateTime targetDate = quitDate.plusMinutes((long) targetMinutes).plusMinutes((long) penaltyMinutes);
         double progress;
         
-        // CÔNG THỨC THỐNG NHẤT: Progress dựa trên thời gian thực tế + penalty
-        long elapsedMinutes = ChronoUnit.MINUTES.between(quitDate, now);
-        double effectiveElapsedMinutes = Math.max(0, elapsedMinutes - penaltyMinutes);
+        // Kiểm tra điều kiện penalty
+        LocalDateTime penaltyCheckDate = quitDate.plusMinutes((long) targetMinutes).plusMinutes((long) penaltyMinutes);
+        LocalDateTime nowPlusRemaining = now.plusHours((long) fixedRemainingHours);
         
-        if (effectiveElapsedMinutes >= targetMinutes) {
-            // COMPLETED: Đã đủ thời gian
-            progress = 100.0;
-            targetDate = quitDate.plusMinutes((long) targetMinutes);
-            log.info("COMPLETED: effective elapsed time >= target time");
-        } else if (effectiveElapsedMinutes <= 0) {
-            // NOT STARTED: Penalty >= elapsed time
-            progress = 0.0;
-            targetDate = quitDate.plusMinutes((long) targetMinutes);
-            log.info("NOT STARTED: penalty >= elapsed time, reset to 0%");
+        boolean penaltyConditionMet = penaltyCheckDate.isBefore(nowPlusRemaining) || penaltyCheckDate.isEqual(nowPlusRemaining);
+        
+        log.info("Penalty condition check: {} <= {} = {}", penaltyCheckDate, nowPlusRemaining, penaltyConditionMet);
+        
+        if (metric.getIsCompleted()) {
+            // COMPLETED: Sử dụng created_at của daily_summary mới nhất
+            LocalDateTime latestDailySummaryDate = getLatestDailySummaryDate(quitDate);
+            progress = calculateCompletedProgress(latestDailySummaryDate, penaltyMinutes, now, fixedRemainingHours);
+            log.info("COMPLETED: progress = {:.2f}% (using latest daily summary)", progress);
         } else {
-            // IN PROGRESS: Tính progress theo tỷ lệ thời gian
-            progress = (effectiveElapsedMinutes / targetMinutes) * 100.0;
-            targetDate = quitDate.plusMinutes((long) targetMinutes);
-            log.info("IN PROGRESS: progress = {:.2f}%", progress);
+            // INCOMPLETED: Sử dụng targetDate
+            progress = calculateIncompleteProgress(targetDate, penaltyMinutes, now, fixedRemainingHours);
+            log.info("INCOMPLETED: progress = {:.2f}% (using target date)", progress);
         }
         
-        log.info("Target date calculation: final={}", targetDate);
+        log.info("Target date: {}, fixed remaining hours: {:.2f}", targetDate, fixedRemainingHours);
         log.info("Progress calculation: progress = {:.2f}%", progress);
         
         // Cập nhật target date
         metric.setTargetDate(targetDate);
         
         // Cập nhật progress và trạng thái
-        metric.setCurrentProgress(Math.max(MIN_PROGRESS, Math.min(MAX_PROGRESS, progress)));
+        metric.setCurrentProgress(Math.max(0.0, Math.min(100.0, progress)));
         metric.setHasRegressed(totalCigarettesSmoked > 0);
         
-        // QUAN TRỌNG: Set completed status dựa trên progress
+        // Set completed status dựa trên progress
         if (progress >= COMPLETION_THRESHOLD) {
             metric.setIsCompleted(true);
             metric.setCurrentProgress(MAX_PROGRESS);
-            metric.setAchievedDate(now);
+            if (metric.getAchievedDate() == null) {
+                metric.setAchievedDate(now);
+            }
         } else {
-            // ĐẢM BẢO: Nếu progress < 100% thì set completed = false
             metric.setIsCompleted(false);
             metric.setAchievedDate(null);
         }
@@ -220,16 +221,81 @@ public class HealthMetricService {
 
 
     /**
-     * Cập nhật time remaining hours với độ chính xác phút (không tính giây)
+     * Lấy created_at của daily_summary mới nhất
+     */
+    private LocalDateTime getLatestDailySummaryDate(LocalDateTime quitDate) {
+        try {
+            // Lấy daily summary mới nhất từ database
+            List<DailySummary> allSummaries = dailySummaryRepository.findAll();
+            if (!allSummaries.isEmpty()) {
+                DailySummary latestSummary = allSummaries.stream()
+                    .max(Comparator.comparing(DailySummary::getCreatedAt))
+                    .orElse(null);
+                if (latestSummary != null) {
+                    return latestSummary.getCreatedAt();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error getting latest daily summary date: {}", e.getMessage());
+        }
+        // Fallback về quitDate nếu không lấy được
+        return quitDate;
+    }
+    
+    /**
+     * Tính progress cho completed metrics
+     * progress = 1 - ((created_at của daily_summary mới nhất + penalty - now()) / remainingHour)
+     */
+    private double calculateCompletedProgress(LocalDateTime latestDailySummaryDate, double penaltyMinutes, 
+                                            LocalDateTime now, double remainingHours) {
+        // Tính (created_at + penalty - now())
+        long timeDiffMinutes = ChronoUnit.MINUTES.between(now, latestDailySummaryDate.plusMinutes((long) penaltyMinutes));
+        double timeDiffHours = timeDiffMinutes / 60.0;
+        
+        // Đảm bảo không vượt quá remainingHours
+        double adjustedTimeDiff = Math.min(timeDiffHours, remainingHours);
+        
+        // Công thức: 1 - (adjustedTimeDiff / remainingHours)
+        if (remainingHours <= 0) {
+            return 100.0; // Đã hoàn thành
+        }
+        
+        double progress = 1.0 - (adjustedTimeDiff / remainingHours);
+        return progress * 100.0; // Chuyển thành phần trăm
+    }
+    
+    /**
+     * Tính progress cho incomplete metrics
+     * progress = 1 - ((targetDate + penalty - now()) / remainingHour)
+     */
+    private double calculateIncompleteProgress(LocalDateTime targetDate, double penaltyMinutes, 
+                                             LocalDateTime now, double remainingHours) {
+        // Tính (targetDate + penalty - now())
+        long timeDiffMinutes = ChronoUnit.MINUTES.between(now, targetDate.plusMinutes((long) penaltyMinutes));
+        double timeDiffHours = timeDiffMinutes / 60.0;
+        
+        // Đảm bảo không vượt quá remainingHours
+        double adjustedTimeDiff = Math.min(timeDiffHours, remainingHours);
+        
+        // Công thức: 1 - (adjustedTimeDiff / remainingHours)
+        if (remainingHours <= 0) {
+            return 100.0; // Đã hoàn thành
+        }
+        
+        double progress = 1.0 - (adjustedTimeDiff / remainingHours);
+        return progress * 100.0; // Chuyển thành phần trăm
+    }
+    
+    /**
+     * Cập nhật time remaining hours với giá trị cố định
      */
     private void updateTimeRemainingHours(HealthMetric metric, LocalDateTime now) {
         if (metric.getIsCompleted()) {
             metric.setTimeRemainingHours(0.0);
         } else {
-            // Tính bằng phút để làm tròn xuống, không tính giây
-            long remainingMinutes = ChronoUnit.MINUTES.between(now, metric.getTargetDate());
-            double remainingHours = Math.max(0.0, remainingMinutes / 60.0); // Chuyển phút thành giờ
-            metric.setTimeRemainingHours(remainingHours);
+            // Sử dụng giá trị cố định cho từng metric type
+            double fixedRemainingHours = getFixedTimeRemainingHours(metric.getMetricType());
+            metric.setTimeRemainingHours(fixedRemainingHours);
         }
     }
 
@@ -253,6 +319,29 @@ public class HealthMetricService {
             case "LUNG_CANCER_RISK" -> 5256000.0; // 10 năm
             case "HEART_ATTACK_RISK" -> 7884000.0; // 15 năm
             default -> 1440.0;
+        };
+    }
+    
+    /**
+     * Lấy time remaining hours cố định từ metric type
+     */
+    private double getFixedTimeRemainingHours(String metricType) {
+        return switch (metricType) {
+            case "PULSE_RATE" -> 22.0; // 22 giờ
+            case "OXYGEN_LEVELS" -> 29.0; // 1 ngày 5 giờ
+            case "CARBON_MONOXIDE" -> 45.0; // 1 ngày 21 giờ
+            case "NICOTINE_EXPELLED" -> 69.0; // 2 ngày 21 giờ
+            case "TASTE_SMELL" -> 81.0; // 3 ngày 9 giờ
+            case "BREATHING" -> 93.0; // 3 ngày 21 giờ
+            case "ENERGY_LEVELS" -> 117.0; // 4 ngày 21 giờ
+            case "BAD_BREATH_GONE" -> 189.0; // 7 ngày 21 giờ
+            case "GUMS_TEETH", "TEETH_BRIGHTNESS" -> 357.0; // 14 ngày 21 giờ
+            case "CIRCULATION", "GUM_TEXTURE" -> 2136.0; // 2 tháng 29 ngày
+            case "IMMUNITY_LUNG_FUNCTION" -> 3312.0; // 4 tháng 18 ngày
+            case "HEART_DISEASE_RISK" -> 8760.0; // 1 năm
+            case "LUNG_CANCER_RISK" -> 87600.0; // 10 năm
+            case "HEART_ATTACK_RISK" -> 131400.0; // 15 năm
+            default -> 24.0;
         };
     }
 
