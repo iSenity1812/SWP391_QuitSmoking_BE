@@ -54,22 +54,22 @@ public class HealthMetricService {
         
         // Define health metrics with target minutes (matching database constraint)
         String[][] healthMetrics = {
-            {"PULSE_RATE", "Sau 20 phút, nhịp tim của bạn sẽ trở về bình thường", "20"},
-            {"OXYGEN_LEVELS", "Sau 8 giờ, nồng độ oxy trong máu sẽ trở về bình thường", "480"},
-            {"CARBON_MONOXIDE", "Sau 24 giờ, carbon monoxide sẽ được loại bỏ khỏi cơ thể", "1440"},
-            {"NICOTINE_EXPELLED", "Sau 72 giờ, nicotine sẽ được loại bỏ khỏi cơ thể", "4320"},
-            {"TASTE_SMELL", "Sau 48 giờ, vị giác và khứu giác của bạn sẽ được cải thiện", "2880"},
-            {"BREATHING", "Sau 72 giờ, hơi thở của bạn sẽ dễ dàng hơn", "4320"},
-            {"ENERGY_LEVELS", "Sau 72 giờ, mức năng lượng của bạn sẽ tăng", "4320"},
-            {"BAD_BREATH_GONE", "Sau 72 giờ, hơi thở hôi sẽ biến mất", "4320"},
-            {"GUMS_TEETH", "Sau 1 tuần, nướu và răng sẽ được cải thiện", "10080"},
-            {"TEETH_BRIGHTNESS", "Sau 2 tuần, răng sẽ sáng hơn", "20160"},
-            {"CIRCULATION", "Sau 2 tuần, tuần hoàn máu sẽ được cải thiện", "20160"},
-            {"GUM_TEXTURE", "Sau 1 tháng, kết cấu nướu sẽ được cải thiện", "43200"},
-            {"IMMUNITY_LUNG_FUNCTION", "Sau 1 tháng, chức năng phổi và miễn dịch sẽ được cải thiện", "43200"},
+            {"PULSE_RATE", "Sau 22 giờ, nhịp tim của bạn sẽ trở về bình thường", "1320"},
+            {"OXYGEN_LEVELS", "Sau 1 ngày 5 giờ, nồng độ oxy trong máu sẽ trở về bình thường", "1740"},
+            {"CARBON_MONOXIDE", "Sau 1 ngày 21 giờ, carbon monoxide sẽ được loại bỏ khỏi cơ thể", "2700"},
+            {"NICOTINE_EXPELLED", "Sau 2 ngày 21 giờ, nicotine sẽ được loại bỏ khỏi cơ thể", "4140"},
+            {"TASTE_SMELL", "Sau 3 ngày 9 giờ, vị giác và khứu giác của bạn sẽ được cải thiện", "4860"},
+            {"BREATHING", "Sau 3 ngày 21 giờ, hơi thở của bạn sẽ dễ dàng hơn", "5580"},
+            {"ENERGY_LEVELS", "Sau 4 ngày 21 giờ, mức năng lượng của bạn sẽ tăng", "7020"},
+            {"BAD_BREATH_GONE", "Sau 7 ngày 21 giờ, hơi thở hôi sẽ biến mất", "11340"},
+            {"GUMS_TEETH", "Sau 14 ngày 21 giờ, nướu và răng sẽ được cải thiện", "21420"},
+            {"TEETH_BRIGHTNESS", "Sau 14 ngày 21 giờ, răng sẽ sáng hơn", "21420"},
+            {"CIRCULATION", "Sau 2 tháng 29 ngày, tuần hoàn máu sẽ được cải thiện", "128160"},
+            {"GUM_TEXTURE", "Sau 2 tháng 29 ngày, kết cấu nướu sẽ được cải thiện", "128160"},
+            {"IMMUNITY_LUNG_FUNCTION", "Sau 4 tháng 18 ngày, chức năng phổi và miễn dịch sẽ được cải thiện", "198720"},
             {"HEART_DISEASE_RISK", "Sau 1 năm, nguy cơ bệnh tim sẽ giảm một nửa", "525600"},
             {"LUNG_CANCER_RISK", "Sau 10 năm, nguy cơ ung thư phổi sẽ giảm một nửa", "5256000"},
-            {"HEART_ATTACK_RISK", "Sau 1 năm, nguy cơ đau tim sẽ giảm một nửa", "525600"}
+            {"HEART_ATTACK_RISK", "Sau 15 năm, nguy cơ đau tim sẽ giảm một nửa", "7884000"}
         };
         
         for (String[] metric : healthMetrics) {
@@ -163,19 +163,7 @@ public class HealthMetricService {
                                                  List<DailySummary> dailySummaries) {
         log.info("Handling completed metrics with penalty");
         
-        if (dailySummaries.isEmpty()) {
-            log.warn("No daily summaries found, skipping completed metrics handling");
-            return;
-        }
-        
-        // Lấy latest daily summary
-        DailySummary latestDailySummary = dailySummaries.stream()
-                .max(Comparator.comparing(DailySummary::getCreatedAt))
-                .orElse(dailySummaries.get(dailySummaries.size() - 1));
-        
-        log.info("Latest daily summary: {}", latestDailySummary.getCreatedAt());
-        
-        // Xử lý từng completed metric
+        // Xử lý từng completed metric với công thức mới
         for (HealthMetric metric : metrics) {
             if (metric.getIsCompleted()) {
                 String metricType = metric.getMetricType();
@@ -183,15 +171,28 @@ public class HealthMetricService {
                 
                 log.info("Processing completed metric: {}", metricType);
                 
-                // Giới hạn penalty không vượt quá target time
-                double limitedPenalty = Math.min(penaltyMinutes, targetMinutes);
+                // CÔNG THỨC MỚI: Progress dựa trên thời gian thực tế + penalty
+                long elapsedMinutes = ChronoUnit.MINUTES.between(quitDate, now);
+                double effectiveElapsedMinutes = Math.max(0, elapsedMinutes - penaltyMinutes);
+                double newProgress;
+                LocalDateTime newTargetDate;
                 
-                // Target date mới = latest daily summary created_at + penalty
-                LocalDateTime newTargetDate = latestDailySummary.getCreatedAt().plusMinutes((long) limitedPenalty);
-                
-                // Progress giảm = progress cũ - (penalty/target_time)
-                double penaltyEffect = (limitedPenalty / targetMinutes) * 100.0;
-                double newProgress = Math.max(0.0, 100.0 - penaltyEffect);
+                if (effectiveElapsedMinutes >= targetMinutes) {
+                    // COMPLETED: Đã đủ thời gian
+                    newProgress = 100.0;
+                    newTargetDate = quitDate.plusMinutes((long) targetMinutes);
+                    log.info("COMPLETED: effective elapsed time >= target time");
+                } else if (effectiveElapsedMinutes <= 0) {
+                    // NOT STARTED: Penalty >= elapsed time
+                    newProgress = 0.0;
+                    newTargetDate = now.plusMinutes((long) targetMinutes);
+                    log.info("NOT STARTED: penalty >= elapsed time, reset to 0%");
+                } else {
+                    // IN PROGRESS: Tính progress theo tỷ lệ thời gian
+                    newProgress = (effectiveElapsedMinutes / targetMinutes) * 100.0;
+                    newTargetDate = quitDate.plusMinutes((long) targetMinutes);
+                    log.info("IN PROGRESS: progress = {:.2f}%", newProgress);
+                }
                 
                 // Cập nhật metric
                 metric.setTargetDate(newTargetDate);
@@ -228,106 +229,25 @@ public class HealthMetricService {
         LocalDateTime targetDate;
         double progress;
         
-        // Kiểm tra nếu metric đã completed trước đó
-        boolean wasCompleted = metric.getIsCompleted();
+        // CÔNG THỨC MỚI: Progress dựa trên thời gian thực tế + penalty
+        long elapsedMinutes = ChronoUnit.MINUTES.between(quitDate, now);
+        double effectiveElapsedMinutes = Math.max(0, elapsedMinutes - penaltyMinutes);
         
-        // Nếu metric đã completed và có penalty - XỬ LÝ ĐẦU TIÊN
-        if (wasCompleted && totalCigarettesSmoked > 0) {
-            log.info("COMPLETED METRIC WITH PENALTY: applying penalty logic");
-            
-            // Lấy latest daily summary để tính target date mới
-            Optional<QuitPlan> activeQuitPlan = quitPlanRepository.findActiveQuitPlanByMember(metric.getUser().getMember());
-            if (activeQuitPlan.isPresent()) {
-                List<DailySummary> dailySummaries = dailySummaryRepository.findByQuitPlan(activeQuitPlan.get());
-                
-                if (!dailySummaries.isEmpty()) {
-                    // Lấy latest daily summary
-                    DailySummary latestDailySummary = dailySummaries.stream()
-                            .max(Comparator.comparing(DailySummary::getCreatedAt))
-                            .orElse(dailySummaries.get(dailySummaries.size() - 1));
-                    
-                    // Giới hạn penalty không vượt quá target time
-                    double limitedPenalty = Math.min(penaltyMinutes, targetMinutes);
-                    
-                    // Target date mới = latest daily summary created_at + penalty
-                    targetDate = latestDailySummary.getCreatedAt().plusMinutes((long) limitedPenalty);
-                    
-                    // Progress giảm = progress cũ - (penalty/target_time)
-                    double penaltyEffect = (limitedPenalty / targetMinutes) * 100.0;
-                    progress = Math.max(0.0, 100.0 - penaltyEffect);
-                    
-                    log.info("COMPLETED PENALTY: latest daily summary={}, limited penalty={} minutes", 
-                            latestDailySummary.getCreatedAt(), limitedPenalty);
-                    log.info("COMPLETED PENALTY: new target date={}, progress reduced from 100% to {:.2f}%", 
-                            targetDate, progress);
-                } else {
-                    // Fallback nếu không có daily summary
-                    targetDate = now.plusMinutes((long) targetMinutes);
-                    progress = 0.0;
-                    log.warn("COMPLETED PENALTY: no daily summaries found, using fallback");
-                }
-            } else {
-                // Fallback nếu không có quit plan
-                targetDate = now.plusMinutes((long) targetMinutes);
-                progress = 0.0;
-                log.warn("COMPLETED PENALTY: no active quit plan found, using fallback");
-            }
-        } else if (wasCompleted && totalCigarettesSmoked == 0) {
-            // Nếu metric đã completed và không có penalty: giữ nguyên
+        if (effectiveElapsedMinutes >= targetMinutes) {
+            // COMPLETED: Đã đủ thời gian
             progress = 100.0;
-            targetDate = metric.getTargetDate(); // Giữ nguyên target date cũ
-            log.info("KEEP COMPLETED: metric was already completed, keeping 100%");
+            targetDate = quitDate.plusMinutes((long) targetMinutes);
+            log.info("COMPLETED: effective elapsed time >= target time");
+        } else if (effectiveElapsedMinutes <= 0) {
+            // NOT STARTED: Penalty >= elapsed time
+            progress = 0.0;
+            targetDate = now.plusMinutes((long) targetMinutes);
+            log.info("NOT STARTED: penalty >= elapsed time, reset to 0%");
         } else {
-            // Logic cho metrics chưa completed hoặc đã bị penalty trước đó
-            log.info("INCOMPLETE METRIC OR PREVIOUSLY PENALIZED: applying logic");
-            
-            // Kiểm tra nếu metric có hasRegressed = true (đã bị penalty trước đó)
-            if (metric.getHasRegressed() && totalCigarettesSmoked > 0) {
-                log.info("PREVIOUSLY PENALIZED METRIC: calculating progress from target date");
-                
-                // Sử dụng target date hiện tại để tính progress
-                targetDate = metric.getTargetDate();
-                
-                // Tính progress dựa trên target date (không phải quit date)
-                if (now.isAfter(targetDate) || now.isEqual(targetDate)) {
-                    progress = 100.0; // Đã hoàn thành
-                } else {
-                    // Tính progress dựa trên thời gian đã trôi qua so với target date
-                    long elapsedMinutes = ChronoUnit.MINUTES.between(quitDate, now);
-                    long totalRequiredMinutes = ChronoUnit.MINUTES.between(quitDate, targetDate);
-                    progress = (elapsedMinutes / (double) totalRequiredMinutes) * 100.0;
-                }
-                
-                log.info("PREVIOUSLY PENALIZED: targetDate={}, progress={:.2f}%", targetDate, progress);
-            } else {
-                // Logic cho metrics chưa completed (giữ nguyên logic cũ)
-                log.info("INCOMPLETE METRIC: applying original logic");
-                
-                // Tính target date gốc (không có penalty)
-                LocalDateTime originalTargetDate = quitDate.plusMinutes((long) targetMinutes);
-                
-                if (penaltyMinutes >= targetMinutes) {
-                    // RESET CASE: Penalty >= target time
-                    targetDate = now.plusMinutes((long) targetMinutes);
-                    progress = 0.0; // Reset về 0%
-                    log.info("RESET CASE: penalty >= target, reset to 0%");
-                } else {
-                    // PENALTY CASE: Penalty < target time
-                    long remainingMinutes = ChronoUnit.MINUTES.between(now, originalTargetDate);
-                    long newRemainingMinutes = remainingMinutes + (long) penaltyMinutes;
-                    newRemainingMinutes = Math.min(newRemainingMinutes, (long) targetMinutes);
-                    long penaltyEffectMinutes = newRemainingMinutes - remainingMinutes;
-                    targetDate = originalTargetDate.plusMinutes(penaltyEffectMinutes);
-                    
-                    // Tính progress từ quit date
-                    long elapsedMinutesFromQuit = ChronoUnit.MINUTES.between(quitDate, now);
-                    progress = (elapsedMinutesFromQuit / targetMinutes) * 100.0;
-                    
-                    log.info("PENALTY CASE: remaining={} minutes, new remaining={} minutes, penalty effect={} minutes", 
-                            remainingMinutes, newRemainingMinutes, penaltyEffectMinutes);
-                    log.info("PENALTY CASE: progress: {:.2f}%", progress);
-                }
-            }
+            // IN PROGRESS: Tính progress theo tỷ lệ thời gian
+            progress = (effectiveElapsedMinutes / targetMinutes) * 100.0;
+            targetDate = quitDate.plusMinutes((long) targetMinutes);
+            log.info("IN PROGRESS: progress = {:.2f}%", progress);
         }
         
         log.info("Target date calculation: final={}", targetDate);
@@ -399,16 +319,20 @@ public class HealthMetricService {
      */
     private double getTargetMinutesFromMetricType(String metricType) {
         return switch (metricType) {
-            case "PULSE_RATE" -> 20.0;
-            case "OXYGEN_LEVELS" -> 480.0;
-            case "CARBON_MONOXIDE" -> 1440.0;
-            case "NICOTINE_EXPELLED", "BREATHING", "ENERGY_LEVELS", "BAD_BREATH_GONE" -> 4320.0;
-            case "TASTE_SMELL" -> 2880.0;
-            case "GUMS_TEETH" -> 10080.0;
-            case "TEETH_BRIGHTNESS", "CIRCULATION" -> 20160.0;
-            case "GUM_TEXTURE", "IMMUNITY_LUNG_FUNCTION" -> 43200.0;
-            case "HEART_DISEASE_RISK", "HEART_ATTACK_RISK" -> 525600.0;
-            case "LUNG_CANCER_RISK" -> 5256000.0;
+            case "PULSE_RATE" -> 1320.0; // 22 giờ
+            case "OXYGEN_LEVELS" -> 1740.0; // 1 ngày 5 giờ
+            case "CARBON_MONOXIDE" -> 2700.0; // 1 ngày 21 giờ
+            case "NICOTINE_EXPELLED" -> 4140.0; // 2 ngày 21 giờ
+            case "TASTE_SMELL" -> 4860.0; // 3 ngày 9 giờ
+            case "BREATHING" -> 5580.0; // 3 ngày 21 giờ
+            case "ENERGY_LEVELS" -> 7020.0; // 4 ngày 21 giờ
+            case "BAD_BREATH_GONE" -> 11340.0; // 7 ngày 21 giờ
+            case "GUMS_TEETH", "TEETH_BRIGHTNESS" -> 21420.0; // 14 ngày 21 giờ
+            case "CIRCULATION", "GUM_TEXTURE" -> 128160.0; // 2 tháng 29 ngày
+            case "IMMUNITY_LUNG_FUNCTION" -> 198720.0; // 4 tháng 18 ngày
+            case "HEART_DISEASE_RISK" -> 525600.0; // 1 năm
+            case "LUNG_CANCER_RISK" -> 5256000.0; // 10 năm
+            case "HEART_ATTACK_RISK" -> 7884000.0; // 15 năm
             default -> 1440.0;
         };
     }
@@ -719,31 +643,20 @@ public class HealthMetricService {
             double targetMinutes = getTargetMinutesFromMetricType(metricType);
             double penaltyMinutes = cigarettes * PENALTY_PER_CIGARETTE;
             
-            // Tính target date ban đầu
-            LocalDateTime originalTargetDate = quitDate.plusMinutes((long) targetMinutes);
-            
-            // Tính progress ban đầu
-            double originalProgress = calculateProgressFromTargetDate(originalTargetDate, now, targetMinutes);
-            
             log.info("{}", testName);
             log.info("  Metric: {} ({} phút)", metricType, targetMinutes);
             log.info("  Cigarettes: {} ({} phút penalty)", cigarettes, penaltyMinutes);
-            log.info("  Original target date: {}", originalTargetDate);
-            log.info("  Original progress: {:.2f}%", originalProgress);
             
+            // CÔNG THỨC MỚI: Progress = ((targetMinutes - penaltyMinutes) / targetMinutes) * 100%
             if (penaltyMinutes >= targetMinutes) {
                 // Reset case
-                LocalDateTime newTargetDate = now.plusMinutes((long) targetMinutes);
                 double newProgress = 0.0; // Reset về 0%
                 log.info("  RESET CASE: penalty >= target");
-                log.info("  New target date: {}", newTargetDate);
                 log.info("  New progress: {:.2f}% (reset to 0%)", newProgress);
             } else {
-                // Penalty case
-                LocalDateTime newTargetDate = originalTargetDate.plusMinutes((long) penaltyMinutes);
-                double newProgress = calculateProgressFromTargetDate(newTargetDate, now, targetMinutes);
-                log.info("  PENALTY CASE: penalty < target");
-                log.info("  New target date: {}", newTargetDate);
+                // Normal case
+                double newProgress = ((targetMinutes - penaltyMinutes) / targetMinutes) * 100.0;
+                log.info("  NORMAL CASE: penalty < target");
                 log.info("  New progress: {:.2f}%", newProgress);
             }
             
