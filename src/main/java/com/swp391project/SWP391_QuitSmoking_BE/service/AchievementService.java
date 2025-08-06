@@ -42,6 +42,7 @@ public class AchievementService {
     private final DailySummaryRepository dailySummaryRepository;
     private final EmailService emailService;
     private final NotificationService notificationService;
+    private final EmailNotificationService emailNotificationService;
 
     @EventListener
     public void handleUserResistedCravingEvent(UserResistedCravingEvent event) {
@@ -255,16 +256,9 @@ public class AchievementService {
         memberAchievementRepository.save(memberAchievement);
         // Gửi email chúc mừng
         Member member = memberRepository.findById(memberId).orElse(null);
-        if (member != null && member.getUser() != null && member.getUser().getEmail() != null) {
-            String email = member.getUser().getEmail();
-            String subject = "Chúc mừng bạn đã đạt thành tựu mới!";
-            // Chuẩn bị biến động cho template
-            Map<String, Object> templateVars = new java.util.HashMap<>();
-            templateVars.put("username", member.getUser().getUsername());
-            templateVars.put("achievementName", achievement.getName());
-            templateVars.put("achievementDescription", achievement.getDescription());
-            EmailDetail emailDetail = new EmailDetail(email, subject, null, "achievementTemplate.html", templateVars);
-            emailService.sendEmail(emailDetail);
+        if (member != null && member.getUser() != null) {
+            // Sử dụng EmailNotificationService để gửi email achievement
+            emailNotificationService.sendAchievementEmail(member.getUser(), achievement);
         }
         // Tạo notification achievement và gửi WebSocket real-time
         if (member != null && member.getUser() != null) {

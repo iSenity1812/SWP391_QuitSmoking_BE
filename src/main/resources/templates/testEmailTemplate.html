@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Email - QuitTogether</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            color: #10b981;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .title {
+            color: #1f2937;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .test-info {
+            background-color: #f3f4f6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        .highlight {
+            color: #10b981;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🧪 QuitTogether</div>
+            <h1 class="title">Test Email</h1>
+        </div>
+        
+        <div class="content">
+            <p>Xin chào <span class="highlight" th:text="${username}">User</span>,</p>
+            
+            <p>Đây là email test để kiểm tra cấu hình email của hệ thống QuitTogether.</p>
+            
+            <div class="test-info">
+                <strong>Thông tin test:</strong><br>
+                <strong>Tin nhắn:</strong> <span th:text="${testMessage}">Test message</span><br>
+                <strong>Thời gian:</strong> <span th:text="${currentDate}">Current date</span>
+            </div>
+            
+            <p>Nếu bạn nhận được email này, có nghĩa là:</p>
+            <ul>
+                <li>✅ Cấu hình SMTP đã hoạt động</li>
+                <li>✅ App password đã được tích hợp thành công</li>
+                <li>✅ Email service đã sẵn sàng gửi notifications</li>
+                <li>✅ Template engine đã hoạt động</li>
+            </ul>
+            
+            <p>Cảm ơn bạn đã test hệ thống email của QuitTogether!</p>
+        </div>
+        
+        <div class="footer">
+            <p>Trân trọng,<br>Đội ngũ QuitTogether</p>
+            <p>© 2024 QuitTogether. Tất cả quyền được bảo lưu.</p>
+        </div>
+    </div>
+</body>
+</html> 

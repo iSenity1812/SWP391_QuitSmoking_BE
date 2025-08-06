@@ -40,6 +40,9 @@ public class AuthenticationService implements UserDetailsService {
 
     @Autowired
     private EmailService emailService;
+    
+    @Autowired
+    private EmailNotificationService emailNotificationService;
 
 
     @Autowired
@@ -130,29 +133,14 @@ public class AuthenticationService implements UserDetailsService {
 
         String jwtToken = jwtUtil.generateToken(savedUser);
 
-        // Gửi mail chào mừng khi register  thành công (Ko xài thì comment lại đoạn này)
-//        try {
-//            String recipient = savedUser.getEmail();
-//            String subject = "Chào mừng bạn đã đến với ứng dụng QuitTogether!";
-//            Map<String, Object> templateVariables = new HashMap<>();
-//
-//            // Thêm các biến cần thiết vào templateVariables
-//            templateVariables.put("name", savedUser.getUsername());
-//            templateVariables.put("link", "http://localhost:5173/login"); // Ví dụ về link đến trang chào mừng
-//            templateVariables.put("buttonText", "Bắt đầu ngay"); // Văn bản nút trong email
-//            templateVariables.put("websiteUrl", "http://localhost:5173"); // URL của trang web
-//            templateVariables.put("supportUrl", "http://localhost:5173/support"); // URL hỗ trợ
-//
-//            String body = null;
-//            String templateName = "welcomeTemplate"; // Tên template email chào mừng
-//            EmailDetail emailDetail = new EmailDetail(recipient, subject, body, templateName, templateVariables);
-//            emailService.sendEmail(emailDetail);
-//            log.info("Welcome email sent successfully to: {}", recipient);
-//        } catch (Exception e) {
-//            log.error("Failed to send welcome email to {}: {}", savedUser.getEmail(), e.getMessage(), e);
-//            throw new RuntimeException("Failed to send welcome email: " + e.getMessage());
-//        }
-        ///-------------------------------------------------///
+        // Gửi email chào mừng khi register thành công
+        try {
+            emailNotificationService.sendWelcomeEmail(savedUser);
+            log.info("Welcome email sent successfully to: {}", savedUser.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send welcome email to {}: {}", savedUser.getEmail(), e.getMessage(), e);
+            // Không throw exception để không ảnh hưởng đến quá trình đăng ký
+        }
 
         // Chuyển đổi User sang AccountResponse để trả về
         AccountResponse accountResponse = modelMapper.map(savedUser, AccountResponse.class);

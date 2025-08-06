@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chúc mừng Milestone - QuitTogether</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            color: #10b981;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .title {
+            color: #1f2937;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .milestone-card {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .milestone-value {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .milestone-type {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        .achievement-date {
+            background-color: #f3f4f6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 15px 0;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        .highlight {
+            color: #10b981;
+            font-weight: bold;
+        }
+        .motivation {
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🏆 QuitTogether</div>
+            <h1 class="title">Chúc mừng Milestone mới!</h1>
+        </div>
+        
+        <div class="content">
+            <p>Xin chào <span class="highlight" th:text="${username}">User</span>,</p>
+            
+            <p>Chúng tôi rất vui mừng thông báo rằng bạn vừa đạt được một milestone quan trọng trong hành trình bỏ thuốc của mình!</p>
+            
+            <div class="milestone-card">
+                <div class="milestone-type" th:text="${milestoneType}">Milestone Type</div>
+                <div class="milestone-value" th:text="${milestoneValue}">0</div>
+                <div>Đã hoàn thành!</div>
+            </div>
+            
+            <div class="achievement-date">
+                <strong>Ngày đạt được:</strong> <span th:text="${achievedDate}">Date</span>
+            </div>
+            
+            <div class="motivation">
+                <strong>🎉 Chúc mừng bạn!</strong><br>
+                Mỗi milestone là một bước tiến quan trọng trong hành trình bỏ thuốc của bạn. 
+                Hãy tiếp tục duy trì sự kiên trì và quyết tâm!
+            </div>
+            
+            <p>Hãy tiếp tục theo dõi tiến độ của bạn và đạt được những milestone tiếp theo. 
+            Mỗi ngày không hút thuốc là một chiến thắng!</p>
+        </div>
+        
+        <div class="footer">
+            <p>Trân trọng,<br>Đội ngũ QuitTogether</p>
+            <p>Tiếp tục hành trình bỏ thuốc cùng chúng tôi!</p>
+            <p>© 2024 QuitTogether. Tất cả quyền được bảo lưu.</p>
+        </div>
+    </div>
+</body>
+</html> 

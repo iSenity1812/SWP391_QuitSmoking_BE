@@ -54,6 +54,8 @@ public class HealthController {
             User user = (User) authentication.getPrincipal();
             List<HealthMetricDTO> metrics = healthMetricService.getUserHealthMetrics(user);
             
+
+            
             log.info("Health metrics retrieved for user: {}", user.getUserId());
             return ResponseEntity.ok(ApiResponse.success(metrics, "Lấy health metrics thành công"));
         } catch (Exception e) {
